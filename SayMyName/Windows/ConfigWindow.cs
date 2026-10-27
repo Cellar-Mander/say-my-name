@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
@@ -10,14 +12,15 @@ namespace SayMyName.Windows;
 
 public class ConfigWindow : Window, IDisposable
 {
-    private static readonly ChatChannel[] Channels = Enum.GetValues<ChatChannel>();
+    // Rows, channels shared by the most triggers first so the full rows sit together
+    private static readonly IReadOnlyList<ChatChannel> Channels = Triggers.ChannelsByUsage;
 
     private readonly Configuration configuration;
 
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
-    private readonly string[] channelLabels = new string[Channels.Length];
-    private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Length];
+    private readonly string[] channelLabels = new string[Channels.Count];
+    private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
 
     public ConfigWindow(Plugin plugin) : base("Say My Name###SayMyNameSettings")
     {
@@ -35,13 +38,17 @@ public class ConfigWindow : Window, IDisposable
         {
             var kind = Triggers.All[t];
             triggerLabels[t] = TriggerLabel(kind);
-            foreach (var channel in Triggers.AllowedChannels(kind))
+            var allowed = Triggers.AllowedChannels(kind);
+            for (var c = 0; c < Channels.Count; c++)
             {
-                channelCheckboxIds[t, (int)channel] = $"##{kind}-{channel}";
+                if (allowed.Contains(Channels[c]))
+                {
+                    channelCheckboxIds[t, c] = $"##{kind}-{Channels[c]}";
+                }
             }
         }
 
-        for (var c = 0; c < Channels.Length; c++)
+        for (var c = 0; c < Channels.Count; c++)
         {
             channelLabels[c] = ChannelLabel(Channels[c]);
         }
@@ -81,7 +88,7 @@ public class ConfigWindow : Window, IDisposable
         }
         ImGui.TableHeadersRow();
 
-        for (var c = 0; c < Channels.Length; c++)
+        for (var c = 0; c < Channels.Count; c++)
         {
             ImGui.TableNextRow();
             ImGui.TableNextColumn();

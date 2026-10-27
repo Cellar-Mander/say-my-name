@@ -23,6 +23,15 @@ public class TriggersTests
     }
 
     [Fact]
+    public void ChannelsUsableByAllTriggersComeFirstThenTheRestInOrder()
+    {
+        ChatChannel[] first = [ChatChannel.Say, ChatChannel.StandardEmote, ChatChannel.CustomEmote];
+        Assert.Equal(
+            [.. first, .. Enum.GetValues<ChatChannel>().Except(first)],
+            Triggers.ChannelsByUsage);
+    }
+
+    [Fact]
     public void OnlyTargetSpeaksIsOffByDefault()
     {
         Assert.Equal(
