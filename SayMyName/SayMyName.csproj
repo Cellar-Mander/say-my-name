@@ -18,4 +18,8 @@ This is shown when the user expands the plugin entry in /xlplugins.</Description
       <Visible>false</Visible>
     </Content>
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SayMyName.Core\SayMyName.Core.csproj" />
+  </ItemGroup>
 </Project>

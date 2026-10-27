@@ -16,6 +16,18 @@ dotnet build
 
 Output: `SayMyName/bin/x64/Debug/SayMyName.dll`
 
+Warnings are treated as errors in every project (`Directory.Build.props`).
+
+## Testing
+
+Game-independent logic lives in `SayMyName.Core` (plain `net10.0`, no Dalamud reference), so it can be tested anywhere:
+
+```bash
+dotnet test SayMyName.Core.Tests
+```
+
+CI runs these tests on Linux for pushes and PRs to `main`.
+
 ## Loading in-game
 
 1. `/xlsettings` → Experimental → add the full path of `SayMyName.dll` to Dev Plugin Locations.

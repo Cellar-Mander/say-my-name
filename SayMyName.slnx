@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="SayMyName.Core.Tests/SayMyName.Core.Tests.csproj" />
+  <Project Path="SayMyName.Core/SayMyName.Core.csproj" />
   <Project Path="SayMyName/SayMyName.csproj">
     <Platform Project="x64" />
   </Project>
