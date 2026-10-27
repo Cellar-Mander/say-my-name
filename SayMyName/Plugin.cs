@@ -1,3 +1,4 @@
+using System.Reflection;
 using Dalamud.Game.Command;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -14,10 +15,12 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
 
     private const string CommandName = "/saymyname";
 
     public Configuration Configuration { get; init; }
+    public NameAlert NameAlert { get; init; }
 
     public readonly WindowSystem WindowSystem = new("SayMyName");
     private ConfigWindow ConfigWindow { get; init; }
@@ -26,6 +29,11 @@ public sealed class Plugin : IDalamudPlugin
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Normalize();
+
+        // Commit hash included, to check which checkout's build the game has loaded
+        Log.Information($"Say My Name {typeof(Plugin).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} loaded");
+
+        NameAlert = new NameAlert(Configuration);
 
         ConfigWindow = new ConfigWindow(this);
         WindowSystem.AddWindow(ConfigWindow);
@@ -53,6 +61,7 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
+        NameAlert.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }

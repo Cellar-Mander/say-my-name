@@ -27,3 +27,9 @@ These rules target known weaknesses of LLM-written code. IDs and grades refer to
 
 ## Don't assert
 TDD or coverage targets as quality guarantees (QUAL-A3, QUAL-A4); "language X has fewer bugs" or static typing reduces bugs, unqualified (CODE-3, CODE-2); "premature optimisation" as a reason to accept a bad algorithm (PERF-A1).
+
+# In-game testing
+
+- Only one build can be in the game at a time. Deploy with `scripts/dev-plugin deploy <task-ref>`, and only when the user wants to test in-game; never copy builds into the dev folder by other means.
+- If the deploy is refused, another checkout is being tested: tell the user who holds it (`scripts/dev-plugin status`) and wait. Never release a claim you don't hold.
+- Run `scripts/dev-plugin release` only once the user says testing is finished. Clearing someone else's or a stale claim is the user's job; a hook blocks agents from `--force` and from touching the claim directly.

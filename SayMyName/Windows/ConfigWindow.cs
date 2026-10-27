@@ -19,11 +19,14 @@ public class ConfigWindow : Window, IDisposable
     private const float DisabledTriggerAlpha = 0.3f;
 
     private readonly Configuration configuration;
+    private readonly NameAlert nameAlert;
 
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
     private readonly string[] columnHeaders = new string[Triggers.All.Count];
     private readonly string[] channelLabels = new string[Channels.Count];
+    private static readonly string[] SoundLabels =
+        [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
     private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
 
     public ConfigWindow(Plugin plugin) : base("Say My Name###SayMyNameSettings")
@@ -37,6 +40,7 @@ public class ConfigWindow : Window, IDisposable
         SizeCondition = ImGuiCond.FirstUseEver;
 
         configuration = plugin.Configuration;
+        nameAlert = plugin.NameAlert;
 
         for (var t = 0; t < Triggers.All.Count; t++)
         {
@@ -73,7 +77,15 @@ public class ConfigWindow : Window, IDisposable
                 settings.Enabled = enabled;
                 configuration.Save();
             }
+
+            if (Triggers.All[t] == TriggerKind.Name)
+            {
+                DrawNameOptions(settings.Enabled);
+            }
         }
+
+        ImGuiHelpers.ScaledDummy(6f);
+        DrawSoundOptions();
 
         ImGuiHelpers.ScaledDummy(6f);
         ImGui.TextUnformatted("Listen on these channels (tells are never checked):");
@@ -141,6 +153,62 @@ public class ConfigWindow : Window, IDisposable
                     }
                 }
             }
+        }
+    }
+
+    private void DrawNameOptions(bool enabled)
+    {
+        using var indent = ImRaii.PushIndent();
+        using var disabled = ImRaii.Disabled(!enabled);
+        var caseSensitive = configuration.NameCaseSensitive;
+        if (ImGui.Checkbox("Match case (Rose, but not \"a rose\")", ref caseSensitive))
+        {
+            configuration.NameCaseSensitive = caseSensitive;
+            configuration.Save();
+        }
+    }
+
+    private void DrawSoundOptions()
+    {
+        var playSound = configuration.PlaySound;
+        if (ImGui.Checkbox("Play a sound", ref playSound))
+        {
+            configuration.PlaySound = playSound;
+            configuration.Save();
+        }
+
+        using var indent = ImRaii.PushIndent();
+        using var disabled = ImRaii.Disabled(!playSound);
+        ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);
+        using (var combo = ImRaii.Combo("Sound##sound", SoundLabels[configuration.SoundEffect - Configuration.MinSoundEffect]))
+        {
+            if (combo.Success)
+            {
+                for (var i = 0; i < SoundLabels.Length; i++)
+                {
+                    var soundEffect = Configuration.MinSoundEffect + i;
+                    if (ImGui.Selectable(SoundLabels[i], soundEffect == configuration.SoundEffect))
+                    {
+                        configuration.SoundEffect = soundEffect;
+                        configuration.Save();
+                    }
+                }
+            }
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Test"))
+        {
+            nameAlert.PlaySound();
+        }
+
+        ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);
+        var cooldown = configuration.CooldownSeconds;
+        if (ImGui.SliderInt("Quiet time between sounds##cooldown", ref cooldown, 0, Configuration.MaxCooldownSeconds, "%d s",
+                ImGuiSliderFlags.AlwaysClamp))
+        {
+            configuration.CooldownSeconds = cooldown;
+            configuration.Save();
         }
     }
 
