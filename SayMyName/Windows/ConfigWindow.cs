@@ -15,10 +15,14 @@ public class ConfigWindow : Window, IDisposable
     // Rows, channels shared by the most triggers first so the full rows sit together
     private static readonly IReadOnlyList<ChatChannel> Channels = Triggers.ChannelsByUsage;
 
+    // ImGui's default (0.6) is easy to miss on a disabled trigger's column
+    private const float DisabledTriggerAlpha = 0.3f;
+
     private readonly Configuration configuration;
 
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
+    private readonly string[] columnHeaders = new string[Triggers.All.Count];
     private readonly string[] channelLabels = new string[Channels.Count];
     private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
 
@@ -38,6 +42,7 @@ public class ConfigWindow : Window, IDisposable
         {
             var kind = Triggers.All[t];
             triggerLabels[t] = TriggerLabel(kind);
+            columnHeaders[t] = ColumnHeader(kind);
             var allowed = Triggers.AllowedChannels(kind);
             for (var c = 0; c < Channels.Count; c++)
             {
@@ -80,13 +85,27 @@ public class ConfigWindow : Window, IDisposable
             return;
         }
 
+        using var dimmed = ImRaii.PushStyle(ImGuiStyleVar.DisabledAlpha, DisabledTriggerAlpha);
+
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableSetupColumn("Channel", ImGuiTableColumnFlags.WidthStretch);
-        foreach (var kind in Triggers.All)
+        foreach (var header in columnHeaders)
         {
-            ImGui.TableSetupColumn(ColumnHeader(kind));
+            ImGui.TableSetupColumn(header);
         }
-        ImGui.TableHeadersRow();
+
+        // Header row drawn by hand so a disabled trigger's header is dimmed with its column
+        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+        ImGui.TableNextColumn();
+        ImGui.TableHeader("Channel");
+        for (var t = 0; t < Triggers.All.Count; t++)
+        {
+            ImGui.TableNextColumn();
+            using (ImRaii.Disabled(!configuration.Triggers[Triggers.All[t]].Enabled))
+            {
+                ImGui.TableHeader(columnHeaders[t]);
+            }
+        }
 
         for (var c = 0; c < Channels.Count; c++)
         {
