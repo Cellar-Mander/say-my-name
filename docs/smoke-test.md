@@ -74,6 +74,18 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): no sound.
 - [ ] Real chat: say your own name in /say: no sound.
 
+### Custom trigger
+
+Turn off the Name trigger first, so only custom words can sound.
+
+- [ ] Enter `raid` and `good morning` on separate lines. `/saymyname inject Say A Friend raid tonight?`: sound. Same with `Good morning!` and `RAID`.
+- [ ] `inject Say A Friend afraid`, `... good`, `... morning`: no sound.
+- [ ] Tick Match case for custom words: `RAID` no longer sounds, `raid` still does.
+- [ ] Untick Say for Custom, `inject Say A Friend raid`: no sound. Inject on Party: sound.
+- [ ] `/saymyname inject Say <Me> raid` (you as the sender): no sound.
+- [ ] Clear the list: nothing sounds. Untick the Custom trigger: nothing sounds.
+- [ ] Type a list, close the window without clicking elsewhere, reload the plugin: the list is kept.
+
 ### Targeted trigger
 
 Set quiet time to 0 so every alert sounds, and turn on verbose logging (`/xllog` → log level Verbose) to see `Targeted trigger:` lines.

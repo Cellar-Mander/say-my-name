@@ -70,6 +70,8 @@ public class ConfigurationRoundTripTests
         config.PlaySound = false;
         config.SoundEffect = 7;
         config.CooldownSeconds = 0;
+        config.CustomWords = "raid\ngood morning";
+        config.CustomWordsCaseSensitive = true;
 
         var loaded = SaveAndLoad(config);
 
@@ -77,6 +79,8 @@ public class ConfigurationRoundTripTests
         Assert.False(loaded.PlaySound);
         Assert.Equal(7, loaded.SoundEffect);
         Assert.Equal(0, loaded.CooldownSeconds);
+        Assert.Equal("raid\ngood morning", loaded.CustomWords);
+        Assert.True(loaded.CustomWordsCaseSensitive);
     }
 
     [Fact]
@@ -117,6 +121,15 @@ public class ConfigurationRoundTripTests
         var expected = Triggers.Default(TriggerKind.Custom);
         Assert.Equal(expected.Enabled, loaded.Triggers[TriggerKind.Custom].Enabled);
         Assert.Equal(expected.Channels.Order(), loaded.Triggers[TriggerKind.Custom].Channels.Order());
+    }
+
+    [Fact]
+    public void OverlongCustomWordsAreCutToTheLimit()
+    {
+        var config = Fresh();
+        config.CustomWords = new string('a', ConfigurationBase.MaxCustomWordsLength + 10);
+
+        Assert.Equal(ConfigurationBase.MaxCustomWordsLength, SaveAndLoad(config).CustomWords.Length);
     }
 
     [Fact]
