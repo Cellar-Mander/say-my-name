@@ -19,7 +19,7 @@ public class ConfigWindow : Window, IDisposable
     private const float DisabledTriggerAlpha = 0.3f;
 
     private readonly Configuration configuration;
-    private readonly NameAlert nameAlert;
+    private readonly AlertSound alertSound;
 
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
@@ -40,7 +40,7 @@ public class ConfigWindow : Window, IDisposable
         SizeCondition = ImGuiCond.FirstUseEver;
 
         configuration = plugin.Configuration;
-        nameAlert = plugin.NameAlert;
+        alertSound = plugin.AlertSound;
 
         for (var t = 0; t < Triggers.All.Count; t++)
         {
@@ -199,7 +199,7 @@ public class ConfigWindow : Window, IDisposable
         ImGui.SameLine();
         if (ImGui.Button("Test"))
         {
-            nameAlert.PlaySound();
+            alertSound.Play();
         }
 
         ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);

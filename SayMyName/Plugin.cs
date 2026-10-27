@@ -17,12 +17,16 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+    [PluginService] internal static IGameInteropProvider GameInterop { get; private set; } = null!;
 
     private const string CommandName = "/saymyname";
 
     public Configuration Configuration { get; init; }
-    public NameAlert NameAlert { get; init; }
-    // Dev plugin only: injecting fake chat is a testing tool, not a user feature
+    public AlertSound AlertSound { get; init; }
+    private NameAlert NameAlert { get; init; }
+    private TargetedAlert TargetedAlert { get; init; }
+    // Dev plugin only: faking chat and targeting is a testing tool, not a user feature
     private TestHarness? TestHarness { get; init; }
 
     public readonly WindowSystem WindowSystem = new("SayMyName");
@@ -36,10 +40,12 @@ public sealed class Plugin : IDalamudPlugin
         // Commit hash included, to check which checkout's build the game has loaded
         Log.Information($"Say My Name {typeof(Plugin).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} loaded");
 
-        NameAlert = new NameAlert(Configuration);
+        AlertSound = new AlertSound(Configuration);
+        NameAlert = new NameAlert(Configuration, AlertSound);
+        TargetedAlert = new TargetedAlert(Configuration, AlertSound);
         if (PluginInterface.IsDev)
         {
-            TestHarness = new TestHarness();
+            TestHarness = new TestHarness(TargetedAlert);
         }
 
         ConfigWindow = new ConfigWindow(this);
@@ -70,25 +76,20 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
-        NameAlert.Dispose();
+        // The harness first: it unhooks itself from TargetedAlert
         TestHarness?.Dispose();
+        NameAlert.Dispose();
+        TargetedAlert.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
 
     private void OnCommand(string command, string args)
     {
-        const string inject = "inject ";
-        if (TestHarness != null && args.StartsWith(inject, StringComparison.OrdinalIgnoreCase))
+        if (TestHarness?.Handle(args) != true)
         {
-            if (!TestHarness.Inject(args[inject.Length..]))
-            {
-                ChatGui.PrintError($"Usage: {CommandName} {TestHarness.Usage}");
-            }
-            return;
+            ToggleConfigUi();
         }
-
-        ToggleConfigUi();
     }
 
     public void ToggleConfigUi() => ConfigWindow.Toggle();

@@ -22,7 +22,17 @@ Test harness: ChatMessage got Say from Test Player: hello Rose
 Test harness: ChatMessageUnhandled got Say (source=...) from Test Player
 ```
 
-Malformed arguments print the usage as a chat error. Plugins installed normally (not as a dev plugin) don't have the subcommand.
+For the Targeted trigger, two more:
+
+```
+/saymyname targeting-me <First> <Last>   # injected lines from this name count as targeting you
+/saymyname targeting-me                  # stop pretending
+/saymyname emotes                        # toggle logging every emote the Targeted trigger sees
+```
+
+`targeting-me` only skips the search for the sender among nearby players; everything else in the trigger runs as normal. With `emotes` on, each emote nearby logs a line like `Test harness: emote 105 from A Friend at Some Player, logged=True`, with `at you` when it is aimed at you.
+
+Malformed arguments print the usage as a chat error. Plugins installed normally (not as a dev plugin) don't have these subcommands.
 
 Below, *Me* is your character's name and *A Friend* any other name.
 
@@ -56,3 +66,26 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] Untick Play a sound: no sound.
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): no sound.
 - [ ] Real chat: say your own name in /say: no sound.
+
+### Targeted trigger
+
+Set quiet time to 0 so every alert sounds, and turn on verbose logging (`/xllog` → log level Verbose) to see `Targeted trigger:` lines.
+
+Solo:
+
+- [ ] `/xllog` has no `emote function not found` warning after loading.
+- [ ] `/saymyname emotes`, then wait somewhere busy (e.g. a city aetheryte plaza): other players' emotes log `Test harness: emote ...` lines. For each one that also shows in chat (e.g. "X pets Y"), the log names the same emoter and target with `logged=True`. Lines with `logged=False` match emotes you saw but chat didn't show. If no lines appear while players emote, the hook doesn't see network emotes and the emote cases below will fail. `/saymyname emotes` again turns it off.
+- [ ] `/saymyname targeting-me A Friend`, then `/saymyname inject Say A Friend thank you`: sound. Same with `your`, `yours`, `you're`, and on `CustomEmote`.
+- [ ] Still pretending: `inject Say A Friend hello`: no sound. `inject Say Someone Else thank you`: no sound. `inject Party A Friend thank you`: no sound (not a Targeted channel).
+- [ ] Untick Say for Targeted, `inject Say A Friend thank you`: no sound. `/saymyname targeting-me` (stop pretending), tick Say again, same inject: no sound.
+
+With a second player (*A Friend*, e.g. an alt on another client) near you:
+
+- [ ] A Friend targets you and uses `/pet`: one sound, and the log shows `emote ... at you, logged=True`.
+- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`. Same with their emote log messages turned off in their settings.
+- [ ] A Friend targets someone else (or nobody) and emotes: no sound.
+- [ ] Untick Emotes for Targeted, A Friend emotes at you: no sound.
+- [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, and `/em waves at you`.
+- [ ] A Friend targets you and says `/say hello`, or says `/say thank you` without targeting you: no sound.
+- [ ] You target A Friend and emote at them, or `/say thank you`: no sound.
+- [ ] Untick the Targeted trigger: none of the above sound.

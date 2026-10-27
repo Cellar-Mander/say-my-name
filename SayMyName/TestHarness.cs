@@ -10,17 +10,25 @@ namespace SayMyName;
 
 /// <summary>
 /// Dev-plugin helper for the smoke checklist (docs/smoke-test.md): puts fake player messages into
-/// chat and logs when each comes back through the chat events the triggers listen on.
+/// chat and logs when each comes back through the chat events the triggers listen on, logs the
+/// emotes the Targeted trigger sees, and can pretend an injected sender is targeting you.
 /// </summary>
 public sealed class TestHarness : IDisposable
 {
-    public const string Usage = "inject <channel> <First> <Last> <message>";
+    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>]";
+
+    private readonly TargetedAlert targetedAlert;
 
     // Texts injected but not yet seen; a handful at most, only touched on the framework thread
     private readonly HashSet<string> pending = [];
 
-    public TestHarness()
+    private string? fakeTargeter;
+    private bool watchingEmotes;
+
+    public TestHarness(TargetedAlert targetedAlert)
     {
+        this.targetedAlert = targetedAlert;
+        targetedAlert.FakeTargetingYou = name => name == fakeTargeter;
         Plugin.ChatGui.ChatMessage += OnChatMessage;
         Plugin.ChatGui.ChatMessageUnhandled += OnChatMessageUnhandled;
     }
@@ -29,10 +37,37 @@ public sealed class TestHarness : IDisposable
     {
         Plugin.ChatGui.ChatMessage -= OnChatMessage;
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessageUnhandled;
+        targetedAlert.FakeTargetingYou = null;
+        targetedAlert.EmotePlayed = null;
+    }
+
+    /// <summary>Runs a harness subcommand; false if <paramref name="args"/> isn't one, so it can mean something else.</summary>
+    public bool Handle(string args)
+    {
+        var (command, rest) = args.Split(' ', 2, StringSplitOptions.TrimEntries) switch
+        {
+            [var c] => (c, ""),
+            [var c, var r] => (c, r),
+            _ => ("", ""),
+        };
+
+        var ok = command.ToLowerInvariant() switch
+        {
+            "inject" => Inject(rest),
+            "emotes" => ToggleEmoteWatch(rest),
+            "targeting-me" => SetFakeTargeter(rest),
+            _ => (bool?)null,
+        };
+
+        if (ok == false)
+        {
+            Plugin.ChatGui.PrintError($"Usage: /saymyname {Usage}");
+        }
+        return ok != null;
     }
 
     /// <summary>Queues "&lt;channel&gt; &lt;First&gt; &lt;Last&gt; &lt;message&gt;" as a chat line; false if malformed.</summary>
-    public bool Inject(string args)
+    private bool Inject(string args)
     {
         var parts = args.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 4
@@ -56,6 +91,46 @@ public sealed class TestHarness : IDisposable
         });
         Plugin.Log.Information($"Test harness: injected {channel} from {name}: {text}");
         return true;
+    }
+
+    // Logs every emote the Targeted trigger's hook sees, so other players' emotes in a busy place
+    // show whether the hook fires for them, aimed at whom, and whether they were logged
+    private bool ToggleEmoteWatch(string args)
+    {
+        if (args.Length > 0)
+        {
+            return false;
+        }
+
+        watchingEmotes = !watchingEmotes;
+        targetedAlert.EmotePlayed = watchingEmotes ? OnEmotePlayed : null;
+        Plugin.ChatGui.Print($"Test harness: emote watch {(watchingEmotes ? "on, see /xllog" : "off")}");
+        return true;
+    }
+
+    // Lines from this name pass the Targeted trigger's "sender is targeting you" check
+    private bool SetFakeTargeter(string args)
+    {
+        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is not (0 or 2))
+        {
+            return false;
+        }
+
+        fakeTargeter = parts.Length == 2 ? $"{parts[0]} {parts[1]}" : null;
+        Plugin.ChatGui.Print(fakeTargeter == null
+            ? "Test harness: nobody is pretending to target you"
+            : $"Test harness: {fakeTargeter} is pretending to target you");
+        return true;
+    }
+
+    private static void OnEmotePlayed(nint owner, uint emoteId, ulong targetId, bool logged)
+    {
+        var from = Plugin.ObjectTable.CreateObjectReference(owner)?.Name.TextValue ?? $"0x{owner:X}";
+        var target = targetId == Plugin.ObjectTable.LocalPlayer?.GameObjectId
+            ? "you"
+            : Plugin.ObjectTable.SearchById(targetId)?.Name.TextValue ?? $"0x{targetId:X}";
+        Plugin.Log.Information($"Test harness: emote {emoteId} from {from} at {target}, logged={logged}");
     }
 
     private void OnChatMessage(IHandleableChatMessage message)
