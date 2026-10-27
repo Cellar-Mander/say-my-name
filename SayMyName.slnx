@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SayMyName/SayMyName.csproj">
+    <Platform Project="x64" />
+  </Project>
+</Solution>
