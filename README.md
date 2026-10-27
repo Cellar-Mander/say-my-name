@@ -32,7 +32,7 @@ CI runs these tests on Linux for pushes and PRs to `main`.
 
 1. `/xlsettings` → Experimental → add the full path of `SayMyName.dll` to Dev Plugin Locations.
 2. `/xlplugins` → Dev Tools → Installed Dev Plugins → enable Say My Name.
-3. `/saymyname` opens the main window; `/xllog` shows the plugin log.
+3. `/saymyname` (or the plugin installer's buttons) opens the settings window; `/xllog` shows the plugin log.
 
 ## License
 
