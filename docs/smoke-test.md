@@ -56,3 +56,17 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] Untick Play a sound: no sound.
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): no sound.
 - [ ] Real chat: say your own name in /say: no sound.
+
+### Targeted trigger
+
+These need a second player (*A Friend*, e.g. an alt on another client) near you: the harness can't fake who is targeting whom. Set quiet time to 0 so every alert sounds, and turn on verbose logging (`/xllog` → log level Verbose) to see `Targeted trigger:` lines.
+
+- [ ] `/xllog` has no `emote function not found` warning after loading.
+- [ ] A Friend targets you and uses `/pet`: one sound, and the log shows `emote ... at you, logged=True`.
+- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`. Same with their emote log messages turned off in their settings.
+- [ ] A Friend targets someone else (or nobody) and emotes: no sound.
+- [ ] Untick Emotes for Targeted, A Friend emotes at you: no sound.
+- [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, and `/em waves at you`.
+- [ ] A Friend targets you and says `/say hello`, or says `/say thank you` without targeting you: no sound.
+- [ ] You target A Friend and emote at them, or `/say thank you`: no sound.
+- [ ] Untick the Targeted trigger: none of the above sound.

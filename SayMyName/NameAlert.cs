@@ -1,9 +1,5 @@
 using System;
-using System.Linq;
 using Dalamud.Game.Chat;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling.Payloads;
-using FFXIVClientStructs.FFXIV.Client.UI;
 using SayMyName.Core;
 using Serilog.Events;
 
@@ -13,12 +9,13 @@ namespace SayMyName;
 public sealed class NameAlert : IDisposable
 {
     private readonly Configuration configuration;
-    private readonly Cooldown cooldown = new();
+    private readonly AlertSound sound;
     private NameMatcher matcher = new("", caseSensitive: true);
 
-    public NameAlert(Configuration configuration)
+    public NameAlert(Configuration configuration, AlertSound sound)
     {
         this.configuration = configuration;
+        this.sound = sound;
         // Unhandled only: a message another plugin has hidden shouldn't alert
         Plugin.ChatGui.ChatMessageUnhandled += OnChatMessage;
     }
@@ -27,8 +24,6 @@ public sealed class NameAlert : IDisposable
     {
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessage;
     }
-
-    public void PlaySound() => UIGlobals.PlayChatSoundEffect((uint)configuration.SoundEffect);
 
     private void OnChatMessage(IChatMessage message)
     {
@@ -42,39 +37,20 @@ public sealed class NameAlert : IDisposable
         }
 
         var you = Plugin.PlayerState.CharacterName;
-        var fromYou = IsFromYou(message, you);
+        var fromYou = ChatLines.IsFromYou(message, you);
         var matched = !fromYou && CurrentMatcher(you).IsMatch(message.Message.TextValue);
 
         if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
         {
-            Plugin.Log.Verbose($"Name trigger: {channel} source={message.SourceKind} sender={Escape(message.Sender.TextValue)} " +
-                $"fromYou={fromYou} matched={matched} text={Escape(message.Message.TextValue)}");
+            Plugin.Log.Verbose($"Name trigger: {channel} source={message.SourceKind} sender={ChatLines.Escape(message.Sender.TextValue)} " +
+                $"fromYou={fromYou} matched={matched} text={ChatLines.Escape(message.Message.TextValue)}");
         }
 
-        if (matched && cooldown.TryFire(Environment.TickCount64, TimeSpan.FromSeconds(configuration.CooldownSeconds)))
+        if (matched)
         {
-            PlaySound();
+            sound.Alert();
         }
     }
-
-    // The game doesn't always mark your own lines as from the local player (seen in Say), so the
-    // sender's name is checked too: a player link if the game added one, else the plain sender text
-    private static bool IsFromYou(IChatMessage message, string you)
-    {
-        if (message.SourceKind == XivChatRelationKind.LocalPlayer)
-        {
-            return true;
-        }
-
-        var player = message.Sender.Payloads.OfType<PlayerPayload>().FirstOrDefault();
-        return player != null
-            ? you.Length > 0 && player.PlayerName == you
-            : ChatSender.Is(message.Sender.TextValue, you);
-    }
-
-    // Shows apostrophe variants and the game's private-use glyphs in the log
-    private static string Escape(string text) =>
-        string.Concat(text.Select(c => c is >= ' ' and <= '~' ? c.ToString() : $"\\u{(int)c:X4}"));
 
     // Rebuilt only when the character or the case setting changes, not per message
     private NameMatcher CurrentMatcher(string name)

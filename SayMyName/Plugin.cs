@@ -17,11 +17,15 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+    [PluginService] internal static IGameInteropProvider GameInterop { get; private set; } = null!;
 
     private const string CommandName = "/saymyname";
 
     public Configuration Configuration { get; init; }
-    public NameAlert NameAlert { get; init; }
+    public AlertSound AlertSound { get; init; }
+    private NameAlert NameAlert { get; init; }
+    private TargetedAlert TargetedAlert { get; init; }
     // Dev plugin only: injecting fake chat is a testing tool, not a user feature
     private TestHarness? TestHarness { get; init; }
 
@@ -36,7 +40,9 @@ public sealed class Plugin : IDalamudPlugin
         // Commit hash included, to check which checkout's build the game has loaded
         Log.Information($"Say My Name {typeof(Plugin).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} loaded");
 
-        NameAlert = new NameAlert(Configuration);
+        AlertSound = new AlertSound(Configuration);
+        NameAlert = new NameAlert(Configuration, AlertSound);
+        TargetedAlert = new TargetedAlert(Configuration, AlertSound);
         if (PluginInterface.IsDev)
         {
             TestHarness = new TestHarness();
@@ -71,6 +77,7 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         NameAlert.Dispose();
+        TargetedAlert.Dispose();
         TestHarness?.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
