@@ -51,6 +51,10 @@ public static class Triggers
     private static readonly ChatChannel[] AllChannels = Enum.GetValues<ChatChannel>();
     private static readonly ChatChannel[] SayAndEmotes = [ChatChannel.Say, ChatChannel.StandardEmote, ChatChannel.CustomEmote];
 
+    /// <summary>Every channel, those usable by the most triggers first; ties keep declaration order.</summary>
+    public static readonly IReadOnlyList<ChatChannel> ChannelsByUsage =
+        [.. AllChannels.OrderByDescending(c => All.Count(k => AllowedChannels(k).Contains(c)))];
+
     /// <summary>Channels the trigger may be configured to listen on.</summary>
     public static IReadOnlyList<ChatChannel> AllowedChannels(TriggerKind kind) => kind switch
     {
