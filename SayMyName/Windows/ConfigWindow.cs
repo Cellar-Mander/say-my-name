@@ -65,6 +65,9 @@ public class ConfigWindow : Window, IDisposable
 
     public void Dispose() { }
 
+    // Custom words save when their box loses focus, which closing the window mid-edit skips
+    public override void OnClose() => configuration.Save();
+
     public override void Draw()
     {
         if (DrawSectionHeader(SettingsSection.Triggers, "Alert when###Triggers"))
