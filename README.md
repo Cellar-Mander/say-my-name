@@ -47,6 +47,8 @@ One-time setup:
 
 `/saymyname` (or the plugin installer's buttons) opens the settings window. `/xllog` shows the plugin log, which starts with the loaded build's commit, e.g. `Say My Name 0.0.0.1+60d7b0d… loaded`.
 
+[docs/smoke-test.md](docs/smoke-test.md) is the in-game checklist, and describes `/saymyname inject`, which fakes chat lines from other players when loaded as a dev plugin.
+
 ## License
 
 AGPL-3.0, inherited from SamplePlugin. See [LICENSE.md](LICENSE.md).

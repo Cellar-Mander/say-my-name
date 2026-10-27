@@ -35,7 +35,7 @@ public sealed class NameAlert : IDisposable
         var settings = configuration.Triggers[TriggerKind.Name];
         if (!settings.Enabled
             || !configuration.PlaySound
-            || ToChannel(message.LogKind) is not { } channel
+            || ChatChannels.FromChatType(message.LogKind) is not { } channel
             || !settings.Channels.Contains(channel))
         {
             return;
@@ -85,23 +85,4 @@ public sealed class NameAlert : IDisposable
         }
         return matcher;
     }
-
-    private static ChatChannel? ToChannel(XivChatType type) => type switch
-    {
-        XivChatType.Say => ChatChannel.Say,
-        XivChatType.Yell => ChatChannel.Yell,
-        XivChatType.Shout => ChatChannel.Shout,
-        XivChatType.Party => ChatChannel.Party,
-        XivChatType.CrossParty => ChatChannel.CrossParty,
-        XivChatType.Alliance => ChatChannel.Alliance,
-        XivChatType.FreeCompany => ChatChannel.FreeCompany,
-        XivChatType.PvPTeam => ChatChannel.PvPTeam,
-        XivChatType.NoviceNetwork => ChatChannel.NoviceNetwork,
-        >= XivChatType.Ls1 and <= XivChatType.Ls8 => ChatChannel.Linkshell1 + (type - XivChatType.Ls1),
-        XivChatType.CrossLinkShell1 => ChatChannel.CrossLinkshell1,
-        >= XivChatType.CrossLinkShell2 and <= XivChatType.CrossLinkShell8 => ChatChannel.CrossLinkshell2 + (type - XivChatType.CrossLinkShell2),
-        XivChatType.StandardEmote => ChatChannel.StandardEmote,
-        XivChatType.CustomEmote => ChatChannel.CustomEmote,
-        _ => null,
-    };
 }
