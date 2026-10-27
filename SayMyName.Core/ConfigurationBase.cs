@@ -1,5 +1,13 @@
 namespace SayMyName.Core;
 
+/// <summary>The settings window's collapsible sections. Saved by number, so only append.</summary>
+public enum SettingsSection
+{
+    Triggers,
+    Sound,
+    Channels,
+}
+
 /// <summary>
 /// The saved settings, kept free of Dalamud so a save/load round trip can be tested here.
 /// The plugin's Configuration adds Dalamud's interface and Save().
@@ -25,6 +33,9 @@ public abstract class ConfigurationBase
 
     /// <summary>Minimum time between alert sounds.</summary>
     public int CooldownSeconds { get; set; } = 5;
+
+    /// <summary>Settings window sections the user folded away. Listing the closed ones lets new sections start open.</summary>
+    public HashSet<SettingsSection> CollapsedSections { get; set; } = [];
 
     /// <summary>Fills in defaults for unsaved triggers and pulls hand-edited values back into range.</summary>
     public void Normalize()

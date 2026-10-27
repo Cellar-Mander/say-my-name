@@ -80,6 +80,24 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
+    public void CollapsedSectionsSurvive()
+    {
+        var config = Fresh();
+        config.CollapsedSections.Add(SettingsSection.Sound);
+        config.CollapsedSections.Add(SettingsSection.Channels);
+
+        var loaded = SaveAndLoad(config);
+
+        Assert.Equal([SettingsSection.Sound, SettingsSection.Channels], loaded.CollapsedSections.Order());
+    }
+
+    [Fact]
+    public void SectionsStartOpen()
+    {
+        Assert.Empty(SaveAndLoad(Fresh()).CollapsedSections);
+    }
+
+    [Fact]
     public void TriggerMissingFromSavedConfigGetsDefaults()
     {
         var config = Fresh();

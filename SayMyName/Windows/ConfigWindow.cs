@@ -67,7 +67,46 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
-        ImGui.TextUnformatted("Alert when:");
+        if (DrawSectionHeader(SettingsSection.Triggers, "Alert when###Triggers"))
+        {
+            DrawTriggerOptions();
+        }
+
+        if (DrawSectionHeader(SettingsSection.Sound, "Sound###Sound"))
+        {
+            DrawSoundOptions();
+        }
+
+        // Last, as its table scrolls in whatever height the window has left
+        if (DrawSectionHeader(SettingsSection.Channels, "Channels###Channels"))
+        {
+            DrawChannelTable();
+        }
+    }
+
+    /// <summary>Draws a section's collapsing header, open or closed as saved, and saves it when toggled.</summary>
+    private bool DrawSectionHeader(SettingsSection section, string label)
+    {
+        var wasOpen = !configuration.CollapsedSections.Contains(section);
+        ImGui.SetNextItemOpen(wasOpen, ImGuiCond.Always);
+        var open = ImGui.CollapsingHeader(label);
+        if (open != wasOpen)
+        {
+            if (open)
+            {
+                configuration.CollapsedSections.Remove(section);
+            }
+            else
+            {
+                configuration.CollapsedSections.Add(section);
+            }
+            configuration.Save();
+        }
+        return open;
+    }
+
+    private void DrawTriggerOptions()
+    {
         for (var t = 0; t < Triggers.All.Count; t++)
         {
             var settings = configuration.Triggers[Triggers.All[t]];
@@ -83,11 +122,10 @@ public class ConfigWindow : Window, IDisposable
                 DrawNameOptions(settings.Enabled);
             }
         }
+    }
 
-        ImGuiHelpers.ScaledDummy(6f);
-        DrawSoundOptions();
-
-        ImGuiHelpers.ScaledDummy(6f);
+    private void DrawChannelTable()
+    {
         ImGui.TextUnformatted("Listen on these channels (tells are never checked):");
 
         using var table = ImRaii.Table("##channels", 1 + Triggers.All.Count,
