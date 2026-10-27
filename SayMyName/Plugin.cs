@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using Dalamud.Game.Command;
 using Dalamud.IoC;
@@ -21,6 +22,8 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; init; }
     public NameAlert NameAlert { get; init; }
+    // Dev plugin only: injecting fake chat is a testing tool, not a user feature
+    private TestHarness? TestHarness { get; init; }
 
     public readonly WindowSystem WindowSystem = new("SayMyName");
     private ConfigWindow ConfigWindow { get; init; }
@@ -34,13 +37,19 @@ public sealed class Plugin : IDalamudPlugin
         Log.Information($"Say My Name {typeof(Plugin).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} loaded");
 
         NameAlert = new NameAlert(Configuration);
+        if (PluginInterface.IsDev)
+        {
+            TestHarness = new TestHarness();
+        }
 
         ConfigWindow = new ConfigWindow(this);
         WindowSystem.AddWindow(ConfigWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the Say My Name settings"
+            HelpMessage = TestHarness == null
+                ? "Open the Say My Name settings"
+                : $"Open the Say My Name settings, or (dev plugin) {CommandName} {TestHarness.Usage}"
         });
 
         // Tell the UI system that we want our windows to be drawn through the window system
@@ -62,11 +71,25 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         NameAlert.Dispose();
+        TestHarness?.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
 
-    private void OnCommand(string command, string args) => ToggleConfigUi();
+    private void OnCommand(string command, string args)
+    {
+        const string inject = "inject ";
+        if (TestHarness != null && args.StartsWith(inject, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TestHarness.Inject(args[inject.Length..]))
+            {
+                ChatGui.PrintError($"Usage: {CommandName} {TestHarness.Usage}");
+            }
+            return;
+        }
+
+        ToggleConfigUi();
+    }
 
     public void ToggleConfigUi() => ConfigWindow.Toggle();
 }
