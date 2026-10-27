@@ -13,13 +13,6 @@ This is shown when the user expands the plugin entry in /xlplugins.</Description
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\Data\goat.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\SayMyName.Core\SayMyName.Core.csproj" />
   </ItemGroup>
 </Project>
