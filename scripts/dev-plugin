@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Deploys this checkout's plugin build to the one dev folder Dalamud loads from.
+# Only one checkout may hold the folder at a time, so a build under test is never overwritten
+# by another checkout or worktree. See "Testing in-game" in the README.
+set -euo pipefail
+
+dev_dir=${SAYMYNAME_DEV_DIR:-$HOME/.xlcore/devPlugins/SayMyName}
+# mkdir is atomic, so of two deploys racing for a free folder exactly one gets the claim
+claim=$dev_dir/.claim
+top=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
+
+usage() {
+    cat >&2 <<EOF
+Usage: scripts/dev-plugin deploy [task-ref]   build, claim the dev folder and copy the plugin in
+       scripts/dev-plugin status              show who holds the dev folder
+       scripts/dev-plugin release [--force]   free the dev folder (--force: even if another checkout holds it)
+
+Dev folder: $dev_dir (set SAYMYNAME_DEV_DIR to change)
+EOF
+    exit 2
+}
+
+claim_owner() { sed -n 's/^checkout=//p' "$claim/info" 2>/dev/null || true; }
+
+print_claim() {
+    if [[ -f $claim/info ]]; then
+        sed 's/^/  /' "$claim/info"
+    else
+        echo "  (claim has no details; it may be left over from an interrupted deploy)"
+    fi
+}
+
+deploy() {
+    local task=${1:-}
+    dotnet build "$top/SayMyName/SayMyName.csproj" -c Debug --nologo -v q
+
+    mkdir -p "$dev_dir"
+    if ! mkdir "$claim" 2>/dev/null && [[ $(claim_owner) != "$top" ]]; then
+        echo "Refusing to deploy: another checkout is testing in the dev folder." >&2
+        print_claim >&2
+        echo "Ask whoever holds it to run 'scripts/dev-plugin release' when they're done." >&2
+        exit 1
+    fi
+
+    local commit
+    commit=$(git -C "$top" rev-parse --short HEAD)
+    if [[ -n $(git -C "$top" status --porcelain) ]]; then
+        commit+=" (uncommitted changes)"
+    fi
+    cat >"$claim/info" <<EOF
+checkout=$top
+branch=$(git -C "$top" branch --show-current)
+commit=$commit
+task=$task
+deployed=$(date -Iseconds)
+EOF
+
+    # Plugin dll last, and each file renamed into place, so Dalamud's reload on change
+    # never sees a half-copied set
+    local out=$top/SayMyName/bin/x64/Debug f
+    for f in "$out"/*; do
+        [[ -f $f && ${f##*/} != SayMyName.dll ]] || continue
+        cp "$f" "$dev_dir/.${f##*/}.tmp" && mv "$dev_dir/.${f##*/}.tmp" "$dev_dir/${f##*/}"
+    done
+    cp "$out/SayMyName.dll" "$dev_dir/.SayMyName.dll.tmp" && mv "$dev_dir/.SayMyName.dll.tmp" "$dev_dir/SayMyName.dll"
+
+    echo "Deployed to $dev_dir:"
+    print_claim
+}
+
+status() {
+    if [[ -d $claim ]]; then
+        echo "Claimed:"
+        print_claim
+    else
+        echo "Unclaimed: $dev_dir"
+    fi
+}
+
+release() {
+    local force=
+    case ${1:-} in
+        "") ;;
+        --force) force=1 ;;
+        *) usage ;;
+    esac
+
+    if [[ ! -d $claim ]]; then
+        echo "Already unclaimed."
+        return
+    fi
+    if [[ $(claim_owner) != "$top" && -z $force ]]; then
+        echo "Refusing to release: the claim belongs to another checkout." >&2
+        print_claim >&2
+        exit 1
+    fi
+    rm -r "$claim"
+    echo "Released $dev_dir"
+}
+
+case ${1:-} in
+    deploy) shift; deploy "$@" ;;
+    status) status ;;
+    release) shift; release "$@" ;;
+    *) usage ;;
+esac
