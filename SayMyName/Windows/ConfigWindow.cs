@@ -25,6 +25,8 @@ public class ConfigWindow : Window, IDisposable
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
     private readonly string[] columnHeaders = new string[Triggers.All.Count];
     private readonly string[] channelLabels = new string[Channels.Count];
+    private static readonly string[] SoundLabels =
+        [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
     private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
 
     public ConfigWindow(Plugin plugin) : base("Say My Name###SayMyNameSettings")
@@ -178,12 +180,20 @@ public class ConfigWindow : Window, IDisposable
         using var indent = ImRaii.PushIndent();
         using var disabled = ImRaii.Disabled(!playSound);
         ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);
-        var soundEffect = configuration.SoundEffect;
-        if (ImGui.SliderInt("Sound##sound", ref soundEffect, Configuration.MinSoundEffect, Configuration.MaxSoundEffect, "<se.%d>",
-                ImGuiSliderFlags.AlwaysClamp))
+        using (var combo = ImRaii.Combo("Sound##sound", SoundLabels[configuration.SoundEffect - Configuration.MinSoundEffect]))
         {
-            configuration.SoundEffect = soundEffect;
-            configuration.Save();
+            if (combo.Success)
+            {
+                for (var i = 0; i < SoundLabels.Length; i++)
+                {
+                    var soundEffect = Configuration.MinSoundEffect + i;
+                    if (ImGui.Selectable(SoundLabels[i], soundEffect == configuration.SoundEffect))
+                    {
+                        configuration.SoundEffect = soundEffect;
+                        configuration.Save();
+                    }
+                }
+            }
         }
 
         ImGui.SameLine();
