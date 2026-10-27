@@ -87,18 +87,19 @@ public class ConfigWindow : Window, IDisposable
     /// <summary>Draws a section's collapsing header, open or closed as saved, and saves it when toggled.</summary>
     private bool DrawSectionHeader(SettingsSection section, string label)
     {
-        var wasOpen = !configuration.CollapsedSections.Contains(section);
+        var expanded = configuration.ExpandedSections!; // set by Normalize() on load
+        var wasOpen = expanded.Contains(section);
         ImGui.SetNextItemOpen(wasOpen, ImGuiCond.Always);
         var open = ImGui.CollapsingHeader(label);
         if (open != wasOpen)
         {
             if (open)
             {
-                configuration.CollapsedSections.Remove(section);
+                expanded.Add(section);
             }
             else
             {
-                configuration.CollapsedSections.Add(section);
+                expanded.Remove(section);
             }
             configuration.Save();
         }

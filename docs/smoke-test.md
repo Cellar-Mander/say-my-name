@@ -47,9 +47,9 @@ Below, *Me* is your character's name and *A Friend* any other name.
 
 ### Settings sections
 
-- [ ] On first open (no saved config), Alert when, Sound and Channels are all expanded.
-- [ ] Collapse Sound and Channels: only their headers remain. Disable and re-enable the plugin in `/xlplugins` and reopen the window: they are still collapsed and Alert when is open.
-- [ ] Expand them again and reload: all three open.
+- [ ] On first open (no saved config, or one saved before this feature), only Alert when is expanded; Sound and Channels show just their headers.
+- [ ] Collapse Alert when and expand Channels. Disable and re-enable the plugin in `/xlplugins` and reopen the window: only Channels is open.
+- [ ] Collapse all three and reload: all stay closed.
 - [ ] With all three open at the minimum window size, the channel table scrolls inside the window and its header row stays visible.
 
 ### Name trigger

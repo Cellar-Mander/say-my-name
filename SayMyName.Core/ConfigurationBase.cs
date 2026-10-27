@@ -34,8 +34,10 @@ public abstract class ConfigurationBase
     /// <summary>Minimum time between alert sounds.</summary>
     public int CooldownSeconds { get; set; } = 5;
 
-    /// <summary>Settings window sections the user folded away. Listing the closed ones lets new sections start open.</summary>
-    public HashSet<SettingsSection> CollapsedSections { get; set; } = [];
+    /// <summary>Settings window sections shown expanded; any other, including ones added later, starts closed.</summary>
+    // Null until loaded, for the same reason as Triggers: a pre-filled set would bring back sections
+    // the user had closed. Normalize() opens only the trigger section for a config that never saved one.
+    public HashSet<SettingsSection>? ExpandedSections { get; set; }
 
     /// <summary>Fills in defaults for unsaved triggers and pulls hand-edited values back into range.</summary>
     public void Normalize()
@@ -47,5 +49,6 @@ public abstract class ConfigurationBase
 
         SoundEffect = Math.Clamp(SoundEffect, MinSoundEffect, MaxSoundEffect);
         CooldownSeconds = Math.Clamp(CooldownSeconds, 0, MaxCooldownSeconds);
+        ExpandedSections ??= [SettingsSection.Triggers];
     }
 }

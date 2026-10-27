@@ -80,21 +80,30 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
-    public void CollapsedSectionsSurvive()
+    public void OnlyTriggerSectionStartsExpanded()
     {
-        var config = Fresh();
-        config.CollapsedSections.Add(SettingsSection.Sound);
-        config.CollapsedSections.Add(SettingsSection.Channels);
-
-        var loaded = SaveAndLoad(config);
-
-        Assert.Equal([SettingsSection.Sound, SettingsSection.Channels], loaded.CollapsedSections.Order());
+        Assert.Equal([SettingsSection.Triggers], SaveAndLoad(Fresh()).ExpandedSections!);
     }
 
     [Fact]
-    public void SectionsStartOpen()
+    public void ExpandedSectionsSurvive()
     {
-        Assert.Empty(SaveAndLoad(Fresh()).CollapsedSections);
+        var config = Fresh();
+        config.ExpandedSections!.Remove(SettingsSection.Triggers);
+        config.ExpandedSections.Add(SettingsSection.Channels);
+
+        var loaded = SaveAndLoad(config);
+
+        Assert.Equal([SettingsSection.Channels], loaded.ExpandedSections!);
+    }
+
+    [Fact]
+    public void AllSectionsClosedStaysClosed()
+    {
+        var config = Fresh();
+        config.ExpandedSections!.Clear();
+
+        Assert.Empty(SaveAndLoad(config).ExpandedSections!);
     }
 
     [Fact]
