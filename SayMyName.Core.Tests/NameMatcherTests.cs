@@ -68,6 +68,53 @@ public class NameMatcherTests
     }
 
     [Theory]
+    [InlineData("A'ra'ka")]
+    [InlineData("hi A'ra'ka!")]
+    [InlineData("A'ra'ka's spear")]
+    [InlineData("A’ra’ka")]
+    [InlineData("A'ra’ka")]
+    [InlineData("A’ra'ka’s spear")]
+    [InlineData("Tia")]
+    public void NamesWithSeveralApostrophesMatchWhole(string text)
+    {
+        Assert.True(new NameMatcher("A'ra'ka Tia", caseSensitive: true).IsMatch(text));
+    }
+
+    [Theory]
+    [InlineData("A'ra")]
+    [InlineData("Ra'ka")]
+    [InlineData("ra'ka")]
+    [InlineData("A'raka")]
+    [InlineData("A'ra'kan")]
+    [InlineData("A'ra'ka'ni")]
+    [InlineData("A’ra’ka’ni")]
+    [InlineData("X'A'ra'ka")]
+    [InlineData("A'Ra'Ka")]
+    public void PiecesOrExtensionsOfAnApostropheNameDoNotMatch(string text)
+    {
+        Assert.False(new NameMatcher("A'ra'ka Tia", caseSensitive: true).IsMatch(text));
+    }
+
+    [Fact]
+    public void ApostrophesInTheNameItselfMayBeEitherKind()
+    {
+        Assert.True(new NameMatcher("A’ra’ka Tia", caseSensitive: true).IsMatch("A'ra'ka"));
+    }
+
+    [Fact]
+    public void CaseInsensitiveMatchesAnyCaseAroundApostrophes()
+    {
+        Assert.True(new NameMatcher("A'ra'ka Tia", caseSensitive: false).IsMatch("A’RA’KA"));
+    }
+
+    [Fact]
+    public void LongTextWithACurlyApostropheStillMatches()
+    {
+        var text = new string('x', 600) + " Rose’s";
+        Assert.True(Rose.IsMatch(text));
+    }
+
+    [Theory]
     [InlineData("Mary-Jane Doe", "Mary")]
     [InlineData("Mary-Jane Doe", "Jane")]
     public void PartOfAHyphenatedNameIsNotTheName(string name, string text)

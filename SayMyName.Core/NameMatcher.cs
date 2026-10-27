@@ -7,6 +7,8 @@ namespace SayMyName.Core;
 /// </summary>
 public sealed class NameMatcher
 {
+    private const char CurlyApostrophe = '’';
+
     private readonly string[] parts;
     private readonly StringComparison comparison;
 
@@ -21,11 +23,26 @@ public sealed class NameMatcher
     {
         FullName = fullName;
         CaseSensitive = caseSensitive;
-        parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        parts = fullName.Replace(CurlyApostrophe, '\'')
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
     }
 
     public bool IsMatch(ReadOnlySpan<char> text)
+    {
+        // Chat text may use the typographic apostrophe where the name has a straight one, or the
+        // reverse; normalising both sides keeps every index the same, so the word checks still hold
+        if (!text.Contains(CurlyApostrophe))
+        {
+            return Find(text);
+        }
+
+        Span<char> straight = text.Length <= 512 ? stackalloc char[text.Length] : new char[text.Length];
+        text.Replace(straight, CurlyApostrophe, '\'');
+        return Find(straight);
+    }
+
+    private bool Find(ReadOnlySpan<char> text)
     {
         foreach (var part in parts)
         {
@@ -60,7 +77,7 @@ public sealed class NameMatcher
         }
 
         // Possessive: Alice's, ALICE'S
-        return IsApostrophe(text[i])
+        return text[i] == '\''
             && i + 1 < text.Length && (text[i + 1] is 's' or 'S')
             && (i + 2 == text.Length || !IsWordChar(text[i + 2]));
     }
@@ -70,7 +87,6 @@ public sealed class NameMatcher
 
     private static bool IsWordChar(char c) => char.IsLetterOrDigit(c);
 
-    private static bool IsApostrophe(char c) => c is '\'' or '’';
-
-    private static bool IsJoiner(char c) => IsApostrophe(c) || c == '-';
+    // Curly apostrophes are already straightened by IsMatch
+    private static bool IsJoiner(char c) => c is '\'' or '-';
 }
