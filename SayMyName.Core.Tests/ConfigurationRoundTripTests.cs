@@ -80,6 +80,33 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
+    public void OnlyTriggerSectionStartsExpanded()
+    {
+        Assert.Equal([SettingsSection.Triggers], SaveAndLoad(Fresh()).ExpandedSections!);
+    }
+
+    [Fact]
+    public void ExpandedSectionsSurvive()
+    {
+        var config = Fresh();
+        config.ExpandedSections!.Remove(SettingsSection.Triggers);
+        config.ExpandedSections.Add(SettingsSection.Channels);
+
+        var loaded = SaveAndLoad(config);
+
+        Assert.Equal([SettingsSection.Channels], loaded.ExpandedSections!);
+    }
+
+    [Fact]
+    public void AllSectionsClosedStaysClosed()
+    {
+        var config = Fresh();
+        config.ExpandedSections!.Clear();
+
+        Assert.Empty(SaveAndLoad(config).ExpandedSections!);
+    }
+
+    [Fact]
     public void TriggerMissingFromSavedConfigGetsDefaults()
     {
         var config = Fresh();

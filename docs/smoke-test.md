@@ -55,6 +55,13 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] Targeted and Target Speaks offer only Say and the two emote channels.
 - [ ] Untick a trigger: its column header and checkboxes dim.
 
+### Settings sections
+
+- [ ] On first open (no saved config, or one saved before this feature), only Alert when is expanded; Sound and Channels show just their headers.
+- [ ] Collapse Alert when and expand Channels. Disable and re-enable the plugin in `/xlplugins` and reopen the window: only Channels is open.
+- [ ] Collapse all three and reload: all stay closed.
+- [ ] With all three open at the minimum window size, the channel table scrolls inside the window and its header row stays visible.
+
 ### Name trigger
 
 - [ ] `/saymyname inject Say A Friend hi <Me first name>` plays the chosen sound.
