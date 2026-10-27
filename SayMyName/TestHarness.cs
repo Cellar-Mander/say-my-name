@@ -46,11 +46,12 @@ public sealed class TestHarness : IDisposable
         var text = parts[3];
         pending.Add(text);
 
-        // Other players' lines carry a player link, so give the fake sender one on your world
+        // Other players' lines carry a player link, so give the fake sender one on your world.
+        // PlayerPayload encodes the name text and link terminator itself; adding them again doubles the name.
         Plugin.ChatGui.Print(new XivChatEntry
         {
             Type = ChatChannels.ToChatType(channel),
-            Name = new SeString(new PlayerPayload(name, Plugin.PlayerState.CurrentWorld.RowId), new TextPayload(name), RawPayload.LinkTerminator),
+            Name = new SeString(new PlayerPayload(name, Plugin.PlayerState.CurrentWorld.RowId)),
             Message = text,
         });
         Plugin.Log.Information($"Test harness: injected {channel} from {name}: {text}");
