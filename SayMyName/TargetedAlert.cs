@@ -24,6 +24,12 @@ public sealed unsafe class TargetedAlert : IDisposable
     // reach chat. Null if the game function wasn't found; emotes then come from chat instead.
     private readonly Hook<PlayEmoteDelegate>? playEmoteHook;
 
+    /// <summary>Dev plugin only: told of every emote the hook sees (emoting character's address, emote, target id, logged).</summary>
+    public Action<nint, uint, ulong, bool>? EmotePlayed { get; set; }
+
+    /// <summary>Dev plugin only: treats a sender with this name as targeting you, for injected lines.</summary>
+    public Predicate<string>? FakeTargetingYou { get; set; }
+
     public TargetedAlert(Configuration configuration, AlertSound sound)
     {
         this.configuration = configuration;
@@ -63,6 +69,11 @@ public sealed unsafe class TargetedAlert : IDisposable
         // An exception must not escape into the game
         try
         {
+            if (options != null)
+            {
+                EmotePlayed?.Invoke((nint)controller->OwnerObject, emoteId, options->TargetId, !options->DisableLogMessage);
+            }
+
             if (options != null
                 && Listening(ChatChannel.StandardEmote)
                 && Plugin.ObjectTable.LocalPlayer is { } me
@@ -113,15 +124,20 @@ public sealed unsafe class TargetedAlert : IDisposable
     }
 
     // Finds the sender among nearby players (a few hundred at most); only reached for lines with a 'you' word
-    private static bool SenderTargetsYou(IChatMessage message)
+    private bool SenderTargetsYou(IChatMessage message)
     {
+        var link = ChatLines.SenderLink(message);
+        var name = link?.PlayerName ?? ChatSender.Name(message.Sender.TextValue).ToString();
+        if (FakeTargetingYou?.Invoke(name) == true)
+        {
+            return true;
+        }
+
         if (Plugin.ObjectTable.LocalPlayer is not { } me)
         {
             return false;
         }
 
-        var link = ChatLines.SenderLink(message);
-        var name = link?.PlayerName ?? ChatSender.Name(message.Sender.TextValue).ToString();
         uint? homeWorld = link?.World.RowId;
         foreach (var player in Plugin.ObjectTable.PlayerObjects)
         {

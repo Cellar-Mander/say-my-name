@@ -26,7 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     public AlertSound AlertSound { get; init; }
     private NameAlert NameAlert { get; init; }
     private TargetedAlert TargetedAlert { get; init; }
-    // Dev plugin only: injecting fake chat is a testing tool, not a user feature
+    // Dev plugin only: faking chat and targeting is a testing tool, not a user feature
     private TestHarness? TestHarness { get; init; }
 
     public readonly WindowSystem WindowSystem = new("SayMyName");
@@ -45,7 +45,7 @@ public sealed class Plugin : IDalamudPlugin
         TargetedAlert = new TargetedAlert(Configuration, AlertSound);
         if (PluginInterface.IsDev)
         {
-            TestHarness = new TestHarness();
+            TestHarness = new TestHarness(TargetedAlert);
         }
 
         ConfigWindow = new ConfigWindow(this);
@@ -76,26 +76,20 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
+        // The harness first: it unhooks itself from TargetedAlert
+        TestHarness?.Dispose();
         NameAlert.Dispose();
         TargetedAlert.Dispose();
-        TestHarness?.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
 
     private void OnCommand(string command, string args)
     {
-        const string inject = "inject ";
-        if (TestHarness != null && args.StartsWith(inject, StringComparison.OrdinalIgnoreCase))
+        if (TestHarness?.Handle(args) != true)
         {
-            if (!TestHarness.Inject(args[inject.Length..]))
-            {
-                ChatGui.PrintError($"Usage: {CommandName} {TestHarness.Usage}");
-            }
-            return;
+            ToggleConfigUi();
         }
-
-        ToggleConfigUi();
     }
 
     public void ToggleConfigUi() => ConfigWindow.Toggle();
