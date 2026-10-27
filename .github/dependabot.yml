@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # NuGet packages, including the packages.lock.json files
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        patterns: ["*"]
+
+  # Action versions used in .github/workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
