@@ -53,7 +53,7 @@ public sealed class Plugin : IDalamudPlugin
         TargetedAlert = new TargetedAlert(Configuration, AlertSound, Highlighter, TabHighlighter);
         if (PluginInterface.IsDev)
         {
-            TestHarness = new TestHarness(TargetedAlert);
+            TestHarness = new TestHarness(Configuration, AlertSound, TargetedAlert, () => ConfigWindow?.IsOpen == true);
         }
 
         ConfigWindow = new ConfigWindow(this);
