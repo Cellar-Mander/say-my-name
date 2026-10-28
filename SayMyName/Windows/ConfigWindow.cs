@@ -31,7 +31,7 @@ public class ConfigWindow : Window, IDisposable
     private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
 
     // UIColor rows (about 200) as ImGui colours: each row's foreground and glow, and the pickers'
-    // grids of distinct colours (see ColorPalette)
+    // grids of distinct colours as columns (see ColorPalette)
     private readonly Dictionary<ushort, Vector4> textColors = [];
     private readonly Dictionary<ushort, Vector4> glowColors = [];
     private readonly List<List<ushort>> textPalette;
@@ -444,15 +444,24 @@ public class ConfigWindow : Window, IDisposable
             picked = true;
         }
 
-        foreach (var line in palette)
+        // Drawn row by row across the columns; a short column leaves a gap at its foot
+        for (var y = 0; y < ColorPalette.ColumnHeight; y++)
         {
-            for (var i = 0; i < line.Count; i++)
+            for (var x = 0; x < palette.Count; x++)
             {
-                if (i > 0)
+                if (x > 0)
                 {
                     ImGui.SameLine();
                 }
-                var row = line[i];
+
+                var column = palette[x];
+                if (y >= column.Count)
+                {
+                    ImGui.Dummy(swatch);
+                    continue;
+                }
+
+                var row = column[y];
                 // Interpolated only while the popup is open; the row number is the tooltip
                 if (ImGui.ColorButton($"{row}##{ids.Id}", colors[row], ImGuiColorEditFlags.None, swatch))
                 {
