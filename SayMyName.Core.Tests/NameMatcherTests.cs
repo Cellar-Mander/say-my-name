@@ -138,6 +138,80 @@ public class NameMatcherTests
         Assert.False(matcher.IsMatch(""));
     }
 
+    [Theory]
+    [InlineData("Roseee")]
+    [InlineData("Rosee!")]
+    [InlineData("Rooose")]
+    [InlineData("Rooooseeee")]
+    [InlineData("Rrrose")]
+    [InlineData("Roseee's chocobo")]
+    [InlineData("Thoooorne")]
+    [InlineData("R-O-S-E")]
+    [InlineData("r o s e")]
+    [InlineData("hey r-o-s-e!")]
+    [InlineData("I see R O S E")]
+    public void MatchesStretchedOrSpelledOutNames(string text)
+    {
+        Assert.True(Rose.IsMatch(text));
+    }
+
+    [Theory]
+    [InlineData("Roose")]
+    [InlineData("Rosse")]
+    [InlineData("ROOOSE")]
+    [InlineData("Roseees")]
+    [InlineData("Roseee'ka")]
+    [InlineData("Rose-y")]
+    [InlineData("R-O-S-E-S")]
+    [InlineData("R O S E S")]
+    [InlineData("a R O S E")]
+    [InlineData("R-O S-E")]
+    [InlineData("R  O  S  E")]
+    [InlineData("R-O-S")]
+    [InlineData("RO-SE")]
+    public void IgnoresStretchesInsideWordsAndPartSpellings(string text)
+    {
+        Assert.False(Rose.IsMatch(text));
+    }
+
+    [Theory]
+    [InlineData("Pol Bob", "Pool")]
+    [InlineData("Pol Bob", "Boob")]
+    [InlineData("Anna Lee", "Ana")]
+    [InlineData("Anna Lee", "Le")]
+    public void DoubledLettersAreNotAStretch(string name, string text)
+    {
+        Assert.False(new NameMatcher(name, caseSensitive: true).IsMatch(text));
+    }
+
+    [Theory]
+    [InlineData("Pol Bob", "Poool")]
+    [InlineData("Pol Bob", "Bobbb")]
+    [InlineData("Anna Lee", "Annna")]
+    [InlineData("Anna Lee", "Leeeee")]
+    [InlineData("Anna Lee", "A-N-N-A")]
+    [InlineData("Y'shtola Rhul", "Y'shtolaaa")]
+    [InlineData("Mary-Jane Doe", "Maaary-Jane")]
+    public void LongerStretchesMatch(string name, string text)
+    {
+        Assert.True(new NameMatcher(name, caseSensitive: true).IsMatch(text));
+    }
+
+    [Fact]
+    public void CaseInsensitiveMatchesStretchesInAnyCase()
+    {
+        Assert.True(new NameMatcher("Rose Thorne", caseSensitive: false).IsMatch("ROOOSEEE"));
+    }
+
+    [Theory]
+    [InlineData("raiiid")]
+    [InlineData("raidd")]
+    [InlineData("r-a-i-d")]
+    public void PhrasesMatchOnlyAsWritten(string text)
+    {
+        Assert.False(NameMatcher.ForPhrases("raid", caseSensitive: false).IsMatch(text));
+    }
+
     private static List<(int Start, int Length)> FindAll(NameMatcher matcher, string text)
     {
         var matches = new List<(int Start, int Length)>();
@@ -168,6 +242,12 @@ public class NameMatcherTests
     {
         var matcher = NameMatcher.ForPhrases("good morning\nmorning", caseSensitive: false);
         Assert.Equal([(0, 12), (5, 7)], FindAll(matcher, "Good morning!"));
+    }
+
+    [Fact]
+    public void FindAllGivesTheWholeStretchedOrSpelledWord()
+    {
+        Assert.Equal([(3, 9), (14, 7), (26, 7)], FindAll(Rose, "hi Rooooseee, R-O-S-E and R O S E's"));
     }
 
     [Fact]
