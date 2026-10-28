@@ -7,6 +7,7 @@ using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Client.UI.Arrays;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using SayMyName.Core;
 
@@ -20,7 +21,7 @@ namespace SayMyName;
 /// </summary>
 public sealed unsafe class TestHarness : IDisposable
 {
-    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off";
+    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
 
     private readonly TargetedAlert targetedAlert;
 
@@ -39,6 +40,10 @@ public sealed unsafe class TestHarness : IDisposable
     // Logged once only, since with "keep" the game may change it back every frame
     private bool tabColourReset;
 
+    // Frames left of logging the chat tabs' message counts and colours, and each tab's last logged state
+    private int tabWatchFrames;
+    private readonly string?[] tabStates = new string?[5];
+
     public TestHarness(TargetedAlert targetedAlert)
     {
         this.targetedAlert = targetedAlert;
@@ -50,6 +55,10 @@ public sealed unsafe class TestHarness : IDisposable
     public void Dispose()
     {
         ClearTabColour();
+        if (tabWatchFrames > 0)
+        {
+            Plugin.Framework.Update -= OnTabWatchUpdate;
+        }
         Plugin.ChatGui.ChatMessage -= OnChatMessage;
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessageUnhandled;
         targetedAlert.FakeTargetingYou = null;
@@ -72,6 +81,7 @@ public sealed unsafe class TestHarness : IDisposable
             "emotes" => ToggleEmoteWatch(rest),
             "targeting-me" => SetFakeTargeter(rest),
             "tabcolor" => SetTabColour(rest),
+            "tabwatch" => WatchTabs(rest),
             _ => (bool?)null,
         };
 
@@ -238,6 +248,76 @@ public sealed unsafe class TestHarness : IDisposable
         var button = chatLog->ChatTabs[tab].Value;
         return button == null ? null : button->ButtonTextNode;
     }
+
+    // For ten seconds, logs each chat tab's message count and colours whenever they change, to see
+    // whether inactive tabs' counts go up and what the game's unread flash changes
+    private bool WatchTabs(string args)
+    {
+        if (args.Length > 0)
+        {
+            return false;
+        }
+
+        if (tabWatchFrames == 0)
+        {
+            Plugin.Framework.Update += OnTabWatchUpdate;
+        }
+        tabWatchFrames = TabWatchLength;
+        Array.Clear(tabStates);
+        Plugin.ChatGui.Print("Test harness: logging chat tabs for 10 s, see /xllog");
+        return true;
+    }
+
+    private const int TabWatchLength = 600;
+
+    private void OnTabWatchUpdate(IFramework framework)
+    {
+        if (--tabWatchFrames <= 0)
+        {
+            Plugin.Framework.Update -= OnTabWatchUpdate;
+            Plugin.Log.Information("Test harness: tab watch ended");
+            return;
+        }
+
+        var chatLog = (AddonChatLog*)RaptureAtkUnitManager.Instance()->GetAddonByName("ChatLog");
+        var counts = ChatLogNumberArray.Instance();
+        if (chatLog == null || counts == null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < Math.Min((int)chatLog->TabCount, tabStates.Length); i++)
+        {
+            var tab = chatLog->ChatTabs[i].Value;
+            if (tab == null)
+            {
+                continue;
+            }
+
+            var count = i switch
+            {
+                0 => counts->Tab1.TotalMessageCount,
+                1 => counts->Tab2.TotalMessageCount,
+                2 => counts->Tab3.TotalMessageCount,
+                3 => counts->Tab4.TotalMessageCount,
+                _ => -1,
+            };
+            var text = tab->ButtonTextNode;
+            var state = $"count={count} active={i == chatLog->TabIndex} " +
+                (text == null ? "no text node" : $"text={Hex(text->TextColor)} edge={Hex(text->EdgeColor)} textNode={Tint(&text->AtkResNode)}") +
+                $" bg={Tint(tab->ButtonBGNode)} owner={Tint(&tab->OwnerNode->AtkResNode)}";
+            if (state != tabStates[i])
+            {
+                tabStates[i] = state;
+                Plugin.Log.Information($"Test harness: frame {TabWatchLength - tabWatchFrames} tab {i + 1} {state}");
+            }
+        }
+    }
+
+    // A node's colour, multiply and add tint, and visibility
+    private static string Tint(AtkResNode* node) => node == null
+        ? "null"
+        : $"{Hex(node->Color)}*{node->MultiplyRed},{node->MultiplyGreen},{node->MultiplyBlue}+{node->AddRed},{node->AddGreen},{node->AddBlue}{(node->IsVisible() ? "" : " hidden")}";
 
     private static string Hex(ByteColor c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}{c.A:X2}";
 
