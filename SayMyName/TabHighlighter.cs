@@ -14,9 +14,10 @@ namespace SayMyName;
 /// puts the tab's own colour back when it is selected, as with its unread highlight.
 /// </summary>
 /// <remarks>
-/// Which channels a tab shows isn't readable, so the tabs are found by their message counts: taken
-/// when the alerted line arrives (before the game adds it), then compared each frame until one
-/// goes up. Another line landing in the same frame can colour a tab that only shows that line.
+/// Which channels a tab shows isn't readable, so the tabs are found by their message counts (in
+/// game, the log number of the tab's newest line, so they move together for a line every tab
+/// shows): taken when the alerted line arrives (before the game adds it), then compared each frame
+/// until one goes up. Another line landing in the same frame can colour a tab that only shows that line.
 /// </remarks>
 public sealed unsafe class TabHighlighter(Configuration configuration) : IDisposable
 {
