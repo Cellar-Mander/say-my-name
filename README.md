@@ -70,4 +70,4 @@ One-time setup:
 
 ## License
 
-AGPL-3.0, inherited from SamplePlugin. See [LICENSE.md](LICENSE.md).
+MIT. See [LICENSE.md](LICENSE.md).

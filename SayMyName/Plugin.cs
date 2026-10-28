@@ -66,7 +66,6 @@ public sealed class Plugin : IDalamudPlugin
                 : $"Open the Say My Name settings, or (dev plugin) {CommandName} {TestHarness.Usage}"
         });
 
-        // Tell the UI system that we want our windows to be drawn through the window system
         PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 
         // The plugin installer's settings and open buttons both lead to the settings window
@@ -76,7 +75,8 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        // Unregister all actions to not leak anything during disposal of plugin
+        // Unhook from Dalamud first, so no command or draw call reaches a disposed component
+        CommandManager.RemoveHandler(CommandName);
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleConfigUi;
@@ -89,8 +89,6 @@ public sealed class Plugin : IDalamudPlugin
         TextAlert.Dispose();
         TargetedAlert.Dispose();
         TabHighlighter.Dispose();
-
-        CommandManager.RemoveHandler(CommandName);
     }
 
     private void OnCommand(string command, string args)
