@@ -17,6 +17,7 @@ public abstract class ConfigurationBase
     public const int MinSoundEffect = 1;
     public const int MaxSoundEffect = 16;
     public const int MaxCooldownSeconds = 60;
+    public const int MaxCustomWordsLength = 2000;
 
     // Starts empty, as does each TriggerSettings.Channels: Json.NET adds to an existing set on load,
     // so pre-filled channels would resurrect ones the user had turned off. Normalize() fills in the
@@ -25,6 +26,13 @@ public abstract class ConfigurationBase
 
     /// <summary>Match your name only as written (e.g. Rose but not "a rose").</summary>
     public bool NameCaseSensitive { get; set; } = true;
+
+    /// <summary>Words and phrases for the Custom trigger, one per line.</summary>
+    // A string rather than a list: Json.NET would append a loaded list to a pre-filled one
+    public string CustomWords { get; set; } = "";
+
+    /// <summary>Match custom words only as written.</summary>
+    public bool CustomWordsCaseSensitive { get; set; }
 
     public bool PlaySound { get; set; } = true;
 
@@ -49,6 +57,11 @@ public abstract class ConfigurationBase
 
         SoundEffect = Math.Clamp(SoundEffect, MinSoundEffect, MaxSoundEffect);
         CooldownSeconds = Math.Clamp(CooldownSeconds, 0, MaxCooldownSeconds);
+        CustomWords ??= "";
+        if (CustomWords.Length > MaxCustomWordsLength)
+        {
+            CustomWords = CustomWords[..MaxCustomWordsLength];
+        }
         ExpandedSections ??= [SettingsSection.Triggers];
     }
 }

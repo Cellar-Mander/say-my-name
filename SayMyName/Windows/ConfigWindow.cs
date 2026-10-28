@@ -65,6 +65,9 @@ public class ConfigWindow : Window, IDisposable
 
     public void Dispose() { }
 
+    // Custom words save when their box loses focus, which closing the window mid-edit skips
+    public override void OnClose() => configuration.Save();
+
     public override void Draw()
     {
         if (DrawSectionHeader(SettingsSection.Triggers, "Alert when###Triggers"))
@@ -121,6 +124,10 @@ public class ConfigWindow : Window, IDisposable
             if (Triggers.All[t] == TriggerKind.Name)
             {
                 DrawNameOptions(settings.Enabled);
+            }
+            else if (Triggers.All[t] == TriggerKind.Custom)
+            {
+                DrawCustomOptions(settings.Enabled);
             }
         }
     }
@@ -203,6 +210,31 @@ public class ConfigWindow : Window, IDisposable
         if (ImGui.Checkbox("Match case (Rose, but not \"a rose\")", ref caseSensitive))
         {
             configuration.NameCaseSensitive = caseSensitive;
+            configuration.Save();
+        }
+    }
+
+    private void DrawCustomOptions(bool enabled)
+    {
+        using var indent = ImRaii.PushIndent();
+        using var disabled = ImRaii.Disabled(!enabled);
+        var words = configuration.CustomWords;
+        if (ImGui.InputTextMultiline("##customWords", ref words, Configuration.MaxCustomWordsLength,
+                new Vector2(-1, ImGui.GetTextLineHeight() * 4 + ImGui.GetStyle().FramePadding.Y * 2)))
+        {
+            configuration.CustomWords = words;
+        }
+        // Saved once editing ends rather than on every keystroke
+        if (ImGui.IsItemDeactivatedAfterEdit())
+        {
+            configuration.Save();
+        }
+        ImGui.TextDisabled("One word or phrase per line");
+
+        var caseSensitive = configuration.CustomWordsCaseSensitive;
+        if (ImGui.Checkbox("Match case##customCase", ref caseSensitive))
+        {
+            configuration.CustomWordsCaseSensitive = caseSensitive;
             configuration.Save();
         }
     }

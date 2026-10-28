@@ -24,7 +24,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; init; }
     public AlertSound AlertSound { get; init; }
-    private NameAlert NameAlert { get; init; }
+    private TextAlert TextAlert { get; init; }
     private TargetedAlert TargetedAlert { get; init; }
     // Dev plugin only: faking chat and targeting is a testing tool, not a user feature
     private TestHarness? TestHarness { get; init; }
@@ -41,7 +41,7 @@ public sealed class Plugin : IDalamudPlugin
         Log.Information($"Say My Name {typeof(Plugin).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} loaded");
 
         AlertSound = new AlertSound(Configuration);
-        NameAlert = new NameAlert(Configuration, AlertSound);
+        TextAlert = new TextAlert(Configuration, AlertSound);
         TargetedAlert = new TargetedAlert(Configuration, AlertSound);
         if (PluginInterface.IsDev)
         {
@@ -78,7 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow.Dispose();
         // The harness first: it unhooks itself from TargetedAlert
         TestHarness?.Dispose();
-        NameAlert.Dispose();
+        TextAlert.Dispose();
         TargetedAlert.Dispose();
 
         CommandManager.RemoveHandler(CommandName);

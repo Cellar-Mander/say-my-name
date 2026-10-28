@@ -1,8 +1,8 @@
 namespace SayMyName.Core;
 
 /// <summary>
-/// Finds a character's first or last name in chat text as a whole word.
-/// Apostrophes and hyphens between letters join a word (Y'shtola, Mary-Jane), except a trailing
+/// Finds a character's first or last name, or one of a list of custom words and phrases, in chat
+/// text as a whole word. Apostrophes and hyphens between letters join a word (Y'shtola, Mary-Jane), except a trailing
 /// possessive 's, so "Rin's" mentions Rin but "Rin'ka" and "Mary-Rin" do not.
 /// </summary>
 public sealed class NameMatcher
@@ -12,7 +12,8 @@ public sealed class NameMatcher
     private readonly string[] parts;
     private readonly StringComparison comparison;
 
-    public string FullName { get; }
+    /// <summary>The name or phrase list this matcher was built from.</summary>
+    public string Source { get; }
     public bool CaseSensitive { get; }
 
     /// <param name="fullName">The character name, e.g. "Alice Smith". Empty matches nothing.</param>
@@ -20,13 +21,29 @@ public sealed class NameMatcher
     /// Match the name only as written (title case), so a name like Rose doesn't fire on "a rose".
     /// </param>
     public NameMatcher(string fullName, bool caseSensitive)
+        : this(fullName, fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), caseSensitive)
     {
-        FullName = fullName;
+    }
+
+    private NameMatcher(string source, IEnumerable<string> parts, bool caseSensitive)
+    {
+        Source = source;
         CaseSensitive = caseSensitive;
-        parts = fullName.Replace(CurlyApostrophe, '\'')
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        this.parts = [.. parts.Select(p => p.Replace(CurlyApostrophe, '\''))];
         comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
     }
+
+    /// <summary>
+    /// Matches any of the words or phrases, one per line, each as a whole: "good morning" matches
+    /// "Good morning!" but not "good" alone. Runs of spaces inside a phrase count as one; blank lines are skipped.
+    /// </summary>
+    public static NameMatcher ForPhrases(string lines, bool caseSensitive) =>
+        new(lines,
+            lines.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(line => string.Join(' ', line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))
+                .Where(phrase => phrase.Length > 0)
+                .Distinct(),
+            caseSensitive);
 
     public bool IsMatch(ReadOnlySpan<char> text)
     {
