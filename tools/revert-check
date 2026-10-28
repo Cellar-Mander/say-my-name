@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copy of ~/Repo/ebd/bin/revert-check at 1faac35; update from there.
+# Copy of ~/Repo/ebd/bin/revert-check at 1bd04e3; update from there.
 """revert-check: do the branch's new or changed tests fail when its product changes are reverted?
 
     revert-check [--ci] [--quiet] [--base REF] [--head REV]
@@ -27,6 +27,7 @@ Environment: REVERT_CHECK_TIMEOUT (seconds per run, default 900), REVERT_CHECK_L
 """
 
 import argparse
+import contextlib
 import fnmatch
 import json
 import os
@@ -46,6 +47,7 @@ TEST_PATH = re.compile(
 )
 # Never reverted: changing them would change how the tests are run, not what they test.
 KEEP = (".claude/", ".github/")
+MAX_REBUILDS = 5  # rounds of setting aside test files that don't build with the product reverted
 MARKER = re.compile(r"revert-check:\s*not revert-sensitive", re.IGNORECASE)
 # A test that starts on one line: Python def test_*, Go func TestX, JS/TS it("...") / test("...").
 LINE_TESTS = [
@@ -312,11 +314,45 @@ def resolve_base(root, base):
     return None
 
 
-def classify(defs, head, reverted):
+CS_ERROR = re.compile(r"^\s*(?P<path>[^\s(][^(\n]*?\.cs)\(\d+,\d+\): error CS\d+", re.MULTILINE)
+PY_MISSING = re.compile(r"ModuleNotFoundError: No module named '([\w.]+)'|ImportError: cannot import name '\w+' "
+                        r"from '([\w.]+)'")
+PY_FRAME = re.compile(r'File "([^"]+)", line \d+')
+
+
+def needs_new_code(output, wt, globs, product):
+    """Why tests didn't run with the product reverted, when the cause is only that they use code
+    the branch adds: test files that fail to compile (C#) or import (Python). Returns
+    (test files, note): note explains tests that didn't run for that reason outside those files."""
+    def rel(p):
+        return os.path.relpath(p, wt) if os.path.isabs(p) else p
+
+    errors = {rel(m.group("path")) for m in CS_ERROR.finditer(output)}
+    if errors:
+        if all(is_test_path(f, globs) for f in errors):
+            return errors, "its test project doesn't build with the product reverted"
+        return set(), ""
+    # A module name stands for the product files the branch changed: calc.py or pkg/__init__.py.
+    modules = {os.path.basename(f[:-len("/__init__.py")] if f.endswith("/__init__.py") else f[:-3])
+               for _, f in product if f.endswith(".py")}
+    files = set()
+    for block in re.split(r"^={20,}$", output, flags=re.MULTILINE):
+        m = PY_MISSING.search(block)
+        if m and (m.group(1) or m.group(2)).split(".")[-1] in modules:
+            files.update(f for f in map(rel, PY_FRAME.findall(block))
+                         if not f.startswith("..") and is_test_path(f, globs))
+    return files, ""
+
+
+def classify(defs, head, reverted, needs=(set(), "")):
     """Sort new/changed tests by what the reverted run says about them."""
-    out = {"guards": [], "unguarded": [], "marked": [], "cant_tell": []}
+    out = {"guards": [], "unguarded": [], "marked": [], "needs_new": [], "cant_tell": []}
+    needs_files, needs_note = needs
     for d in defs:
-        if head.results is not None:
+        if d.path in needs_files and not reverted.timed_out and (
+                reverted.results is None or reverted.results.get(d.name) is None):
+            out["needs_new"].append((d, ""))
+        elif head.results is not None:
             h = head.results[d.name]
             r = reverted.results.get(d.name) if reverted.results is not None else None
             if h != "pass":
@@ -327,7 +363,7 @@ def classify(defs, head, reverted):
                 out["marked" if d.marked else "unguarded"].append((d, ""))
             else:
                 why = "the reverted run timed out" if reverted.timed_out else (
-                    "skipped with the product reverted" if r == "skip" else
+                    "skipped with the product reverted" if r == "skip" else needs_note or
                     "did not run with the product reverted (build or collection failure?)")
                 out["cant_tell"].append((d, why))
         elif reverted.timed_out:
@@ -345,6 +381,7 @@ def report(groups, others, header, footer, ci):
     labels = [("guards", "Guards the change (fails with the product reverted)"),
               ("unguarded", "DOES NOT GUARD the change (still passes with the product reverted)"),
               ("marked", "Passes with the product reverted, marked not revert-sensitive"),
+              ("needs_new", "Needs the new code (its file doesn't compile or import with the product reverted)"),
               ("cant_tell", "Can't tell")]
     for key, label in labels:
         whys = list(dict.fromkeys(why for _, why in groups[key]))
@@ -358,6 +395,9 @@ def report(groups, others, header, footer, ci):
         lines.append("To act on a test that DOES NOT GUARD the change: make it fail on the old code (assert the new "
                      "behaviour), or, if it checks something a revert can't show, add a comment inside the test: "
                      "revert-check: not revert-sensitive (<reason>)")
+    if groups["needs_new"]:
+        lines.append("Needs the new code shows a test uses what the branch adds, not that it checks its behaviour; "
+                     "it is not counted as guarding.")
     if groups["cant_tell"]:
         lines.append("Can't tell means not verified by this check, not passed.")
     lines.append(footer)
@@ -394,6 +434,8 @@ def main(argv=None):
     p.add_argument("--base", help="base branch or commit (default: PR base, origin/HEAD, main, master)")
     p.add_argument("--head", default="HEAD", help="revision to check (default HEAD)")
     p.add_argument("--quiet", action="store_true", help="say nothing when there is nothing to check")
+    p.add_argument("--test-cmd", help="test command to use instead of .claude/checks or detection "
+                                      "(e.g. for old commits that predate revert_test=)")
     a = p.parse_args(argv)
 
     def say(msg):
@@ -404,9 +446,12 @@ def main(argv=None):
     if not root:
         say("not in a git repository")
         return 0
-    head = git("rev-parse", "--verify", f"{a.head}^{{commit}}", cwd=root).strip()
+    head = git("rev-parse", "-q", "--verify", f"{a.head}^{{commit}}", cwd=root, check=False).strip()
+    if not head:
+        print(f"revert-check: {a.head!r} is not a commit")
+        return 2
     cfg = config(root, head)
-    cmd = cfg.get("revert_test") or cfg.get("mutation_test") or cfg.get("stop") or detect_command(root, head)
+    cmd = a.test_cmd or cfg.get("revert_test") or cfg.get("mutation_test") or cfg.get("stop") or detect_command(root, head)
     if not cmd:
         say("no test command found; set revert_test= in .claude/checks. Skipped.")
         return 0
@@ -462,6 +507,26 @@ def main(argv=None):
             if s == "A":
                 os.remove(os.path.join(wt, f))
         reverted = run_tests(cmd, wt, tmp, "reverted", timeout)
+        # A compiler may stop at the first errors it finds (Roslyn reports declaration errors and
+        # skips method bodies), hiding other test files that need the new code. While nothing ran
+        # and every error is in a test file, set those files aside and build again; the tests
+        # left then get a real verdict.
+        needs_files, needs_note = set(), ""
+        for n in range(1, MAX_REBUILDS + 1):
+            if reverted.rc == 0 or reverted.timed_out:
+                break
+            files, note = needs_new_code(reverted.output, wt, globs, product)
+            files -= needs_files
+            if not files:
+                break
+            needs_files |= files
+            needs_note = note
+            if reverted.results is not None:  # the other tests ran: nothing is hidden
+                break
+            for f in files:
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(os.path.join(wt, f))
+            reverted = run_tests(cmd, wt, tmp, f"reverted{n}", timeout)
     finally:
         git("worktree", "remove", "--force", wt, cwd=root, check=False)
         shutil.rmtree(tmp, ignore_errors=True)
@@ -469,7 +534,7 @@ def main(argv=None):
 
     if at_head.results is not None:  # a def that never ran is test data or a helper, not a test
         defs = [d for d in defs if d.name in at_head.results]
-    groups = classify(defs, at_head, reverted)
+    groups = classify(defs, at_head, reverted, (needs_files, needs_note if reverted.results is None else ""))
     names = {d.name for d in defs}
     others = set()
     if at_head.results is not None and reverted.results is not None:
