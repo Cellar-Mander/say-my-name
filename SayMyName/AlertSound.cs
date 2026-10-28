@@ -7,7 +7,10 @@ namespace SayMyName;
 /// <summary>The alert sound every trigger plays, with one quiet time shared between them.</summary>
 public sealed class AlertSound(Configuration configuration)
 {
-    private readonly Cooldown cooldown = new();
+    private Cooldown cooldown = new();
+
+    /// <summary>Dev plugin only: called instead of playing the sound, for the self-test to count alerts.</summary>
+    public Action? Alerted { get; set; }
 
     public void Play() => UIGlobals.PlayChatSoundEffect((uint)configuration.SoundEffect);
 
@@ -17,7 +20,17 @@ public sealed class AlertSound(Configuration configuration)
         if (configuration.PlaySound
             && cooldown.TryFire(Environment.TickCount64, TimeSpan.FromSeconds(configuration.CooldownSeconds)))
         {
-            Play();
+            if (Alerted != null)
+            {
+                Alerted();
+            }
+            else
+            {
+                Play();
+            }
         }
     }
+
+    /// <summary>Dev plugin only: lets the next alert sound whatever the quiet time.</summary>
+    public void ResetQuietTime() => cooldown = new();
 }

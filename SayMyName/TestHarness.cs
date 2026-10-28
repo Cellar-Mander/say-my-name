@@ -17,13 +17,17 @@ namespace SayMyName;
 /// Dev-plugin helper for the smoke checklist (docs/smoke-test.md): puts fake player messages into
 /// chat and logs when each comes back through the chat events the triggers listen on, logs the
 /// emotes the Emote trigger sees, can pretend an injected sender is targeting you or is your target, and can
-/// recolour a chat tab's name to see whether the game keeps the colour.
+/// recolour a chat tab's name to see whether the game keeps the colour, and can run the automatable
+/// solo checklist cases as a self-test (TestHarness.SelfTest.cs).
 /// </summary>
-public sealed unsafe class TestHarness : IDisposable
+public sealed unsafe partial class TestHarness : IDisposable
 {
-    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
+    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch | selftest";
 
+    private readonly Configuration configuration;
+    private readonly AlertSound alertSound;
     private readonly TargetedAlert targetedAlert;
+    private readonly Func<bool> settingsOpen;
 
     // Texts injected but not yet seen; a handful at most, only touched on the framework thread
     private readonly HashSet<string> pending = [];
@@ -45,8 +49,11 @@ public sealed unsafe class TestHarness : IDisposable
     private int tabWatchFrames;
     private readonly string?[] tabStates = new string?[5];
 
-    public TestHarness(TargetedAlert targetedAlert)
+    public TestHarness(Configuration configuration, AlertSound alertSound, TargetedAlert targetedAlert, Func<bool> settingsOpen)
     {
+        this.configuration = configuration;
+        this.alertSound = alertSound;
+        this.settingsOpen = settingsOpen;
         this.targetedAlert = targetedAlert;
         targetedAlert.FakeTargetingYou = name => name == fakeTargeter;
         targetedAlert.FakeYourTarget = name => name == fakeTarget;
@@ -56,6 +63,7 @@ public sealed unsafe class TestHarness : IDisposable
 
     public void Dispose()
     {
+        StopSelfTest();
         ClearTabColour();
         if (tabWatchFrames > 0)
         {
@@ -86,6 +94,7 @@ public sealed unsafe class TestHarness : IDisposable
             "my-target" => SetFakeTarget(rest),
             "tabcolor" => SetTabColour(rest),
             "tabwatch" => WatchTabs(rest),
+            "selftest" => StartSelfTest(rest),
             _ => (bool?)null,
         };
 
@@ -352,6 +361,7 @@ public sealed unsafe class TestHarness : IDisposable
 
     private void OnChatMessage(IHandleableChatMessage message)
     {
+        SelfTestSaw(message, unhandled: false);
         if (pending.Contains(message.Message.TextValue))
         {
             Plugin.Log.Information($"Test harness: ChatMessage got {message.LogKind} from {message.Sender.TextValue}: {message.Message.TextValue}");
@@ -360,6 +370,7 @@ public sealed unsafe class TestHarness : IDisposable
 
     private void OnChatMessageUnhandled(IChatMessage message)
     {
+        SelfTestSaw(message, unhandled: true);
         if (pending.Remove(message.Message.TextValue))
         {
             Plugin.Log.Information($"Test harness: ChatMessageUnhandled got {message.LogKind} (source={message.SourceKind}) from {message.Sender.TextValue}");
