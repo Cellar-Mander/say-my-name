@@ -68,7 +68,7 @@ Below, *Me* is your character's name and *A Friend* any other name.
 ### Settings persist
 
 - [ ] Untick a channel for Name, untick the You trigger, untick Match case, pick sound `<se.7>`, set quiet time to 0. Disable and re-enable the plugin in `/xlplugins`: all five are as you left them.
-- [ ] The channel table has no Emotes row and no Emote column; You and Target Speaks offer only Say and Custom emotes.
+- [ ] The channel table has no Emotes row and no Emote column; You offers only Say, Party, Alliance and Custom emotes; Target Speaks only Say and Custom emotes. Say and Custom emotes come first, then Party and Alliance.
 - [ ] With a config saved before Emote and You existed (Targeted unticked, Emotes unticked for it): after loading, both Emote and You are unticked, and You keeps Say and Custom emotes.
 - [ ] With a config saved before the Emotes row was removed, with the Emote trigger ticked but Emotes unticked for it: after loading, the Emote trigger is unticked.
 - [ ] Untick a trigger: its column header and checkboxes dim.
@@ -132,7 +132,8 @@ Solo:
 - [ ] `/xllog` has no `emote function not found` warning after loading.
 - [ ] `/saymyname emotes`, then wait somewhere busy (e.g. a city aetheryte plaza): other players' emotes log `Test harness: emote ...` lines. For each one that also shows in chat (e.g. "X pets Y"), the log names the same emoter and target with `logged=True`. Lines with `logged=False` match emotes you saw but chat didn't show. If no lines appear while players emote, the hook doesn't see network emotes and the emote cases below will fail. `/saymyname emotes` again turns it off.
 - [ ] `/saymyname targeting-me A Friend`, then `/saymyname inject Say A Friend thank you`: sound. Same with `your`, `yours`, `you're`, and on `CustomEmote`.
-- [ ] Still pretending: `inject Say A Friend hello`: no sound. `inject Say Someone Else thank you`: no sound. `inject Party A Friend thank you`: no sound (not a You channel).
+- [ ] Still pretending: `inject Say A Friend hello`: no sound. `inject Say Someone Else thank you`: no sound. `inject Party A Friend thank you`: sound; same on `Alliance` and `CrossParty`. `inject Linkshell1 A Friend thank you`: no sound (not a You channel).
+- [ ] Untick Party for You, `inject Party A Friend thank you`: no sound; `inject Say A Friend thank you`: sound. Tick Party again.
 - [ ] Untick Say for You, `inject Say A Friend thank you`: no sound. `/saymyname targeting-me` (stop pretending), tick Say again, same inject: no sound.
 
 With a second player (*A Friend*, e.g. an alt on another client) near you:

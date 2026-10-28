@@ -60,6 +60,8 @@ public static class Triggers
     private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c is not (ChatChannel.StandardEmote or ChatChannel.CrossParty))];
     private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
     private static readonly ChatChannel[] SayAndCustomEmotes = [ChatChannel.Say, ChatChannel.CustomEmote];
+    // Party and alliance members are often nearby, so the sender can be checked for targeting you
+    private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
 
     /// <summary>Triggers whose channels are chosen in settings; the Emote trigger only ever listens on standard emotes.</summary>
     public static readonly IReadOnlyList<TriggerKind> WithChannelChoice = [.. All.Where(k => k != TriggerKind.Emote)];
@@ -72,7 +74,8 @@ public static class Triggers
     public static IReadOnlyList<ChatChannel> AllowedChannels(TriggerKind kind) => kind switch
     {
         TriggerKind.Emote => StandardEmoteOnly,
-        TriggerKind.You or TriggerKind.TargetSpeaks => SayAndCustomEmotes,
+        TriggerKind.You => YouChannels,
+        TriggerKind.TargetSpeaks => SayAndCustomEmotes,
         _ => TextChannels,
     };
 
