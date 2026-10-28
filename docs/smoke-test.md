@@ -86,6 +86,19 @@ Turn off the Name trigger first, so only custom words can sound.
 - [ ] Clear the list: nothing sounds. Untick the Custom trigger: nothing sounds.
 - [ ] Type a list, close the window without clicking elsewhere, reload the plugin: the list is kept.
 
+### Highlight
+
+Turn on the Name and Custom triggers, enter `raid` as a custom word, and set quiet time to 0.
+
+- [ ] Highlight is on by default: `/saymyname inject Say A Friend hi <Me first name>, raid?` shows your name and `raid` in pale yellow with an orange glow; the rest of the line, and the sender name, keep the Say colour.
+- [ ] `inject Say A Friend <Me first name>'s raid`: only the name is coloured, not the `'s`. `inject Say A Friend Primrose afraid`: nothing coloured.
+- [ ] Pick another text colour and glow in the Highlight section: the next injected line uses them. Pick None for glow: text colour only. None for both: lines are unchanged.
+- [ ] Untick Play a sound: lines are still coloured, with no sound. Untick Highlight, tick Play a sound: sound, no colour.
+- [ ] Untick Say for Name: `inject Say A Friend hi <Me first name>` is not coloured; on Party it is.
+- [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): not coloured.
+- [ ] A real line with an item or map link and your name after it: the link still works and only your name is coloured.
+- [ ] Reload the plugin: the Highlight setting and both colours are kept.
+
 ### Targeted trigger
 
 Set quiet time to 0 so every alert sounds, and turn on verbose logging (`/xllog` → log level Verbose) to see `Targeted trigger:` lines.

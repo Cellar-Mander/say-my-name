@@ -6,6 +6,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Lumina.Excel.Sheets;
 using SayMyName.Core;
 
 namespace SayMyName.Windows;
@@ -28,6 +29,22 @@ public class ConfigWindow : Window, IDisposable
     private static readonly string[] SoundLabels =
         [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
     private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
+
+    // UIColor rows (about 200) as ImGui colours: each row's foreground and glow, and each distinct
+    // colour once (lowest row first) for the pickers
+    private readonly Dictionary<ushort, Vector4> textColors = [];
+    private readonly Dictionary<ushort, Vector4> glowColors = [];
+    private readonly List<ushort> textPalette = [];
+    private readonly List<ushort> glowPalette = [];
+    private static readonly PickerIds TextPicker = new("Text", "highlightText");
+    private static readonly PickerIds GlowPicker = new("Glow", "highlightGlow");
+
+    private sealed record PickerIds(string Label, string Id)
+    {
+        public string Swatch { get; } = $"##{Id}-swatch";
+        public string None { get; } = $"None##{Id}-swatch";
+        public string Popup { get; } = $"##{Id}-popup";
+    }
 
     public ConfigWindow(Plugin plugin) : base("Say My Name###SayMyNameSettings")
     {
@@ -61,7 +78,40 @@ public class ConfigWindow : Window, IDisposable
         {
             channelLabels[c] = ChannelLabel(Channels[c]);
         }
+
+        LoadColors();
     }
+
+    private void LoadColors()
+    {
+        var seenText = new HashSet<uint>();
+        var seenGlow = new HashSet<uint>();
+        // The payloads take foreground from the Dark column and glow from Light
+        foreach (var row in Plugin.DataManager.GetExcelSheet<UIColor>())
+        {
+            if (row.RowId == Configuration.NoColor || row.RowId > ushort.MaxValue)
+            {
+                continue;
+            }
+
+            var key = (ushort)row.RowId;
+            textColors[key] = ToVector(row.Dark);
+            glowColors[key] = ToVector(row.Light);
+            // Fully transparent rows would draw nothing
+            if ((row.Dark & 0xFF) != 0 && seenText.Add(row.Dark))
+            {
+                textPalette.Add(key);
+            }
+            if ((row.Light & 0xFF) != 0 && seenGlow.Add(row.Light))
+            {
+                glowPalette.Add(key);
+            }
+        }
+    }
+
+    // UIColor stores 0xRRGGBBAA
+    private static Vector4 ToVector(uint rgba) =>
+        new((rgba >> 24) / 255f, ((rgba >> 16) & 0xFF) / 255f, ((rgba >> 8) & 0xFF) / 255f, (rgba & 0xFF) / 255f);
 
     public void Dispose() { }
 
@@ -78,6 +128,11 @@ public class ConfigWindow : Window, IDisposable
         if (DrawSectionHeader(SettingsSection.Sound, "Sound###Sound"))
         {
             DrawSoundOptions();
+        }
+
+        if (DrawSectionHeader(SettingsSection.Highlight, "Highlight###Highlight"))
+        {
+            DrawHighlightOptions();
         }
 
         // Last, as its table scrolls in whatever height the window has left
@@ -281,6 +336,85 @@ public class ConfigWindow : Window, IDisposable
             configuration.CooldownSeconds = cooldown;
             configuration.Save();
         }
+    }
+
+    private void DrawHighlightOptions()
+    {
+        var highlight = configuration.Highlight;
+        if (ImGui.Checkbox("Colour your name and custom words in chat", ref highlight))
+        {
+            configuration.Highlight = highlight;
+            configuration.Save();
+        }
+
+        using var indent = ImRaii.PushIndent();
+        using var disabled = ImRaii.Disabled(!highlight);
+        var textColor = configuration.HighlightTextColor;
+        if (DrawColorPicker(TextPicker, ref textColor, textColors, textPalette))
+        {
+            configuration.HighlightTextColor = textColor;
+            configuration.Save();
+        }
+
+        ImGui.SameLine();
+        var glowColor = configuration.HighlightGlowColor;
+        if (DrawColorPicker(GlowPicker, ref glowColor, glowColors, glowPalette))
+        {
+            configuration.HighlightGlowColor = glowColor;
+            configuration.Save();
+        }
+        ImGui.TextDisabled("Only lines that set off the Name or Custom trigger, on its channels");
+    }
+
+    /// <summary>A swatch that opens a grid of the palette's colours, plus None. True when one is picked.</summary>
+    private static bool DrawColorPicker(PickerIds ids, ref ushort key, Dictionary<ushort, Vector4> colors, List<ushort> palette)
+    {
+        var swatch = new Vector2(ImGui.GetFrameHeight());
+        if (key != Configuration.NoColor && colors.TryGetValue(key, out var current))
+        {
+            if (ImGui.ColorButton(ids.Swatch, current, ImGuiColorEditFlags.NoTooltip, swatch))
+            {
+                ImGui.OpenPopup(ids.Popup);
+            }
+        }
+        else if (ImGui.Button(ids.None))
+        {
+            ImGui.OpenPopup(ids.Popup);
+        }
+        ImGui.SameLine(0, ImGui.GetStyle().ItemInnerSpacing.X);
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(ids.Label);
+
+        using var popup = ImRaii.Popup(ids.Popup);
+        if (!popup.Success)
+        {
+            return false;
+        }
+
+        var picked = false;
+        if (ImGui.Selectable("None", key == Configuration.NoColor))
+        {
+            key = Configuration.NoColor;
+            picked = true;
+        }
+
+        const int perRow = 12;
+        for (var i = 0; i < palette.Count; i++)
+        {
+            if (i % perRow != 0)
+            {
+                ImGui.SameLine();
+            }
+            var row = palette[i];
+            // Interpolated only while the popup is open; the row number is the tooltip
+            if (ImGui.ColorButton($"{row}##{ids.Id}", colors[row], ImGuiColorEditFlags.None, swatch))
+            {
+                key = row;
+                picked = true;
+                ImGui.CloseCurrentPopup();
+            }
+        }
+        return picked;
     }
 
     private static string TriggerLabel(TriggerKind kind) => kind switch

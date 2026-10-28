@@ -45,22 +45,33 @@ public sealed class NameMatcher
                 .Distinct(),
             caseSensitive);
 
-    public bool IsMatch(ReadOnlySpan<char> text)
+    public bool IsMatch(ReadOnlySpan<char> text) => Scan(text, null);
+
+    /// <summary>
+    /// Adds every whole-word match in <paramref name="text"/> to <paramref name="matches"/>, as
+    /// (start, length) in no particular order; matches of different words or phrases may overlap.
+    /// A possessive 's is not part of the match.
+    /// </summary>
+    public void FindAll(ReadOnlySpan<char> text, List<(int Start, int Length)> matches) => Scan(text, matches);
+
+    // With no list, stops at the first match
+    private bool Scan(ReadOnlySpan<char> text, List<(int Start, int Length)>? matches)
     {
         // Chat text may use the typographic apostrophe where the name has a straight one, or the
         // reverse; normalising both sides keeps every index the same, so the word checks still hold
         if (!text.Contains(CurlyApostrophe))
         {
-            return Find(text);
+            return Find(text, matches);
         }
 
         Span<char> straight = text.Length <= 512 ? stackalloc char[text.Length] : new char[text.Length];
         text.Replace(straight, CurlyApostrophe, '\'');
-        return Find(straight);
+        return Find(straight, matches);
     }
 
-    private bool Find(ReadOnlySpan<char> text)
+    private bool Find(ReadOnlySpan<char> text, List<(int Start, int Length)>? matches)
     {
+        var any = false;
         foreach (var part in parts)
         {
             var offset = 0;
@@ -75,12 +86,21 @@ public sealed class NameMatcher
                 var start = offset + found;
                 if (StartsWord(text, start) && EndsWord(text, start + part.Length))
                 {
-                    return true;
+                    if (matches == null)
+                    {
+                        return true;
+                    }
+                    matches.Add((start, part.Length));
+                    any = true;
+                    offset = start + part.Length;
                 }
-                offset = start + 1;
+                else
+                {
+                    offset = start + 1;
+                }
             }
         }
-        return false;
+        return any;
     }
 
     private static bool StartsWord(ReadOnlySpan<char> text, int i) =>
