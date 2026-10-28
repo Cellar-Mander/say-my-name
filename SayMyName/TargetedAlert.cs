@@ -11,7 +11,8 @@ namespace SayMyName;
 
 /// <summary>
 /// Plays the alert sound when another player emotes at you, or says a 'you' word (Say or custom
-/// emote) while targeting you, on a channel the Targeted trigger listens on.
+/// emote) while targeting you, on a channel the Targeted trigger listens on; the 'you' words are
+/// also coloured in chat.
 /// </summary>
 public sealed unsafe class TargetedAlert : IDisposable
 {
@@ -19,6 +20,7 @@ public sealed unsafe class TargetedAlert : IDisposable
 
     private readonly Configuration configuration;
     private readonly AlertSound sound;
+    private readonly ChatHighlighter highlighter;
 
     // Sees every other player's emote, including those whose log message is turned off and never
     // reach chat. Null if the game function wasn't found; emotes then come from chat instead.
@@ -30,10 +32,11 @@ public sealed unsafe class TargetedAlert : IDisposable
     /// <summary>Dev plugin only: treats a sender with this name as targeting you, for injected lines.</summary>
     public Predicate<string>? FakeTargetingYou { get; set; }
 
-    public TargetedAlert(Configuration configuration, AlertSound sound)
+    public TargetedAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter)
     {
         this.configuration = configuration;
         this.sound = sound;
+        this.highlighter = highlighter;
 
         var playEmote = (nint)EmoteController.MemberFunctionPointers.PlayEmote;
         if (playEmote == 0)
@@ -46,20 +49,25 @@ public sealed unsafe class TargetedAlert : IDisposable
             playEmoteHook.Enable();
         }
 
+        // Dalamud's place for formatting a line; skipped for a line another plugin has already hidden
+        Plugin.ChatGui.CheckMessageHandled += OnCheckMessageHandled;
         // Unhandled only: a message another plugin has hidden shouldn't alert
         Plugin.ChatGui.ChatMessageUnhandled += OnChatMessage;
     }
 
     public void Dispose()
     {
+        Plugin.ChatGui.CheckMessageHandled -= OnCheckMessageHandled;
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessage;
         playEmoteHook?.Dispose();
     }
 
-    private bool Listening(ChatChannel channel)
+    private bool Listening(ChatChannel channel) => configuration.PlaySound && TriggerListens(channel);
+
+    private bool TriggerListens(ChatChannel channel)
     {
         var settings = configuration.Triggers[TriggerKind.Targeted];
-        return settings.Enabled && configuration.PlaySound && settings.Channels.Contains(channel);
+        return settings.Enabled && settings.Channels.Contains(channel);
     }
 
     private bool OnPlayEmote(EmoteController* controller, uint emoteId, EmoteController.PlayEmoteOption* options)
@@ -120,6 +128,27 @@ public sealed unsafe class TargetedAlert : IDisposable
         if (matched)
         {
             sound.Alert();
+        }
+    }
+
+    // Colours the 'you' words; emotes at you have no word to colour
+    private void OnCheckMessageHandled(IHandleableChatMessage message)
+    {
+        if (!highlighter.Enabled
+            || ChatChannels.FromChatType(message.LogKind) is not { } channel
+            || channel == ChatChannel.StandardEmote
+            || !TriggerListens(channel)
+            || ChatLines.IsFromYou(message, Plugin.PlayerState.CharacterName))
+        {
+            return;
+        }
+
+        var text = highlighter.Begin(message.Message);
+        YouWords.FindAll(text, highlighter.Matches);
+        // Checked last: it searches the nearby players
+        if (highlighter.Matches.Count > 0 && SenderTargetsYou(message))
+        {
+            highlighter.Apply(message);
         }
     }
 

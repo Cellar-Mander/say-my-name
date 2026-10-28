@@ -6,6 +6,7 @@ public enum SettingsSection
     Triggers,
     Sound,
     Channels,
+    Highlight,
 }
 
 /// <summary>
@@ -18,6 +19,8 @@ public abstract class ConfigurationBase
     public const int MaxSoundEffect = 16;
     public const int MaxCooldownSeconds = 60;
     public const int MaxCustomWordsLength = 2000;
+    /// <summary>UIColor sheet row meaning no colour change.</summary>
+    public const ushort NoColor = 0;
 
     // Starts empty, as does each TriggerSettings.Channels: Json.NET adds to an existing set on load,
     // so pre-filled channels would resurrect ones the user had turned off. Normalize() fills in the
@@ -41,6 +44,15 @@ public abstract class ConfigurationBase
 
     /// <summary>Minimum time between alert sounds.</summary>
     public int CooldownSeconds { get; set; } = 5;
+
+    /// <summary>Colour the words that set off a trigger (your name, custom words, 'you' words) in chat, whether or not a sound plays.</summary>
+    public bool Highlight { get; set; } = true;
+
+    /// <summary>UIColor sheet row for highlighted text (pale yellow), or <see cref="NoColor"/>.</summary>
+    public ushort HighlightTextColor { get; set; } = 25;
+
+    /// <summary>UIColor sheet row for the highlighted text's edge glow (orange), or <see cref="NoColor"/>.</summary>
+    public ushort HighlightGlowColor { get; set; } = 500;
 
     /// <summary>Settings window sections shown expanded; any other, including ones added later, starts closed.</summary>
     // Null until loaded, for the same reason as Triggers: a pre-filled set would bring back sections

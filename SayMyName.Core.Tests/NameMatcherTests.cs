@@ -137,4 +137,43 @@ public class NameMatcherTests
         Assert.False(matcher.IsMatch("anything at all"));
         Assert.False(matcher.IsMatch(""));
     }
+
+    private static List<(int Start, int Length)> FindAll(NameMatcher matcher, string text)
+    {
+        var matches = new List<(int Start, int Length)>();
+        matcher.FindAll(text, matches);
+        return [.. matches.Order()];
+    }
+
+    [Fact]
+    public void FindAllFindsEveryWholeWordMatch()
+    {
+        Assert.Equal([(0, 4), (5, 6), (16, 4)], FindAll(Rose, "Rose Thorne and Rose"));
+    }
+
+    [Fact]
+    public void FindAllSkipsPartWordsAndLeavesOffThePossessive()
+    {
+        Assert.Equal([(14, 4)], FindAll(Rose, "Primrose, ask Rose's Roses"));
+    }
+
+    [Fact]
+    public void FindAllKeepsPositionsWithCurlyApostrophes()
+    {
+        Assert.Equal([(4, 8)], FindAll(new NameMatcher("Y'shtola Rhul", caseSensitive: true), "ask Y’shtola"));
+    }
+
+    [Fact]
+    public void FindAllReportsOverlappingPhrases()
+    {
+        var matcher = NameMatcher.ForPhrases("good morning\nmorning", caseSensitive: false);
+        Assert.Equal([(0, 12), (5, 7)], FindAll(matcher, "Good morning!"));
+    }
+
+    [Fact]
+    public void FindAllOnNoMatchAddsNothing()
+    {
+        Assert.Empty(FindAll(Rose, "a rose by any other name"));
+        Assert.Empty(FindAll(new NameMatcher("", caseSensitive: true), "Rose"));
+    }
 }
