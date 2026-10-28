@@ -60,9 +60,9 @@ public class TriggersTests
     }
 
     [Fact]
-    public void YouTriggerTreatsCustomEmotesAsTextLikeSay()
+    public void YouTriggerAllowsSayPartyAllianceAndCustomEmotes()
     {
-        Assert.Equal([ChatChannel.Say, ChatChannel.CustomEmote], Triggers.AllowedChannels(TriggerKind.You).Order());
+        Assert.Equal([ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote], Triggers.AllowedChannels(TriggerKind.You).Order());
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class TriggersTests
     [Fact]
     public void ChannelsUsableByAllTriggersComeFirstThenTheRestInOrder()
     {
-        ChatChannel[] first = [ChatChannel.Say, ChatChannel.CustomEmote];
+        ChatChannel[] first = [ChatChannel.Say, ChatChannel.CustomEmote, ChatChannel.Party, ChatChannel.Alliance];
         Assert.Equal(
             [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote, ChatChannel.CrossParty])],
             Triggers.ChannelsByUsage);
@@ -184,10 +184,12 @@ public class TriggersTests
     {
         var saved = new Dictionary<TriggerKind, TriggerSettings>
         {
-            [TriggerKind.You] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.StandardEmote, (ChatChannel)999] },
+            [TriggerKind.You] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.Linkshell1, ChatChannel.StandardEmote, (ChatChannel)999] },
+            [TriggerKind.TargetSpeaks] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.Party] },
         };
 
         Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
+        Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.TargetSpeaks).Channels);
     }
 
     [Fact]

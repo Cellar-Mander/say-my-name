@@ -11,7 +11,7 @@ namespace SayMyName;
 
 /// <summary>
 /// Plays the alert sound when another player uses a standard emote on you (Emote trigger), or says
-/// a 'you' word while targeting you on a channel the You trigger listens on (Say, custom emotes);
+/// a 'you' word while targeting you on a channel the You trigger listens on (Say, Party, Alliance, custom emotes);
 /// the 'you' words are also coloured in chat, and the inactive chat tabs showing the line are coloured.
 /// Also plays the sound, and only the sound, when your current target speaks on a channel the
 /// Target Speaks trigger listens on (Say, custom emotes).
