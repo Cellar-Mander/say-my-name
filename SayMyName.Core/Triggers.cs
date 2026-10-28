@@ -6,7 +6,10 @@ public enum ChatChannel
     Say,
     Yell,
     Shout,
+    /// <summary>Your party, on your world or cross-world.</summary>
     Party,
+    /// <summary>Saved by older versions; cross-world party lines now count as <see cref="Party"/>. Not choosable.</summary>
+    // Kept so later channels keep their saved numbers
     CrossParty,
     Alliance,
     FreeCompany,
@@ -54,7 +57,7 @@ public static class Triggers
     public static readonly IReadOnlyList<TriggerKind> All = [.. Enum.GetValues<TriggerKind>().Where(k => k != TriggerKind.Targeted)];
 
     // Standard emote lines are written by the game, never by a player, so only the Emote trigger listens there
-    private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c != ChatChannel.StandardEmote)];
+    private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c is not (ChatChannel.StandardEmote or ChatChannel.CrossParty))];
     private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
     private static readonly ChatChannel[] SayAndCustomEmotes = [ChatChannel.Say, ChatChannel.CustomEmote];
 

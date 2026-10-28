@@ -508,7 +508,6 @@ public class ConfigWindow : Window, IDisposable
 
     private static string ChannelLabel(ChatChannel channel) => channel switch
     {
-        ChatChannel.CrossParty => "Cross-world Party",
         ChatChannel.FreeCompany => "Free Company",
         ChatChannel.PvPTeam => "PvP Team",
         ChatChannel.NoviceNetwork => "Novice Network",

@@ -85,6 +85,7 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] `/saymyname inject Say A Friend hi <Me first name>` plays the chosen sound.
 - [ ] Same with your full name, and with your name inside other text (e.g. `<Me first name>!`).
 - [ ] Untick Say for Name, inject on Say: no sound. Inject on Party: sound.
+- [ ] The channel table has a Party row and no Cross-world Party row. Inject on CrossParty: sound. Untick Party for Name, inject on CrossParty: no sound.
 - [ ] Untick the Name trigger: no sound on any channel.
 - [ ] With Match case on, your name in lower case: no sound. Turn it off: sound.
 - [ ] With quiet time at 10 s, two injections within 10 s: one sound. After 10 s: sound again.

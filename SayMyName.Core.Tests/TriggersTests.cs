@@ -125,7 +125,7 @@ public class TriggersTests
     [InlineData(TriggerKind.Custom)]
     public void WordTriggersAllowEveryChannelButStandardEmotes(TriggerKind kind)
     {
-        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote]), Triggers.AllowedChannels(kind));
+        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote, ChatChannel.CrossParty]), Triggers.AllowedChannels(kind));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class TriggersTests
     {
         ChatChannel[] first = [ChatChannel.Say, ChatChannel.CustomEmote];
         Assert.Equal(
-            [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote])],
+            [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote, ChatChannel.CrossParty])],
             Triggers.ChannelsByUsage);
     }
 
@@ -188,5 +188,23 @@ public class TriggersTests
         };
 
         Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
+    }
+
+    [Fact]
+    public void CrossWorldPartyIsNotAChannelOfItsOwn()
+    {
+        Assert.DoesNotContain(ChatChannel.CrossParty, Triggers.ChannelsByUsage);
+        Assert.All(Triggers.All, k => Assert.DoesNotContain(ChatChannel.CrossParty, Triggers.Default(k).Channels));
+    }
+
+    [Fact]
+    public void ResolveDropsCrossWorldPartySavedByOlderVersions()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.Name] = new() { Enabled = true, Channels = [ChatChannel.Party, ChatChannel.CrossParty, ChatChannel.Alliance] },
+        };
+
+        Assert.Equal([ChatChannel.Party, ChatChannel.Alliance], Triggers.Resolve(saved, TriggerKind.Name).Channels.Order());
     }
 }
