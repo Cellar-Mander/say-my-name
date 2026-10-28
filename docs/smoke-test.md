@@ -140,7 +140,7 @@ Solo:
 
 - [ ] `/xllog` has no `emote function not found` warning after loading.
 - [ ] `/saymyname emotes`, then wait somewhere busy (e.g. a city aetheryte plaza): other players' emotes log `Test harness: emote ...` lines. For each one that also shows in chat (e.g. "X pets Y"), the log names the same emoter and target with `logged=True`. Lines with `logged=False` match emotes you saw but chat didn't show. If no lines appear while players emote, the hook doesn't see network emotes and the emote cases below will fail. `/saymyname emotes` again turns it off.
-- [ ] `/saymyname targeting-me A Friend`, then `/saymyname inject Say A Friend thank you`: sound. Same with `your`, `yours`, `you're`, and on `CustomEmote`. *(self-test)*
+- [ ] `/saymyname targeting-me A Friend`, then `/saymyname inject Say A Friend thank you`: sound. Same with `your`, `yours`, `you're`, `you'll`, `y'all`, `thee`, and on `CustomEmote`. *(self-test)*
 - [ ] Still pretending: `inject Say A Friend hello`: no sound. `inject Say Someone Else thank you`: no sound. `inject Party A Friend thank you`: sound; same on `Alliance` and `CrossParty`. `inject Linkshell1 A Friend thank you`: no sound (not a You channel). *(self-test)*
 - [ ] Untick Party for You, `inject Party A Friend thank you`: no sound; `inject Say A Friend thank you`: sound. Tick Party again. *(self-test)*
 - [ ] Untick Say for You, `inject Say A Friend thank you`: no sound. `/saymyname targeting-me` (stop pretending), tick Say again, same inject: no sound. *(self-test)*
@@ -151,7 +151,7 @@ With a second player (*A Friend*, e.g. an alt on another client) near you:
 - [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`. Same with their emote log messages turned off in their settings.
 - [ ] A Friend targets someone else (or nobody) and emotes: no sound.
 - [ ] Untick the Emote trigger, A Friend emotes at you: no sound; `/say thank you` from them still sounds.
-- [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, and `/em waves at you` (a custom emote, handled by You, not Emote). `/em waves` without a 'you' word: no sound. Untick Custom emotes for You: `/em waves at you` no longer sounds, while standard emotes still do.
+- [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, `you'll`, `y'all`, `thee`, and `/em waves at you` (a custom emote, handled by You, not Emote). `/em waves` without a 'you' word: no sound. Untick Custom emotes for You: `/em waves at you` no longer sounds, while standard emotes still do.
 - [ ] A Friend targets you and says `/say hello`, or says `/say thank you` without targeting you: no sound.
 - [ ] You target A Friend and emote at them, or `/say thank you`: no sound.
 - [ ] Untick both the Emote and You triggers: none of the above sound.
