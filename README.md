@@ -60,7 +60,7 @@ The checkout holding the claim can redeploy as often as it likes. A claim left b
 One-time setup:
 
 1. `/xlsettings` → Experimental → add the dev folder's `SayMyName.dll` to Dev Plugin Locations (and remove any location inside a checkout). The game sees Windows paths; on Linux it runs under Wine, where `Z:` is the root of the Linux filesystem:
-   - Windows: `C:\Users\<you>\AppData\Roaming\XIVLauncher\devPlugins\SayMyName\SayMyName.dll`
+   - Windows: `%AppData%\XIVLauncher\devPlugins\SayMyName\SayMyName.dll`, with `%AppData%` replaced by what `echo %AppData%` prints in Command Prompt (usually `C:\Users\<you>\AppData\Roaming`, but the profile folder can differ from your account name)
    - Linux: `Z:\home\<you>\.xlcore\devPlugins\SayMyName\SayMyName.dll`
 2. `/xlplugins` → Dev Tools → Installed Dev Plugins → enable Say My Name.
 
