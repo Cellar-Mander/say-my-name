@@ -119,6 +119,7 @@ Turn on the Name and Custom triggers, enter `raid` as a custom word, and set qui
 - [ ] Switch the game's UI colour theme to Light, with a glow whose swatch changes: the swatches, preview and a newly injected line all use the Light theme's colours. Switch back.
 - [ ] `/saymyname targeting-me A Friend`, `/saymyname inject Say A Friend thank you, is this yours?`: `you` and `yours` are coloured. Same on `CustomEmote`. `inject Say Someone Else thank you`: not coloured. Untick Play a sound: still coloured.
 - [ ] Reload the plugin: the Highlight setting and both colours are kept.
+- [ ] With a second chat tab that shows Say open in the background, `inject Say A Friend hi <Me first name>`: that tab's name turns the tab colour and pulses, fading to the same dull beige and back at the same rate as the game's green for an unread tell; next to another unread tab they pulse in step. Opening the tab clears it.
 
 ### Emote and You triggers
 
