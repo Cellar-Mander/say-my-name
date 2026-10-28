@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# Copy of ~/Repo/ebd/bin/revert-check at 4512131; update from there.
+# Copy of ~/Repo/ebd/bin/revert-check at 1faac35; update from there.
 """revert-check: do the branch's new or changed tests fail when its product changes are reverted?
 
-    revert-check [--ci] [--base REF] [--head REV]
+    revert-check [--ci] [--quiet] [--base REF] [--head REV]
 
 Runs the tests twice in a temporary git worktree: at HEAD, then with every changed non-test
 file put back as it was at the merge base (tests stay at HEAD). A new or changed test that
@@ -15,10 +15,12 @@ exits 1 and is annotated for GitHub Actions (leave the job out of required check
 informs without blocking).
 
 Per-project settings in .claude/checks (key=value), read at HEAD:
-  revert_test=CMD    test command (falls back to mutation_test=, then stop=). For per-test
-                     results use unittest -v, or put {junit} (JUnit XML) or {trx} (dotnet
-                     TRX) where the command takes a report path. Otherwise only the whole
-                     suite's exit code is compared.
+  revert_test=CMD    test command (falls back to mutation_test=, then stop=, then one found
+                     from the project's layout: make, npm, cargo, go, dotnet, pytest,
+                     unittest). Per-test results come from unittest -v, go test -v or cargo
+                     test output, or from a report path in the command: {junit} (JUnit XML),
+                     {trx} (a dotnet TRX file) or {trxdir} (a directory of them). Otherwise
+                     only the whole suite's exit code is compared.
   revert_tests=GLOBS space-separated globs for test files (default: common test layouts)
 Environment: REVERT_CHECK_TIMEOUT (seconds per run, default 900), REVERT_CHECK_LOG
 (default ~/.claude/hooks/revert-check.log when that directory exists; not used with --ci).
@@ -26,6 +28,7 @@ Environment: REVERT_CHECK_TIMEOUT (seconds per run, default 900), REVERT_CHECK_L
 
 import argparse
 import fnmatch
+import json
 import os
 import re
 import shlex
@@ -44,11 +47,26 @@ TEST_PATH = re.compile(
 # Never reverted: changing them would change how the tests are run, not what they test.
 KEEP = (".claude/", ".github/")
 MARKER = re.compile(r"revert-check:\s*not revert-sensitive", re.IGNORECASE)
-PY_TEST = re.compile(r"^(\s*)(?:async\s+)?def\s+(test\w*)\s*\(")
-CS_ATTR = re.compile(r"^(\s*)\[(?:Fact|Theory|Test|TestCase|TestMethod)\b")
-CS_NAME = re.compile(r"\b(\w+)\s*\(")
-BOUNDARY = re.compile(r"^(\s*)(?:def |async def |class |\[|public |private |protected |internal |static )")
+# A test that starts on one line: Python def test_*, Go func TestX, JS/TS it("...") / test("...").
+LINE_TESTS = [
+    re.compile(r"^(?P<ind>\s*)(?:async\s+)?def\s+(?P<name>test\w*)\s*\("),
+    re.compile(r"^(?P<ind>\s*)func\s+(?P<name>Test\w+)\s*\("),
+    re.compile(r"""^(?P<ind>\s*)(?:it|test)\s*\(\s*(?P<q>['"`])(?P<name>.+?)(?P=q)"""),
+]
+# A test marked by an attribute above it: C# [Fact] and friends, Rust #[test].
+ATTR_TEST = re.compile(r"^(\s*)(?:\[(?:Fact|Theory|Test|TestCase|TestMethod)\b|#\[(?:\w+::)?test\b)")
+ATTR_NAME = re.compile(r"\bfn\s+(\w+)|\b(\w+)\s*\(")
+BOUNDARY = re.compile(r"^(\s*)(?:def |async def |class |func |fn |pub |\[|#\[|public |private |protected |internal "
+                      r"|static |it\(|test\(|describe\()")
 COMMENT = re.compile(r"^\s*(#|//|@|\[)")
+
+
+def line_test(line):
+    for rx in LINE_TESTS:
+        m = rx.match(line)
+        if m:
+            return len(m.group("ind")), m.group("name")
+    return None
 
 
 def git(*args, cwd=None, check=True):
@@ -97,27 +115,27 @@ class TestDef:
 
 
 def test_defs(path, text):
-    """Test functions in a file: Python def test_*, and C# methods with a test attribute."""
+    """Test functions in a file (Python, Go, JS/TS, C#, Rust), with their line spans."""
     lines = text.splitlines()
     found = []  # (index of def/attribute line, index of first body line, indent, name)
     i = 0
     while i < len(lines):
-        m = PY_TEST.match(lines[i])
-        if m:
-            found.append((i, i + 1, len(m.group(1)), m.group(2)))
-        elif CS_ATTR.match(lines[i]):
-            indent = len(CS_ATTR.match(lines[i]).group(1))
+        t = line_test(lines[i])
+        if t:
+            found.append((i, i + 1, *t))
+        elif ATTR_TEST.match(lines[i]):
+            indent = len(ATTR_TEST.match(lines[i]).group(1))
             j = i
-            while j < len(lines) and lines[j].lstrip().startswith("["):
+            while j < len(lines) and lines[j].lstrip().startswith(("[", "#[")):
                 j += 1
-            n = CS_NAME.search(lines[j]) if j < len(lines) else None
+            n = ATTR_NAME.search(lines[j]) if j < len(lines) else None
             if n:
-                found.append((i, j + 1, indent, n.group(1)))
+                found.append((i, j + 1, indent, n.group(1) or n.group(2)))
             i = j
         i += 1
     starts = []
     for i, *_ in found:  # leading comments, decorators and attributes belong to the test below them
-        while i > 0 and COMMENT.match(lines[i - 1]) and not PY_TEST.match(lines[i - 1]):
+        while i > 0 and COMMENT.match(lines[i - 1]) and not line_test(lines[i - 1]):
             i -= 1
         starts.append(i)
     defs = []
@@ -137,7 +155,8 @@ def test_defs(path, text):
 
 
 def short_name(name):
-    return name.split("(")[0].strip().split(".")[-1]
+    """Method name from a qualified test id: a.T.test_x, Ns.T.M(arg: 1), mod::tests::x, TestX/subtest."""
+    return re.split(r"\.|::", name.split("(")[0].split("/")[0].strip())[-1]
 
 
 def merge(results, name, outcome):
@@ -164,6 +183,26 @@ def parse_unittest(output):
         if cur and re.search(r" \.\.\. skipped", line):
             results[cur] = "skip" if results.get(cur) != "fail" else "fail"
     return results or None
+
+
+def parse_go(output):
+    """Per-test outcomes from go test -v output (subtests count toward their parent)."""
+    results = {}
+    for m in re.finditer(r"^\s*--- (PASS|FAIL|SKIP): (\S+)", output, re.MULTILINE):
+        merge(results, short_name(m.group(2)), {"PASS": "pass", "FAIL": "fail", "SKIP": "skip"}[m.group(1)])
+    return results or None
+
+
+def parse_cargo(output):
+    """Per-test outcomes from cargo test output."""
+    results = {}
+    for m in re.finditer(r"^test (\S+) \.\.\. (ok|FAILED|ignored)", output, re.MULTILINE):
+        merge(results, short_name(m.group(1)), {"ok": "pass", "FAILED": "fail", "ignored": "skip"}[m.group(2)])
+    return results or None
+
+
+def parse_output(output):
+    return parse_unittest(output) or parse_go(output) or parse_cargo(output)
 
 
 def parse_junit(path):
@@ -193,8 +232,11 @@ class Run:
 
 
 def run_tests(cmd, cwd, tmp, label, timeout):
-    report = {"junit": os.path.join(tmp, f"{label}.xml"), "trx": os.path.join(tmp, f"{label}.trx")}
-    full = cmd.replace("{junit}", shlex.quote(report["junit"])).replace("{trx}", shlex.quote(report["trx"]))
+    report = {"junit": os.path.join(tmp, f"{label}.xml"), "trx": os.path.join(tmp, f"{label}.trx"),
+              "trxdir": os.path.join(tmp, f"{label}-trx")}
+    full = cmd
+    for key, path in report.items():
+        full = full.replace("{" + key + "}", shlex.quote(path))
     try:
         r = subprocess.run(["bash", "-c", full], check=False, cwd=cwd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -206,11 +248,53 @@ def run_tests(cmd, cwd, tmp, label, timeout):
             results = parse_junit(report["junit"])
         elif "{trx}" in cmd and os.path.exists(report["trx"]):
             results = parse_trx(report["trx"])
+        elif "{trxdir}" in cmd and os.path.isdir(report["trxdir"]):  # one .trx per test project
+            results = {}
+            for f in sorted(os.listdir(report["trxdir"])):
+                if f.endswith(".trx"):
+                    for name, outcome in parse_trx(os.path.join(report["trxdir"], f)).items():
+                        merge(results, name, outcome)
+            results = results or None
         else:
-            results = parse_unittest(out)
+            results = parse_output(out)
     except ET.ParseError:
         results = None
     return Run(r.returncode, results, out)
+
+
+def detect_command(root, head):
+    """The project's test command when .claude/checks names none, in the order checks.sh uses."""
+    top = set(git("ls-tree", "--name-only", head, cwd=root).splitlines())
+
+    def show(f):
+        return git("show", f"{head}:{f}", cwd=root, check=False)
+
+    if "Makefile" in top:
+        for target in ("check", "test"):
+            if re.search(rf"^{target}:", show("Makefile"), re.MULTILINE):
+                return f"make {target}"
+    if "package.json" in top:
+        try:
+            script = json.loads(show("package.json")).get("scripts", {}).get("test", "")
+        except (ValueError, AttributeError):
+            script = ""
+        if script and "no test specified" not in script:
+            return "npm test --silent"
+    if "Cargo.toml" in top:
+        return "cargo test"
+    if "go.mod" in top:
+        return "go test -v ./..."
+    sln = sorted(f for f in top if f.endswith((".sln", ".slnx")))
+    if sln:
+        return f"dotnet test {shlex.quote(sln[0])} --nologo --logger trx --results-directory {{trxdir}}"
+    dirs = sorted(top & {"tests", "test"})
+    if dirs and top & {"pyproject.toml", "setup.cfg", "pytest.ini", "tox.ini"} and shutil.which("pytest"):
+        return "pytest -q --junitxml={junit}"
+    for d in dirs:
+        if any(re.match(r"test_\w*\.py$", os.path.basename(f))
+               for f in git("ls-tree", "-r", "--name-only", head, d, cwd=root).splitlines()):
+            return f"python3 -m unittest discover -s {d} -v"
+    return None
 
 
 def resolve_base(root, base):
@@ -256,8 +340,8 @@ def classify(defs, head, reverted):
     return out
 
 
-def report(groups, others, summary, ci):
-    lines = [summary]
+def report(groups, others, header, footer, ci):
+    lines = [header]
     labels = [("guards", "Guards the change (fails with the product reverted)"),
               ("unguarded", "DOES NOT GUARD the change (still passes with the product reverted)"),
               ("marked", "Passes with the product reverted, marked not revert-sensitive"),
@@ -271,9 +355,12 @@ def report(groups, others, summary, ci):
         lines.append(f"  Existing tests that also fail with the product reverted: {', '.join(sorted(others)[:10])}"
                      + (" ..." if len(others) > 10 else ""))
     if groups["unguarded"]:
-        lines.append("Next step for each unguarded test: make it fail on the old product code, or, if it checks "
-                     "something a revert can't show, mark it in the test: "
+        lines.append("To act on a test that DOES NOT GUARD the change: make it fail on the old code (assert the new "
+                     "behaviour), or, if it checks something a revert can't show, add a comment inside the test: "
                      "revert-check: not revert-sensitive (<reason>)")
+    if groups["cant_tell"]:
+        lines.append("Can't tell means not verified by this check, not passed.")
+    lines.append(footer)
     text = "\n".join(lines)
     print(text)
     if ci:
@@ -306,10 +393,12 @@ def main(argv=None):
     p.add_argument("--ci", action="store_true", help="exit 1 and annotate when a test doesn't guard the change")
     p.add_argument("--base", help="base branch or commit (default: PR base, origin/HEAD, main, master)")
     p.add_argument("--head", default="HEAD", help="revision to check (default HEAD)")
+    p.add_argument("--quiet", action="store_true", help="say nothing when there is nothing to check")
     a = p.parse_args(argv)
 
     def say(msg):
-        print(f"revert-check: {msg}")
+        if not a.quiet:
+            print(f"revert-check: {msg}")
 
     root = git("rev-parse", "--show-toplevel", check=False).strip()
     if not root:
@@ -317,9 +406,9 @@ def main(argv=None):
         return 0
     head = git("rev-parse", "--verify", f"{a.head}^{{commit}}", cwd=root).strip()
     cfg = config(root, head)
-    cmd = cfg.get("revert_test") or cfg.get("mutation_test") or cfg.get("stop")
+    cmd = cfg.get("revert_test") or cfg.get("mutation_test") or cfg.get("stop") or detect_command(root, head)
     if not cmd:
-        say("no test command: add revert_test= (or stop=) to .claude/checks. Skipped.")
+        say("no test command found; set revert_test= in .claude/checks. Skipped.")
         return 0
     base = resolve_base(root, a.base)
     mb = git("merge-base", base, head, cwd=root, check=False).strip() if base else ""
@@ -362,7 +451,8 @@ def main(argv=None):
         at_head = run_tests(cmd, wt, tmp, "head", timeout)
         if at_head.rc != 0:
             why = "timed out" if at_head.timed_out else f"exit {at_head.rc}"
-            say(f"the tests fail at HEAD ({why}), so there is nothing to compare. Last lines:")
+            print(f"revert-check: the tests fail at HEAD ({why}, command: {cmd}), so whether the new tests guard "
+                  f"the change can't be checked. Last lines:")
             print("\n".join(at_head.output.splitlines()[-15:]))
             return 0
         restore = [f for s, f in product if s != "A"]
@@ -384,11 +474,15 @@ def main(argv=None):
     others = set()
     if at_head.results is not None and reverted.results is not None:
         others = {n for n, o in reverted.results.items() if o == "fail" and at_head.results.get(n) == "pass"} - names
-    summary = (f"revert-check: base {base} ({mb[:8]}), {len(product)} product file(s) reverted, "
-               f"{len(defs)} new or changed test(s), {secs}s")
+    header = (f"revert-check: reran this branch's tests with its product (non-test) changes reverted to {base} "
+              f"({mb[:8]}), to see whether its new or changed tests guard those changes. A test that still passes "
+              f"on the old code doesn't.")
+    footer = (f"({len(product)} product file(s) reverted, {len(defs)} new or changed test(s), {secs}s, "
+              f"test command: {cmd}. Advisory: this never blocks.")
     if at_head.results is None:
-        summary += "\n  (no per-test results: use unittest -v, {junit} or {trx} in revert_test= for detail)"
-    report(groups, others, summary, a.ci)
+        footer += (" No per-test results from this command; put {junit}, {trx} or {trxdir} in revert_test= in "
+                   ".claude/checks for detail.")
+    report(groups, others, header, footer + ")", a.ci)
     log(root, base, groups, secs, a.ci)
     return 1 if a.ci and groups["unguarded"] else 0
 
