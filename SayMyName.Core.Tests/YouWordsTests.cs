@@ -29,4 +29,12 @@ public class YouWordsTests
     {
         Assert.False(YouWords.IsMatch(text));
     }
+
+    [Fact]
+    public void FindAllGivesEachYouWord()
+    {
+        var matches = new List<(int Start, int Length)>();
+        YouWords.FindAll("Thank you, is this yours? You’re kind", matches);
+        Assert.Equal([(6, 3), (19, 5), (26, 6)], matches.Order());
+    }
 }

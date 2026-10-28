@@ -6,45 +6,42 @@ using Serilog.Events;
 namespace SayMyName;
 
 /// <summary>
-/// Plays the alert sound when another player says your name (Name trigger) or one of your custom
-/// words or phrases (Custom trigger), on a channel that trigger listens on.
+/// Alerts when another player says your name (Name trigger) or one of your custom words or
+/// phrases (Custom trigger), on a channel that trigger listens on: plays the alert sound, and
+/// colours the matched words in the chat line.
 /// </summary>
 public sealed class TextAlert : IDisposable
 {
     private readonly Configuration configuration;
     private readonly AlertSound sound;
+    private readonly ChatHighlighter highlighter;
     private NameMatcher nameMatcher = new("", caseSensitive: true);
     private NameMatcher customMatcher = NameMatcher.ForPhrases("", caseSensitive: false);
 
-    public TextAlert(Configuration configuration, AlertSound sound)
+    public TextAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter)
     {
         this.configuration = configuration;
         this.sound = sound;
+        this.highlighter = highlighter;
+        // Dalamud's place for formatting a line; skipped for a line another plugin has already hidden
+        Plugin.ChatGui.CheckMessageHandled += OnCheckMessageHandled;
         // Unhandled only: a message another plugin has hidden shouldn't alert
         Plugin.ChatGui.ChatMessageUnhandled += OnChatMessage;
     }
 
     public void Dispose()
     {
+        Plugin.ChatGui.CheckMessageHandled -= OnCheckMessageHandled;
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessage;
     }
 
     private void OnChatMessage(IChatMessage message)
     {
-        if (!configuration.PlaySound || ChatChannels.FromChatType(message.LogKind) is not { } channel)
+        if (!configuration.PlaySound || !Listening(message, out var channel, out var name, out var custom, out var you, out var fromYou))
         {
             return;
         }
 
-        var name = Listening(TriggerKind.Name, channel);
-        var custom = Listening(TriggerKind.Custom, channel);
-        if (!name && !custom)
-        {
-            return;
-        }
-
-        var you = Plugin.PlayerState.CharacterName;
-        var fromYou = ChatLines.IsFromYou(message, you);
         var text = message.Message.TextValue;
         var nameMatched = name && !fromYou && CurrentNameMatcher(you).IsMatch(text);
         var customMatched = custom && !fromYou && !nameMatched && CurrentCustomMatcher().IsMatch(text);
@@ -59,6 +56,51 @@ public sealed class TextAlert : IDisposable
         {
             sound.Alert();
         }
+    }
+
+    private void OnCheckMessageHandled(IHandleableChatMessage message)
+    {
+        if (!highlighter.Enabled
+            || !Listening(message, out _, out var name, out var custom, out var you, out var fromYou)
+            || fromYou)
+        {
+            return;
+        }
+
+        var text = highlighter.Begin(message.Message);
+        if (name)
+        {
+            CurrentNameMatcher(you).FindAll(text, highlighter.Matches);
+        }
+        if (custom)
+        {
+            CurrentCustomMatcher().FindAll(text, highlighter.Matches);
+        }
+        highlighter.Apply(message);
+    }
+
+    // Whether either text trigger listens on this line's channel, and which
+    private bool Listening(IChatMessage message, out ChatChannel channel, out bool name, out bool custom, out string you, out bool fromYou)
+    {
+        name = custom = fromYou = false;
+        you = "";
+        if (ChatChannels.FromChatType(message.LogKind) is not { } c)
+        {
+            channel = default;
+            return false;
+        }
+
+        channel = c;
+        name = Listening(TriggerKind.Name, channel);
+        custom = Listening(TriggerKind.Custom, channel);
+        if (!name && !custom)
+        {
+            return false;
+        }
+
+        you = Plugin.PlayerState.CharacterName;
+        fromYou = ChatLines.IsFromYou(message, you);
+        return true;
     }
 
     private bool Listening(TriggerKind kind, ChatChannel channel)

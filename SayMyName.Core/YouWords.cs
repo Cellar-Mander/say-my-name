@@ -7,4 +7,7 @@ public static class YouWords
     private static readonly NameMatcher Matcher = new("you your yours you're", caseSensitive: false);
 
     public static bool IsMatch(ReadOnlySpan<char> text) => Matcher.IsMatch(text);
+
+    /// <inheritdoc cref="NameMatcher.FindAll"/>
+    public static void FindAll(ReadOnlySpan<char> text, List<(int Start, int Length)> matches) => Matcher.FindAll(text, matches);
 }

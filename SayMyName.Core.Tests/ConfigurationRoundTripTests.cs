@@ -72,6 +72,9 @@ public class ConfigurationRoundTripTests
         config.CooldownSeconds = 0;
         config.CustomWords = "raid\ngood morning";
         config.CustomWordsCaseSensitive = true;
+        config.Highlight = false;
+        config.HighlightTextColor = 45;
+        config.HighlightGlowColor = ConfigurationBase.NoColor;
 
         var loaded = SaveAndLoad(config);
 
@@ -81,6 +84,9 @@ public class ConfigurationRoundTripTests
         Assert.Equal(0, loaded.CooldownSeconds);
         Assert.Equal("raid\ngood morning", loaded.CustomWords);
         Assert.True(loaded.CustomWordsCaseSensitive);
+        Assert.False(loaded.Highlight);
+        Assert.Equal(45, loaded.HighlightTextColor);
+        Assert.Equal(ConfigurationBase.NoColor, loaded.HighlightGlowColor);
     }
 
     [Fact]

@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.Config;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Interface.ImGuiSeStringRenderer;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Lumina.Excel.Sheets;
 using SayMyName.Core;
 
 namespace SayMyName.Windows;
@@ -20,6 +24,7 @@ public class ConfigWindow : Window, IDisposable
 
     private readonly Configuration configuration;
     private readonly AlertSound alertSound;
+    private readonly ChatHighlighter highlighter;
 
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
@@ -28,6 +33,29 @@ public class ConfigWindow : Window, IDisposable
     private static readonly string[] SoundLabels =
         [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
     private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
+
+    // The UIColor sheet (about 200 rows), with a colour per game theme: Dark, Light, Classic FF, Clear Blue.
+    // Chat draws both text and glow in the theme set in the game's options, so the swatches use it too.
+    private readonly List<(ushort Key, uint[] ByTheme)> sheetColors = [];
+    private readonly Dictionary<ushort, Vector4> colors = [];
+    private List<List<ushort>> palette = [];
+    private uint? paletteTheme;
+
+    // The preview: a sample line run through the chat highlighter, encoded again only when an input changes
+    private const string PreviewFallbackName = "Rose";
+    private const string PreviewBefore = "hey ";
+    private const string PreviewAfter = ", thank you!";
+    private (string You, ushort Text, ushort Glow)? previewInputs;
+    private byte[] previewBytes = [];
+    private static readonly PickerIds TextPicker = new("Text", "highlightText");
+    private static readonly PickerIds GlowPicker = new("Glow", "highlightGlow");
+
+    private sealed record PickerIds(string Label, string Id)
+    {
+        public string Swatch { get; } = $"##{Id}-swatch";
+        public string None { get; } = $"None##{Id}-swatch";
+        public string Popup { get; } = $"##{Id}-popup";
+    }
 
     public ConfigWindow(Plugin plugin) : base("Say My Name###SayMyNameSettings")
     {
@@ -41,6 +69,7 @@ public class ConfigWindow : Window, IDisposable
 
         configuration = plugin.Configuration;
         alertSound = plugin.AlertSound;
+        highlighter = plugin.Highlighter;
 
         for (var t = 0; t < Triggers.All.Count; t++)
         {
@@ -61,7 +90,37 @@ public class ConfigWindow : Window, IDisposable
         {
             channelLabels[c] = ChannelLabel(Channels[c]);
         }
+
+        foreach (var row in Plugin.DataManager.GetExcelSheet<UIColor>())
+        {
+            if (row.RowId <= ushort.MaxValue)
+            {
+                sheetColors.Add(((ushort)row.RowId, [row.Dark, row.Light, row.ClassicFF, row.ClearBlue]));
+            }
+        }
     }
+
+    // Rebuilds the swatches when the game's theme changes (and on first draw)
+    private void UpdatePalette()
+    {
+        var theme = Plugin.GameConfig.TryGet(SystemConfigOption.ColorThemeType, out uint t) && t < 4 ? t : 0;
+        if (theme == paletteTheme)
+        {
+            return;
+        }
+
+        paletteTheme = theme;
+        colors.Clear();
+        foreach (var (key, byTheme) in sheetColors)
+        {
+            colors[key] = ToVector(byTheme[theme]);
+        }
+        palette = ColorPalette.Arrange(sheetColors.Select(c => (c.Key, c.ByTheme[theme])));
+    }
+
+    // UIColor stores 0xRRGGBBAA
+    private static Vector4 ToVector(uint rgba) =>
+        new((rgba >> 24) / 255f, ((rgba >> 16) & 0xFF) / 255f, ((rgba >> 8) & 0xFF) / 255f, (rgba & 0xFF) / 255f);
 
     public void Dispose() { }
 
@@ -78,6 +137,11 @@ public class ConfigWindow : Window, IDisposable
         if (DrawSectionHeader(SettingsSection.Sound, "Sound###Sound"))
         {
             DrawSoundOptions();
+        }
+
+        if (DrawSectionHeader(SettingsSection.Highlight, "Highlight###Highlight"))
+        {
+            DrawHighlightOptions();
         }
 
         // Last, as its table scrolls in whatever height the window has left
@@ -281,6 +345,122 @@ public class ConfigWindow : Window, IDisposable
             configuration.CooldownSeconds = cooldown;
             configuration.Save();
         }
+    }
+
+    private void DrawHighlightOptions()
+    {
+        var highlight = configuration.Highlight;
+        if (ImGui.Checkbox("Colour the words that set off an alert in chat", ref highlight))
+        {
+            configuration.Highlight = highlight;
+            configuration.Save();
+        }
+
+        using var indent = ImRaii.PushIndent();
+        using var disabled = ImRaii.Disabled(!highlight);
+        UpdatePalette();
+        var textColor = configuration.HighlightTextColor;
+        if (DrawColorPicker(TextPicker, ref textColor, colors, palette))
+        {
+            configuration.HighlightTextColor = textColor;
+            configuration.Save();
+        }
+
+        ImGui.SameLine();
+        var glowColor = configuration.HighlightGlowColor;
+        if (DrawColorPicker(GlowPicker, ref glowColor, colors, palette))
+        {
+            configuration.HighlightGlowColor = glowColor;
+            configuration.Save();
+        }
+
+        ImGui.SameLine(0, ImGui.GetStyle().ItemSpacing.X * 3);
+        DrawHighlightPreview();
+        ImGui.TextDisabled("Your name, custom words, and 'you' words from someone targeting you");
+    }
+
+    /// <summary>
+    /// A sample chat line with your first name highlighted by the same code as chat, drawn by
+    /// Dalamud's SeString renderer, which draws colours and glow as the game does.
+    /// </summary>
+    private void DrawHighlightPreview()
+    {
+        var inputs = (Plugin.PlayerState.CharacterName, configuration.HighlightTextColor, configuration.HighlightGlowColor);
+        if (inputs != previewInputs)
+        {
+            previewInputs = inputs;
+            var name = inputs.CharacterName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? PreviewFallbackName;
+            var line = new SeStringBuilder().AddText(PreviewBefore + name + PreviewAfter).Build();
+            highlighter.Begin(line);
+            highlighter.Matches.Add((PreviewBefore.Length, name.Length));
+            previewBytes = highlighter.Highlight(line).Encode();
+        }
+
+        ImGui.AlignTextToFramePadding();
+        // Opacity left to ImGui's, so the line dims with the rest when highlighting is off
+        ImGuiHelpers.SeStringWrapped(previewBytes, new SeStringDrawParams());
+    }
+
+    /// <summary>A swatch that opens a grid of the palette's colours, plus None. True when one is picked.</summary>
+    private static bool DrawColorPicker(PickerIds ids, ref ushort key, Dictionary<ushort, Vector4> colors, List<List<ushort>> palette)
+    {
+        var swatch = new Vector2(ImGui.GetFrameHeight());
+        if (key != Configuration.NoColor && colors.TryGetValue(key, out var current))
+        {
+            if (ImGui.ColorButton(ids.Swatch, current, ImGuiColorEditFlags.NoTooltip, swatch))
+            {
+                ImGui.OpenPopup(ids.Popup);
+            }
+        }
+        else if (ImGui.Button(ids.None))
+        {
+            ImGui.OpenPopup(ids.Popup);
+        }
+        ImGui.SameLine(0, ImGui.GetStyle().ItemInnerSpacing.X);
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(ids.Label);
+
+        using var popup = ImRaii.Popup(ids.Popup);
+        if (!popup.Success)
+        {
+            return false;
+        }
+
+        var picked = false;
+        if (ImGui.Selectable("None", key == Configuration.NoColor))
+        {
+            key = Configuration.NoColor;
+            picked = true;
+        }
+
+        // Drawn row by row across the columns; a short column leaves a gap at its foot
+        for (var y = 0; y < ColorPalette.ColumnHeight; y++)
+        {
+            for (var x = 0; x < palette.Count; x++)
+            {
+                if (x > 0)
+                {
+                    ImGui.SameLine();
+                }
+
+                var column = palette[x];
+                if (y >= column.Count)
+                {
+                    ImGui.Dummy(swatch);
+                    continue;
+                }
+
+                var row = column[y];
+                // Interpolated only while the popup is open; the row number is the tooltip
+                if (ImGui.ColorButton($"{row}##{ids.Id}", colors[row], ImGuiColorEditFlags.None, swatch))
+                {
+                    key = row;
+                    picked = true;
+                    ImGui.CloseCurrentPopup();
+                }
+            }
+        }
+        return picked;
     }
 
     private static string TriggerLabel(TriggerKind kind) => kind switch
