@@ -4,6 +4,10 @@ using Dalamud.Game.Chat;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Graphics;
+using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using SayMyName.Core;
 
 namespace SayMyName;
@@ -11,11 +15,12 @@ namespace SayMyName;
 /// <summary>
 /// Dev-plugin helper for the smoke checklist (docs/smoke-test.md): puts fake player messages into
 /// chat and logs when each comes back through the chat events the triggers listen on, logs the
-/// emotes the Targeted trigger sees, and can pretend an injected sender is targeting you.
+/// emotes the Targeted trigger sees, can pretend an injected sender is targeting you, and can
+/// recolour a chat tab's name to see whether the game keeps the colour.
 /// </summary>
-public sealed class TestHarness : IDisposable
+public sealed unsafe class TestHarness : IDisposable
 {
-    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>]";
+    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off";
 
     private readonly TargetedAlert targetedAlert;
 
@@ -24,6 +29,15 @@ public sealed class TestHarness : IDisposable
 
     private string? fakeTargeter;
     private bool watchingEmotes;
+
+    // The recoloured tab (0-based), its colour and the colour it had before; only touched on the framework thread
+    private int? colouredTab;
+    private ByteColor tabColour;
+    private ByteColor originalTabColour;
+    private bool keepTabColour;
+    private int framesSinceTabColoured;
+    // Logged once only, since with "keep" the game may change it back every frame
+    private bool tabColourReset;
 
     public TestHarness(TargetedAlert targetedAlert)
     {
@@ -35,6 +49,7 @@ public sealed class TestHarness : IDisposable
 
     public void Dispose()
     {
+        ClearTabColour();
         Plugin.ChatGui.ChatMessage -= OnChatMessage;
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessageUnhandled;
         targetedAlert.FakeTargetingYou = null;
@@ -56,6 +71,7 @@ public sealed class TestHarness : IDisposable
             "inject" => Inject(rest),
             "emotes" => ToggleEmoteWatch(rest),
             "targeting-me" => SetFakeTargeter(rest),
+            "tabcolor" => SetTabColour(rest),
             _ => (bool?)null,
         };
 
@@ -123,6 +139,107 @@ public sealed class TestHarness : IDisposable
             : $"Test harness: {fakeTargeter} is pretending to target you");
         return true;
     }
+
+    // Sets a chat tab's name colour once, then logs the frame the game changes it back.
+    // With "keep" it re-applies the colour every frame instead, to see whether that holds without flicker.
+    private bool SetTabColour(string args)
+    {
+        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts is ["off"])
+        {
+            ClearTabColour();
+            Plugin.ChatGui.Print("Test harness: tab colour cleared");
+            return true;
+        }
+
+        if (parts.Length is not (2 or 3)
+            || !int.TryParse(parts[0], out var tab) || tab is < 1 or > 5
+            || parts[1].Length != 6 || !uint.TryParse(parts[1], System.Globalization.NumberStyles.HexNumber, null, out var rgb)
+            || (parts.Length == 3 && !parts[2].Equals("keep", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        ClearTabColour();
+        var text = TabTextNode(tab - 1);
+        if (text == null)
+        {
+            Plugin.ChatGui.PrintError($"Test harness: chat tab {tab} not found");
+            return true;
+        }
+
+        colouredTab = tab - 1;
+        originalTabColour = text->TextColor;
+        tabColour = new ByteColor { R = (byte)(rgb >> 16), G = (byte)(rgb >> 8), B = (byte)rgb, A = 255 };
+        keepTabColour = parts.Length == 3;
+        framesSinceTabColoured = 0;
+        tabColourReset = false;
+        text->TextColor = tabColour;
+        Plugin.Framework.Update += OnFrameworkUpdate;
+        Plugin.Log.Information($"Test harness: tab {tab} text colour {Hex(originalTabColour)} -> {Hex(tabColour)}, keep={keepTabColour}");
+        return true;
+    }
+
+    private void ClearTabColour()
+    {
+        if (colouredTab is not { } tab)
+        {
+            return;
+        }
+
+        Plugin.Framework.Update -= OnFrameworkUpdate;
+        colouredTab = null;
+        var text = TabTextNode(tab);
+        if (text != null)
+        {
+            text->TextColor = originalTabColour;
+        }
+    }
+
+    private void OnFrameworkUpdate(IFramework framework)
+    {
+        if (colouredTab is not { } tab)
+        {
+            return;
+        }
+
+        framesSinceTabColoured++;
+        var text = TabTextNode(tab);
+        if (text == null || text->TextColor.RGBA == tabColour.RGBA)
+        {
+            return;
+        }
+
+        if (!tabColourReset)
+        {
+            Plugin.Log.Information($"Test harness: tab {tab + 1} colour changed to {Hex(text->TextColor)} after {framesSinceTabColoured} frames");
+            tabColourReset = true;
+        }
+        if (keepTabColour)
+        {
+            text->TextColor = tabColour;
+        }
+        else
+        {
+            // Stop watching, so the next change isn't reported and the game's colour is left alone
+            Plugin.Framework.Update -= OnFrameworkUpdate;
+            colouredTab = null;
+        }
+    }
+
+    private static AtkTextNode* TabTextNode(int tab)
+    {
+        var chatLog = (AddonChatLog*)RaptureAtkUnitManager.Instance()->GetAddonByName("ChatLog");
+        if (chatLog == null || tab >= chatLog->TabCount)
+        {
+            return null;
+        }
+
+        var button = chatLog->ChatTabs[tab].Value;
+        return button == null ? null : button->ButtonTextNode;
+    }
+
+    private static string Hex(ByteColor c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}{c.A:X2}";
 
     private static void OnEmotePlayed(nint owner, uint emoteId, ulong targetId, bool logged)
     {
