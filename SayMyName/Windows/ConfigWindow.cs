@@ -30,12 +30,17 @@ public class ConfigWindow : Window, IDisposable
         [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
     private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
 
-    // UIColor rows (about 200) as ImGui colours: each row's foreground and glow, and each distinct
-    // colour once (lowest row first) for the pickers
+    // UIColor rows (about 200) as ImGui colours: each row's foreground and glow, and the pickers'
+    // grids of distinct colours (see ColorPalette)
     private readonly Dictionary<ushort, Vector4> textColors = [];
     private readonly Dictionary<ushort, Vector4> glowColors = [];
-    private readonly List<ushort> textPalette = [];
-    private readonly List<ushort> glowPalette = [];
+    private readonly List<List<ushort>> textPalette;
+    private readonly List<List<ushort>> glowPalette;
+
+    // The preview shows your first name, split again only when the character changes
+    private string previewSource = "";
+    private string previewName = PreviewFallbackName;
+    private const string PreviewFallbackName = "Rose";
     private static readonly PickerIds TextPicker = new("Text", "highlightText");
     private static readonly PickerIds GlowPicker = new("Glow", "highlightGlow");
 
@@ -79,17 +84,12 @@ public class ConfigWindow : Window, IDisposable
             channelLabels[c] = ChannelLabel(Channels[c]);
         }
 
-        LoadColors();
-    }
-
-    private void LoadColors()
-    {
-        var seenText = new HashSet<uint>();
-        var seenGlow = new HashSet<uint>();
         // The payloads take foreground from the Dark column and glow from Light
+        var textRgba = new List<(ushort, uint)>();
+        var glowRgba = new List<(ushort, uint)>();
         foreach (var row in Plugin.DataManager.GetExcelSheet<UIColor>())
         {
-            if (row.RowId == Configuration.NoColor || row.RowId > ushort.MaxValue)
+            if (row.RowId > ushort.MaxValue)
             {
                 continue;
             }
@@ -97,16 +97,11 @@ public class ConfigWindow : Window, IDisposable
             var key = (ushort)row.RowId;
             textColors[key] = ToVector(row.Dark);
             glowColors[key] = ToVector(row.Light);
-            // Fully transparent rows would draw nothing
-            if ((row.Dark & 0xFF) != 0 && seenText.Add(row.Dark))
-            {
-                textPalette.Add(key);
-            }
-            if ((row.Light & 0xFF) != 0 && seenGlow.Add(row.Light))
-            {
-                glowPalette.Add(key);
-            }
+            textRgba.Add((key, row.Dark));
+            glowRgba.Add((key, row.Light));
         }
+        textPalette = ColorPalette.Arrange(textRgba);
+        glowPalette = ColorPalette.Arrange(glowRgba);
     }
 
     // UIColor stores 0xRRGGBBAA
@@ -341,7 +336,7 @@ public class ConfigWindow : Window, IDisposable
     private void DrawHighlightOptions()
     {
         var highlight = configuration.Highlight;
-        if (ImGui.Checkbox("Colour your name and custom words in chat", ref highlight))
+        if (ImGui.Checkbox("Colour the words that set off an alert in chat", ref highlight))
         {
             configuration.Highlight = highlight;
             configuration.Save();
@@ -363,11 +358,62 @@ public class ConfigWindow : Window, IDisposable
             configuration.HighlightGlowColor = glowColor;
             configuration.Save();
         }
-        ImGui.TextDisabled("Only lines that set off the Name or Custom trigger, on its channels");
+
+        ImGui.SameLine(0, ImGui.GetStyle().ItemSpacing.X * 3);
+        DrawHighlightPreview();
+        ImGui.TextDisabled("Your name, custom words, and 'you' words from someone targeting you");
+    }
+
+    /// <summary>A sample chat line with your first name highlighted, glow drawn as an outline.</summary>
+    private void DrawHighlightPreview()
+    {
+        var you = Plugin.PlayerState.CharacterName;
+        if (!ReferenceEquals(you, previewSource))
+        {
+            previewSource = you;
+            var first = you.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            previewName = first ?? PreviewFallbackName;
+        }
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted("hey ");
+        ImGui.SameLine(0, 0);
+
+        var glowColor = configuration.HighlightGlowColor;
+        if (glowColor != Configuration.NoColor && glowColors.TryGetValue(glowColor, out var glow))
+        {
+            // GetColorU32 applies the style's alpha, so the outline dims with the rest when disabled
+            var glowU32 = ImGui.GetColorU32(glow);
+            var pos = ImGui.GetCursorScreenPos();
+            var drawList = ImGui.GetWindowDrawList();
+            var step = ImGuiHelpers.GlobalScale;
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                for (var dy = -1; dy <= 1; dy++)
+                {
+                    if (dx != 0 || dy != 0)
+                    {
+                        drawList.AddText(pos + new Vector2(dx * step, dy * step), glowU32, previewName);
+                    }
+                }
+            }
+        }
+
+        var textColor = configuration.HighlightTextColor;
+        if (textColor != Configuration.NoColor && textColors.TryGetValue(textColor, out var text))
+        {
+            ImGui.TextColored(text, previewName);
+        }
+        else
+        {
+            ImGui.TextUnformatted(previewName);
+        }
+        ImGui.SameLine(0, 0);
+        ImGui.TextUnformatted(", thank you!");
     }
 
     /// <summary>A swatch that opens a grid of the palette's colours, plus None. True when one is picked.</summary>
-    private static bool DrawColorPicker(PickerIds ids, ref ushort key, Dictionary<ushort, Vector4> colors, List<ushort> palette)
+    private static bool DrawColorPicker(PickerIds ids, ref ushort key, Dictionary<ushort, Vector4> colors, List<List<ushort>> palette)
     {
         var swatch = new Vector2(ImGui.GetFrameHeight());
         if (key != Configuration.NoColor && colors.TryGetValue(key, out var current))
@@ -398,20 +444,22 @@ public class ConfigWindow : Window, IDisposable
             picked = true;
         }
 
-        const int perRow = 12;
-        for (var i = 0; i < palette.Count; i++)
+        foreach (var line in palette)
         {
-            if (i % perRow != 0)
+            for (var i = 0; i < line.Count; i++)
             {
-                ImGui.SameLine();
-            }
-            var row = palette[i];
-            // Interpolated only while the popup is open; the row number is the tooltip
-            if (ImGui.ColorButton($"{row}##{ids.Id}", colors[row], ImGuiColorEditFlags.None, swatch))
-            {
-                key = row;
-                picked = true;
-                ImGui.CloseCurrentPopup();
+                if (i > 0)
+                {
+                    ImGui.SameLine();
+                }
+                var row = line[i];
+                // Interpolated only while the popup is open; the row number is the tooltip
+                if (ImGui.ColorButton($"{row}##{ids.Id}", colors[row], ImGuiColorEditFlags.None, swatch))
+                {
+                    key = row;
+                    picked = true;
+                    ImGui.CloseCurrentPopup();
+                }
             }
         }
         return picked;

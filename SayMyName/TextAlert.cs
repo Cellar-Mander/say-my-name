@@ -1,9 +1,5 @@
 using System;
-using System.Collections.Generic;
-using System.Text;
 using Dalamud.Game.Chat;
-using Dalamud.Game.Text.SeStringHandling;
-using Dalamud.Game.Text.SeStringHandling.Payloads;
 using SayMyName.Core;
 using Serilog.Events;
 
@@ -18,18 +14,15 @@ public sealed class TextAlert : IDisposable
 {
     private readonly Configuration configuration;
     private readonly AlertSound sound;
+    private readonly ChatHighlighter highlighter;
     private NameMatcher nameMatcher = new("", caseSensitive: true);
     private NameMatcher customMatcher = NameMatcher.ForPhrases("", caseSensitive: false);
 
-    // Reused for every highlighted line; chat events all arrive on the framework thread
-    private readonly StringBuilder plainText = new();
-    private readonly List<(int Start, int Length)> matches = [];
-    private readonly List<(int Start, int Length, bool Highlighted)> pieces = [];
-
-    public TextAlert(Configuration configuration, AlertSound sound)
+    public TextAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter)
     {
         this.configuration = configuration;
         this.sound = sound;
+        this.highlighter = highlighter;
         // Dalamud's place for formatting a line; skipped for a line another plugin has already hidden
         Plugin.ChatGui.CheckMessageHandled += OnCheckMessageHandled;
         // Unhandled only: a message another plugin has hidden shouldn't alert
@@ -67,111 +60,23 @@ public sealed class TextAlert : IDisposable
 
     private void OnCheckMessageHandled(IHandleableChatMessage message)
     {
-        if (!configuration.Highlight
-            || (configuration.HighlightTextColor == Configuration.NoColor && configuration.HighlightGlowColor == Configuration.NoColor)
+        if (!highlighter.Enabled
             || !Listening(message, out _, out var name, out var custom, out var you, out var fromYou)
             || fromYou)
         {
             return;
         }
 
-        // Matched against the payloads' own text, so match positions line up with the payloads below
-        var original = message.Message;
-        plainText.Clear();
-        foreach (var payload in original.Payloads)
-        {
-            if (payload is ITextProvider provider)
-            {
-                plainText.Append(provider.Text);
-            }
-        }
-        var text = plainText.ToString();
-
-        matches.Clear();
+        var text = highlighter.Begin(message.Message);
         if (name)
         {
-            CurrentNameMatcher(you).FindAll(text, matches);
+            CurrentNameMatcher(you).FindAll(text, highlighter.Matches);
         }
         if (custom)
         {
-            CurrentCustomMatcher().FindAll(text, matches);
+            CurrentCustomMatcher().FindAll(text, highlighter.Matches);
         }
-        if (matches.Count == 0)
-        {
-            return;
-        }
-
-        Highlights.Merge(matches);
-        message.Message = Highlighted(original);
-    }
-
-    // Splits each text payload around the matches; other payloads (links, icons, auto-translate) are kept whole
-    private SeString Highlighted(SeString original)
-    {
-        var payloads = new List<Payload>(original.Payloads.Count + matches.Count * 6);
-        var offset = 0;
-        foreach (var payload in original.Payloads)
-        {
-            if (payload is not ITextProvider provider)
-            {
-                payloads.Add(payload);
-                continue;
-            }
-
-            var length = provider.Text?.Length ?? 0;
-            var segment = (payload as TextPayload)?.Text;
-            pieces.Clear();
-            if (segment != null)
-            {
-                Highlights.Split(offset, length, matches, pieces);
-            }
-
-            if (pieces.Count == 0 || (pieces.Count == 1 && !pieces[0].Highlighted))
-            {
-                payloads.Add(payload);
-            }
-            else
-            {
-                foreach (var piece in pieces)
-                {
-                    var part = new TextPayload(segment!.Substring(piece.Start, piece.Length));
-                    if (piece.Highlighted)
-                    {
-                        AddHighlighted(payloads, part);
-                    }
-                    else
-                    {
-                        payloads.Add(part);
-                    }
-                }
-            }
-            offset += length;
-        }
-        return new SeString(payloads);
-    }
-
-    private void AddHighlighted(List<Payload> payloads, TextPayload part)
-    {
-        var textColor = configuration.HighlightTextColor;
-        var glowColor = configuration.HighlightGlowColor;
-        if (textColor != Configuration.NoColor)
-        {
-            payloads.Add(new UIForegroundPayload(textColor));
-        }
-        if (glowColor != Configuration.NoColor)
-        {
-            payloads.Add(new UIGlowPayload(glowColor));
-        }
-        payloads.Add(part);
-        // Off restores whatever colour the surrounding text had, e.g. inside a party finder link
-        if (glowColor != Configuration.NoColor)
-        {
-            payloads.Add(UIGlowPayload.UIGlowOff);
-        }
-        if (textColor != Configuration.NoColor)
-        {
-            payloads.Add(UIForegroundPayload.UIForegroundOff);
-        }
+        highlighter.Apply(message);
     }
 
     // Whether either text trigger listens on this line's channel, and which

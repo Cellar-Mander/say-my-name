@@ -97,6 +97,9 @@ Turn on the Name and Custom triggers, enter `raid` as a custom word, and set qui
 - [ ] Untick Say for Name: `inject Say A Friend hi <Me first name>` is not coloured; on Party it is.
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): not coloured.
 - [ ] A real line with an item or map link and your name after it: the link still works and only your name is coloured.
+- [ ] The Text and Glow pop-ups show greys in the first row, then one row (or more) per hue from red round to magenta, each dark to light. Hovering a swatch shows its row number.
+- [ ] Next to the pickers, the preview `hey <Me first name>, thank you!` shows your name in the picked text colour and glow, and updates as you pick. With None for both it is plain; with Highlight off it dims.
+- [ ] `/saymyname targeting-me A Friend`, `/saymyname inject Say A Friend thank you, is this yours?`: `you` and `yours` are coloured. Same on `CustomEmote`. `inject Say Someone Else thank you`: not coloured. Untick Play a sound: still coloured.
 - [ ] Reload the plugin: the Highlight setting and both colours are kept.
 
 ### Targeted trigger

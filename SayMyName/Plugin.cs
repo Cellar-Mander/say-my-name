@@ -42,8 +42,9 @@ public sealed class Plugin : IDalamudPlugin
         Log.Information($"Say My Name {typeof(Plugin).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} loaded");
 
         AlertSound = new AlertSound(Configuration);
-        TextAlert = new TextAlert(Configuration, AlertSound);
-        TargetedAlert = new TargetedAlert(Configuration, AlertSound);
+        var highlighter = new ChatHighlighter(Configuration);
+        TextAlert = new TextAlert(Configuration, AlertSound, highlighter);
+        TargetedAlert = new TargetedAlert(Configuration, AlertSound, highlighter);
         if (PluginInterface.IsDev)
         {
             TestHarness = new TestHarness(TargetedAlert);

@@ -45,7 +45,7 @@ public abstract class ConfigurationBase
     /// <summary>Minimum time between alert sounds.</summary>
     public int CooldownSeconds { get; set; } = 5;
 
-    /// <summary>Colour your name and custom words in the chat lines that trigger, whether or not a sound plays.</summary>
+    /// <summary>Colour the words that set off a trigger (your name, custom words, 'you' words) in chat, whether or not a sound plays.</summary>
     public bool Highlight { get; set; } = true;
 
     /// <summary>UIColor sheet row for highlighted text (pale yellow), or <see cref="NoColor"/>.</summary>
