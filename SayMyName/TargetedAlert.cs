@@ -10,9 +10,9 @@ using Serilog.Events;
 namespace SayMyName;
 
 /// <summary>
-/// Plays the alert sound when another player emotes at you, or says a 'you' word (Say or custom
-/// emote) while targeting you, on a channel the Targeted trigger listens on; the 'you' words are
-/// also coloured in chat, and the inactive chat tabs showing the line are coloured.
+/// Plays the alert sound when another player uses a standard emote on you (Emote trigger), or says
+/// a 'you' word while targeting you on a channel the You trigger listens on (Say, custom emotes);
+/// the 'you' words are also coloured in chat, and the inactive chat tabs showing the line are coloured.
 /// </summary>
 public sealed unsafe class TargetedAlert : IDisposable
 {
@@ -43,7 +43,7 @@ public sealed unsafe class TargetedAlert : IDisposable
         var playEmote = (nint)EmoteController.MemberFunctionPointers.PlayEmote;
         if (playEmote == 0)
         {
-            Plugin.Log.Warning("Targeted trigger: emote function not found; only emotes in the chat log will alert");
+            Plugin.Log.Warning("Emote trigger: emote function not found; only emotes in the chat log will alert");
         }
         else
         {
@@ -64,11 +64,11 @@ public sealed unsafe class TargetedAlert : IDisposable
         playEmoteHook?.Dispose();
     }
 
-    private bool Listening(ChatChannel channel) => (configuration.PlaySound || tabs.Enabled) && TriggerListens(channel);
+    private bool Listening(TriggerKind kind, ChatChannel channel) => (configuration.PlaySound || tabs.Enabled) && TriggerListens(kind, channel);
 
-    private bool TriggerListens(ChatChannel channel)
+    private bool TriggerListens(TriggerKind kind, ChatChannel channel)
     {
-        var settings = configuration.Triggers[TriggerKind.Targeted];
+        var settings = configuration.Triggers[kind];
         return settings.Enabled && settings.Channels.Contains(channel);
     }
 
@@ -85,21 +85,21 @@ public sealed unsafe class TargetedAlert : IDisposable
             }
 
             if (options != null
-                && Listening(ChatChannel.StandardEmote)
+                && Listening(TriggerKind.Emote, ChatChannel.StandardEmote)
                 && Plugin.ObjectTable.LocalPlayer is { } me
                 && options->TargetId == me.GameObjectId
                 && (nint)controller->OwnerObject != me.Address)
             {
                 if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
                 {
-                    Plugin.Log.Verbose($"Targeted trigger: emote {emoteId} at you, logged={!options->DisableLogMessage}");
+                    Plugin.Log.Verbose($"Emote trigger: emote {emoteId} at you, logged={!options->DisableLogMessage}");
                 }
                 sound.Alert();
             }
         }
         catch (Exception e)
         {
-            Plugin.Log.Error(e, "Targeted trigger: emote check failed");
+            Plugin.Log.Error(e, "Emote trigger: emote check failed");
         }
 
         return result;
@@ -107,13 +107,21 @@ public sealed unsafe class TargetedAlert : IDisposable
 
     private void OnChatMessage(IChatMessage message)
     {
-        if (ChatChannels.FromChatType(message.LogKind) is not { } channel || !Listening(channel))
+        if (ChatChannels.FromChatType(message.LogKind) is not { } channel)
+        {
+            return;
+        }
+
+        // Each listens on channels the other can't use, so the channel says which trigger this is
+        var emote = channel == ChatChannel.StandardEmote;
+        var kind = emote ? TriggerKind.Emote : TriggerKind.You;
+        if (!Listening(kind, channel))
         {
             return;
         }
 
         // The hook already played the sound for this emote, logged or not; only the tabs are left
-        var soundPlayed = channel == ChatChannel.StandardEmote && playEmoteHook != null;
+        var soundPlayed = emote && playEmoteHook != null;
         if (soundPlayed && !tabs.Enabled)
         {
             return;
@@ -121,13 +129,13 @@ public sealed unsafe class TargetedAlert : IDisposable
 
         var fromYou = ChatLines.IsFromYou(message, Plugin.PlayerState.CharacterName);
         var text = message.Message.TextValue;
-        var matched = !fromYou && (channel == ChatChannel.StandardEmote
+        var matched = !fromYou && (emote
             ? message.TargetKind == XivChatRelationKind.LocalPlayer
             : YouWords.IsMatch(text) && SenderTargetsYou(message));
 
         if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
         {
-            Plugin.Log.Verbose($"Targeted trigger: {channel} source={message.SourceKind} target={message.TargetKind} " +
+            Plugin.Log.Verbose($"{kind} trigger: {channel} source={message.SourceKind} target={message.TargetKind} " +
                 $"sender={ChatLines.Escape(message.Sender.TextValue)} fromYou={fromYou} matched={matched} text={ChatLines.Escape(text)}");
         }
 
@@ -146,8 +154,7 @@ public sealed unsafe class TargetedAlert : IDisposable
     {
         if (!highlighter.Enabled
             || ChatChannels.FromChatType(message.LogKind) is not { } channel
-            || channel == ChatChannel.StandardEmote
-            || !TriggerListens(channel)
+            || !TriggerListens(TriggerKind.You, channel)
             || ChatLines.IsFromYou(message, Plugin.PlayerState.CharacterName))
         {
             return;

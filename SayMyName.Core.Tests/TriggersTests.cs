@@ -4,14 +4,79 @@ namespace SayMyName.Core.Tests;
 
 public class TriggersTests
 {
-    [Theory]
-    [InlineData(TriggerKind.Targeted)]
-    [InlineData(TriggerKind.TargetSpeaks)]
-    public void TargetTriggersOnlyAllowSayAndEmotes(TriggerKind kind)
+    [Fact]
+    public void TargetSpeaksOnlyAllowsSayAndEmotes()
     {
         Assert.Equal(
             [ChatChannel.Say, ChatChannel.StandardEmote, ChatChannel.CustomEmote],
-            Triggers.AllowedChannels(kind).Order());
+            Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order());
+    }
+
+    [Fact]
+    public void EmoteTriggerOnlyAllowsStandardEmotes()
+    {
+        Assert.Equal([ChatChannel.StandardEmote], Triggers.AllowedChannels(TriggerKind.Emote));
+    }
+
+    [Fact]
+    public void YouTriggerTreatsCustomEmotesAsTextLikeSay()
+    {
+        Assert.Equal([ChatChannel.Say, ChatChannel.CustomEmote], Triggers.AllowedChannels(TriggerKind.You).Order());
+    }
+
+    [Fact]
+    public void LegacyTargetedIsNotATrigger()
+    {
+        Assert.DoesNotContain(TriggerKind.Targeted, Triggers.All);
+    }
+
+    [Fact]
+    public void MigrateSplitsTargetedKeepingOnOffAndUsableChannels()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.Targeted] = new() { Enabled = false, Channels = [ChatChannel.StandardEmote, ChatChannel.CustomEmote] },
+        };
+
+        Triggers.Migrate(saved);
+        var emote = Triggers.Resolve(saved, TriggerKind.Emote);
+        var you = Triggers.Resolve(saved, TriggerKind.You);
+
+        Assert.DoesNotContain(TriggerKind.Targeted, saved.Keys);
+        Assert.False(emote.Enabled);
+        Assert.Equal([ChatChannel.StandardEmote], emote.Channels);
+        Assert.False(you.Enabled);
+        Assert.Equal([ChatChannel.CustomEmote], you.Channels);
+    }
+
+    [Fact]
+    public void MigrateWithoutEmotesLeavesEmoteTriggerListeningNowhere()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.Targeted] = new() { Enabled = true, Channels = [ChatChannel.Say] },
+        };
+
+        Triggers.Migrate(saved);
+
+        Assert.Empty(Triggers.Resolve(saved, TriggerKind.Emote).Channels);
+        Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
+    }
+
+    [Fact]
+    public void MigrateKeepsSettingsAlreadySavedForTheNewTriggers()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.Targeted] = new() { Enabled = true, Channels = [ChatChannel.Say] },
+            [TriggerKind.You] = new() { Enabled = false, Channels = [ChatChannel.CustomEmote] },
+        };
+
+        Triggers.Migrate(saved);
+
+        Assert.False(saved[TriggerKind.You].Enabled);
+        Assert.Equal([ChatChannel.CustomEmote], saved[TriggerKind.You].Channels);
+        Assert.True(saved[TriggerKind.Emote].Enabled);
     }
 
     [Theory]
@@ -78,9 +143,9 @@ public class TriggersTests
     {
         var saved = new Dictionary<TriggerKind, TriggerSettings>
         {
-            [TriggerKind.Targeted] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.Party, (ChatChannel)999] },
+            [TriggerKind.You] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.StandardEmote, (ChatChannel)999] },
         };
 
-        Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.Targeted).Channels);
+        Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
     }
 }

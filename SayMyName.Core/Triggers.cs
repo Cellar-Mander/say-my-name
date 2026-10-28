@@ -38,18 +38,25 @@ public enum TriggerKind
     Name,
     /// <summary>Someone says one of your custom words or phrases.</summary>
     Custom,
-    /// <summary>An emote at you, or a 'you' message while targeting you.</summary>
-    Targeted,
+    /// <summary>Another player uses a standard emote on you; /em custom emotes are text, not emotes.</summary>
+    Emote,
+    /// <summary>A player targeting you says a 'you' word.</summary>
+    You,
     /// <summary>Your current target speaks.</summary>
     TargetSpeaks,
+    /// <summary>Saved by older versions; split into <see cref="Emote"/> and <see cref="You"/> on load. Not in <see cref="Triggers.All"/>.</summary>
+    // Kept so a config that still names it loads: Json.NET rejects an unknown dictionary key
+    Targeted,
 }
 
 public static class Triggers
 {
-    public static readonly IReadOnlyList<TriggerKind> All = Enum.GetValues<TriggerKind>();
+    public static readonly IReadOnlyList<TriggerKind> All = [.. Enum.GetValues<TriggerKind>().Where(k => k != TriggerKind.Targeted)];
 
     private static readonly ChatChannel[] AllChannels = Enum.GetValues<ChatChannel>();
     private static readonly ChatChannel[] SayAndEmotes = [ChatChannel.Say, ChatChannel.StandardEmote, ChatChannel.CustomEmote];
+    private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
+    private static readonly ChatChannel[] SayAndCustomEmotes = [ChatChannel.Say, ChatChannel.CustomEmote];
 
     /// <summary>Every channel, those usable by the most triggers first; ties keep declaration order.</summary>
     public static readonly IReadOnlyList<ChatChannel> ChannelsByUsage =
@@ -58,7 +65,9 @@ public static class Triggers
     /// <summary>Channels the trigger may be configured to listen on.</summary>
     public static IReadOnlyList<ChatChannel> AllowedChannels(TriggerKind kind) => kind switch
     {
-        TriggerKind.Targeted or TriggerKind.TargetSpeaks => SayAndEmotes,
+        TriggerKind.Emote => StandardEmoteOnly,
+        TriggerKind.You => SayAndCustomEmotes,
+        TriggerKind.TargetSpeaks => SayAndEmotes,
         _ => AllChannels,
     };
 
@@ -77,6 +86,19 @@ public static class Triggers
         var allowed = AllowedChannels(kind);
         settings.Channels.RemoveWhere(c => !allowed.Contains(c));
         return settings;
+    }
+
+    /// <summary>
+    /// Replaces an older version's Targeted settings with Emote and You settings that keep its
+    /// on/off and channels; Resolve() then drops the channels each may not use.
+    /// </summary>
+    public static void Migrate(IDictionary<TriggerKind, TriggerSettings> saved)
+    {
+        if (saved.Remove(TriggerKind.Targeted, out var targeted))
+        {
+            saved.TryAdd(TriggerKind.Emote, new() { Enabled = targeted.Enabled, Channels = [.. targeted.Channels] });
+            saved.TryAdd(TriggerKind.You, new() { Enabled = targeted.Enabled, Channels = [.. targeted.Channels] });
+        }
     }
 
     public static TriggerSettings Default(TriggerKind kind) => new()

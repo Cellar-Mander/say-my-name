@@ -486,7 +486,8 @@ public class ConfigWindow : Window, IDisposable
     {
         TriggerKind.Name => "Another player says your name",
         TriggerKind.Custom => "Someone says one of your custom words or phrases",
-        TriggerKind.Targeted => "Someone emotes at you, or targets you and uses a 'you' message",
+        TriggerKind.Emote => "Someone uses an emote on you",
+        TriggerKind.You => "Someone targeting you uses a 'you' word",
         TriggerKind.TargetSpeaks => "Your current target speaks",
         _ => kind.ToString(),
     };
@@ -495,7 +496,8 @@ public class ConfigWindow : Window, IDisposable
     {
         TriggerKind.Name => "Name",
         TriggerKind.Custom => "Custom",
-        TriggerKind.Targeted => "Targeted",
+        TriggerKind.Emote => "Emote",
+        TriggerKind.You => "You",
         TriggerKind.TargetSpeaks => "Target",
         _ => kind.ToString(),
     };
