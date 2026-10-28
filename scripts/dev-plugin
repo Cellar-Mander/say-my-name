@@ -32,7 +32,9 @@ print_claim() {
 
 deploy() {
     local task=${1:-}
-    dotnet build "$top/SayMyName/SayMyName.csproj" -c Debug --nologo -v q
+    # Platform x64 as the solution builds it: a bare project build is AnyCPU and goes to bin/Debug,
+    # so the copy below from bin/x64/Debug would ship whatever the last solution build left there
+    dotnet build "$top/SayMyName/SayMyName.csproj" -c Debug -p:Platform=x64 --nologo -v q
 
     mkdir -p "$dev_dir"
     if ! mkdir "$claim" 2>/dev/null && [[ $(claim_owner) != "$top" ]]; then
