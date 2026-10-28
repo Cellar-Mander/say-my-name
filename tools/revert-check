@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copy of ~/Repo/ebd/bin/revert-check at 0044e5a; update from there.
+# Copy of ~/Repo/ebd/bin/revert-check at 1bd04e3; update from there.
 """revert-check: do the branch's new or changed tests fail when its product changes are reverted?
 
     revert-check [--ci] [--quiet] [--base REF] [--head REV]
@@ -27,6 +27,7 @@ Environment: REVERT_CHECK_TIMEOUT (seconds per run, default 900), REVERT_CHECK_L
 """
 
 import argparse
+import contextlib
 import fnmatch
 import json
 import os
@@ -46,6 +47,7 @@ TEST_PATH = re.compile(
 )
 # Never reverted: changing them would change how the tests are run, not what they test.
 KEEP = (".claude/", ".github/")
+MAX_REBUILDS = 5  # rounds of setting aside test files that don't build with the product reverted
 MARKER = re.compile(r"revert-check:\s*not revert-sensitive", re.IGNORECASE)
 # A test that starts on one line: Python def test_*, Go func TestX, JS/TS it("...") / test("...").
 LINE_TESTS = [
@@ -505,6 +507,26 @@ def main(argv=None):
             if s == "A":
                 os.remove(os.path.join(wt, f))
         reverted = run_tests(cmd, wt, tmp, "reverted", timeout)
+        # A compiler may stop at the first errors it finds (Roslyn reports declaration errors and
+        # skips method bodies), hiding other test files that need the new code. While nothing ran
+        # and every error is in a test file, set those files aside and build again; the tests
+        # left then get a real verdict.
+        needs_files, needs_note = set(), ""
+        for n in range(1, MAX_REBUILDS + 1):
+            if reverted.rc == 0 or reverted.timed_out:
+                break
+            files, note = needs_new_code(reverted.output, wt, globs, product)
+            files -= needs_files
+            if not files:
+                break
+            needs_files |= files
+            needs_note = note
+            if reverted.results is not None:  # the other tests ran: nothing is hidden
+                break
+            for f in files:
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(os.path.join(wt, f))
+            reverted = run_tests(cmd, wt, tmp, f"reverted{n}", timeout)
     finally:
         git("worktree", "remove", "--force", wt, cwd=root, check=False)
         shutil.rmtree(tmp, ignore_errors=True)
@@ -512,8 +534,7 @@ def main(argv=None):
 
     if at_head.results is not None:  # a def that never ran is test data or a helper, not a test
         defs = [d for d in defs if d.name in at_head.results]
-    needs = needs_new_code(reverted.output, wt, globs, product) if reverted.rc != 0 else (set(), "")
-    groups = classify(defs, at_head, reverted, needs)
+    groups = classify(defs, at_head, reverted, (needs_files, needs_note if reverted.results is None else ""))
     names = {d.name for d in defs}
     others = set()
     if at_head.results is not None and reverted.results is not None:
