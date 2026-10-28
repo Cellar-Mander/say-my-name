@@ -16,7 +16,7 @@ namespace SayMyName;
 /// <summary>
 /// Dev-plugin helper for the smoke checklist (docs/smoke-test.md): puts fake player messages into
 /// chat and logs when each comes back through the chat events the triggers listen on, logs the
-/// emotes the Targeted trigger sees, can pretend an injected sender is targeting you, and can
+/// emotes the Emote trigger sees, can pretend an injected sender is targeting you, and can
 /// recolour a chat tab's name to see whether the game keeps the colour.
 /// </summary>
 public sealed unsafe class TestHarness : IDisposable
@@ -119,7 +119,7 @@ public sealed unsafe class TestHarness : IDisposable
         return true;
     }
 
-    // Logs every emote the Targeted trigger's hook sees, so other players' emotes in a busy place
+    // Logs every emote the Emote trigger's hook sees, so other players' emotes in a busy place
     // show whether the hook fires for them, aimed at whom, and whether they were logged
     private bool ToggleEmoteWatch(string args)
     {
@@ -134,7 +134,7 @@ public sealed unsafe class TestHarness : IDisposable
         return true;
     }
 
-    // Lines from this name pass the Targeted trigger's "sender is targeting you" check
+    // Lines from this name pass the You trigger's "sender is targeting you" check
     private bool SetFakeTargeter(string args)
     {
         var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);

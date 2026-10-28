@@ -39,14 +39,14 @@ public class ConfigurationRoundTripTests
     {
         var config = Fresh();
         config.Triggers[TriggerKind.Name].Channels.Remove(ChatChannel.Say);
-        config.Triggers[TriggerKind.Targeted].Channels.Clear();
+        config.Triggers[TriggerKind.You].Channels.Clear();
 
         var loaded = SaveAndLoad(config);
 
         Assert.Equal(
             Triggers.AllowedChannels(TriggerKind.Name).Where(c => c != ChatChannel.Say).Order(),
             loaded.Triggers[TriggerKind.Name].Channels.Order());
-        Assert.Empty(loaded.Triggers[TriggerKind.Targeted].Channels);
+        Assert.Empty(loaded.Triggers[TriggerKind.You].Channels);
     }
 
     [Fact]
@@ -131,6 +131,23 @@ public class ConfigurationRoundTripTests
         var expected = Triggers.Default(TriggerKind.Custom);
         Assert.Equal(expected.Enabled, loaded.Triggers[TriggerKind.Custom].Enabled);
         Assert.Equal(expected.Channels.Order(), loaded.Triggers[TriggerKind.Custom].Channels.Order());
+    }
+
+    [Fact]
+    public void OlderTargetedSettingsLoadAsEmoteAndYou()
+    {
+        var config = Fresh();
+        config.Triggers.Remove(TriggerKind.Emote);
+        config.Triggers.Remove(TriggerKind.You);
+        config.Triggers[TriggerKind.Targeted] = new() { Enabled = false, Channels = [ChatChannel.Say, ChatChannel.StandardEmote] };
+
+        var loaded = SaveAndLoad(config);
+
+        Assert.DoesNotContain(TriggerKind.Targeted, loaded.Triggers.Keys);
+        Assert.False(loaded.Triggers[TriggerKind.Emote].Enabled);
+        Assert.Equal([ChatChannel.StandardEmote], loaded.Triggers[TriggerKind.Emote].Channels);
+        Assert.False(loaded.Triggers[TriggerKind.You].Enabled);
+        Assert.Equal([ChatChannel.Say], loaded.Triggers[TriggerKind.You].Channels);
     }
 
     [Fact]
