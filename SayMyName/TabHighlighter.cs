@@ -1,6 +1,7 @@
 using System;
+using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.Config;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Arrays;
@@ -10,33 +11,46 @@ using Serilog.Events;
 namespace SayMyName;
 
 /// <summary>
-/// Colours the names of the inactive chat tabs that show a line which set off an alert. The game
-/// puts the tab's own colour back when it is selected, as with its unread highlight.
+/// Colours the names of the inactive chat tabs that show a line which set off an alert, until the
+/// tab is opened, in place of the game's unread colour.
 /// </summary>
 /// <remarks>
 /// Which channels a tab shows isn't readable, so the tabs are found by their message counts (in
 /// game, the log number of the tab's newest line, so they move together for a line every tab
 /// shows): taken when the alerted line arrives (before the game adds it), then compared each frame
 /// until one goes up. Another line landing in the same frame can colour a tab that only shows that line.
+/// The game animates an unread tab's colour every frame, so the colour is put back after each of
+/// the chat log's updates, just before it draws.
 /// </remarks>
-public sealed unsafe class TabHighlighter(Configuration configuration) : IDisposable
+public sealed unsafe class TabHighlighter : IDisposable
 {
+    private const string ChatLogAddon = "ChatLog";
     // The chat log's number array has message counts for this many tabs
     private const int CountedTabs = 4;
     // Frames to wait for the line to reach the tabs, after which it was hidden or never logged
     private const int MaxWaitFrames = 10;
 
+    private readonly Configuration configuration;
+
     // Only touched on the framework thread, as are the chat events that call Alert
     private readonly int[] counts = new int[CountedTabs];
+    private readonly bool[] highlighted = new bool[CountedTabs];
+    private int highlightedCount;
     private int framesWaited;
     private bool waiting;
+
+    public TabHighlighter(Configuration configuration)
+    {
+        this.configuration = configuration;
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, ChatLogAddon, OnChatLogPreDraw);
+    }
 
     /// <summary>Whether tab colouring is on and has a colour to use.</summary>
     public bool Enabled => configuration.HighlightTabs && configuration.TabHighlightColor != Configuration.NoColor;
 
     public void Dispose()
     {
-        StopWaiting();
+        Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, ChatLogAddon, OnChatLogPreDraw);
     }
 
     /// <summary>Call from the chat event for the line that set off an alert: the tabs it lands in are coloured.</summary>
@@ -60,30 +74,63 @@ public sealed unsafe class TabHighlighter(Configuration configuration) : IDispos
         }
         framesWaited = 0;
         waiting = true;
-        Plugin.Framework.Update += OnFrameworkUpdate;
     }
 
-    private void OnFrameworkUpdate(IFramework framework)
+    private void OnChatLogPreDraw(AddonEvent type, AddonArgs args)
     {
-        var array = ChatLogNumberArray.Instance();
-        var chatLog = (AddonChatLog*)RaptureAtkUnitManager.Instance()->GetAddonByName("ChatLog");
-        if (array == null || chatLog == null)
+        if (!waiting && highlightedCount == 0)
         {
-            StopWaiting();
             return;
         }
-        if (++framesWaited > MaxWaitFrames)
+
+        var chatLog = (AddonChatLog*)args.Addon.Address;
+        var tabs = Math.Min((int)chatLog->TabCount, CountedTabs);
+        if (waiting)
         {
-            if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
+            FindAlertedTabs(chatLog, tabs);
+        }
+
+        // Turning the setting off, or opening a tab, hands the colour back to the game
+        if (!Enabled)
+        {
+            Array.Clear(highlighted);
+            highlightedCount = 0;
+            return;
+        }
+
+        ByteColor? color = null;
+        for (var i = 0; i < CountedTabs; i++)
+        {
+            if (!highlighted[i])
             {
-                Plugin.Log.Verbose($"Tab highlight: line didn't reach any tab within {MaxWaitFrames} frames");
+                continue;
             }
-            StopWaiting();
+
+            if (i >= tabs || i == chatLog->TabIndex)
+            {
+                highlighted[i] = false;
+                highlightedCount--;
+                continue;
+            }
+
+            if (chatLog->ChatTabs[i].Value is var tab && tab != null && tab->ButtonTextNode != null)
+            {
+                color ??= TabColor();
+                tab->ButtonTextNode->TextColor = color.Value;
+            }
+        }
+    }
+
+    private void FindAlertedTabs(AddonChatLog* chatLog, int tabs)
+    {
+        var array = ChatLogNumberArray.Instance();
+        if (array == null)
+        {
+            waiting = false;
             return;
         }
 
         var changed = false;
-        var tabs = Math.Min((int)chatLog->TabCount, CountedTabs);
         for (var i = 0; i < tabs; i++)
         {
             if (TabCounts(array, i).TotalMessageCount == counts[i])
@@ -92,27 +139,21 @@ public sealed unsafe class TabHighlighter(Configuration configuration) : IDispos
             }
 
             changed = true;
-            if (i != chatLog->TabIndex && chatLog->ChatTabs[i].Value is var tab && tab != null && tab->ButtonTextNode != null)
+            if (i != chatLog->TabIndex && !highlighted[i])
             {
-                tab->ButtonTextNode->TextColor = TabColor();
+                highlighted[i] = true;
+                highlightedCount++;
             }
         }
 
-        if (changed)
+        if (changed || ++framesWaited > MaxWaitFrames)
         {
             if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
             {
-                Plugin.Log.Verbose($"Tab highlight: line reached the tabs after {framesWaited} frames; active tab {chatLog->TabIndex + 1}");
+                Plugin.Log.Verbose(changed
+                    ? $"Tab highlight: line reached the tabs after {framesWaited} frames; active tab {chatLog->TabIndex + 1}"
+                    : $"Tab highlight: line didn't reach any tab within {MaxWaitFrames} frames");
             }
-            StopWaiting();
-        }
-    }
-
-    private void StopWaiting()
-    {
-        if (waiting)
-        {
-            Plugin.Framework.Update -= OnFrameworkUpdate;
             waiting = false;
         }
     }
