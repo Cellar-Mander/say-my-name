@@ -32,6 +32,15 @@ For the Targeted trigger, two more:
 
 `targeting-me` only skips the search for the sender among nearby players; everything else in the trigger runs as normal. With `emotes` on, each emote nearby logs a line like `Test harness: emote 105 from A Friend at Some Player, logged=True`, with `at you` when it is aimed at you.
 
+To try colouring chat tab names (task 7d98e301):
+
+```
+/saymyname tabcolor <tab 1-5> <RRGGBB>        # colour the tab's name once; logs when the game changes it back
+/saymyname tabcolor <tab 1-5> <RRGGBB> keep   # also re-apply it every frame
+/saymyname tabcolor off                       # restore the original colour
+/saymyname tabwatch                           # for 10 s, log each tab's message count and colours when they change
+```
+
 Malformed arguments print the usage as a chat error. Plugins installed normally (not as a dev plugin) don't have these subcommands.
 
 Below, *Me* is your character's name and *A Friend* any other name.

@@ -19,6 +19,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
     [PluginService] internal static IGameInteropProvider GameInterop { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
 
@@ -27,6 +29,7 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; init; }
     public AlertSound AlertSound { get; init; }
     public ChatHighlighter Highlighter { get; init; }
+    private TabHighlighter TabHighlighter { get; init; }
     private TextAlert TextAlert { get; init; }
     private TargetedAlert TargetedAlert { get; init; }
     // Dev plugin only: faking chat and targeting is a testing tool, not a user feature
@@ -45,8 +48,9 @@ public sealed class Plugin : IDalamudPlugin
 
         AlertSound = new AlertSound(Configuration);
         Highlighter = new ChatHighlighter(Configuration);
-        TextAlert = new TextAlert(Configuration, AlertSound, Highlighter);
-        TargetedAlert = new TargetedAlert(Configuration, AlertSound, Highlighter);
+        TabHighlighter = new TabHighlighter(Configuration);
+        TextAlert = new TextAlert(Configuration, AlertSound, Highlighter, TabHighlighter);
+        TargetedAlert = new TargetedAlert(Configuration, AlertSound, Highlighter, TabHighlighter);
         if (PluginInterface.IsDev)
         {
             TestHarness = new TestHarness(TargetedAlert);
@@ -84,6 +88,7 @@ public sealed class Plugin : IDalamudPlugin
         TestHarness?.Dispose();
         TextAlert.Dispose();
         TargetedAlert.Dispose();
+        TabHighlighter.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }

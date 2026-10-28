@@ -7,22 +7,24 @@ namespace SayMyName;
 
 /// <summary>
 /// Alerts when another player says your name (Name trigger) or one of your custom words or
-/// phrases (Custom trigger), on a channel that trigger listens on: plays the alert sound, and
-/// colours the matched words in the chat line.
+/// phrases (Custom trigger), on a channel that trigger listens on: plays the alert sound, colours
+/// the matched words in the chat line, and colours the inactive chat tabs that show it.
 /// </summary>
 public sealed class TextAlert : IDisposable
 {
     private readonly Configuration configuration;
     private readonly AlertSound sound;
     private readonly ChatHighlighter highlighter;
+    private readonly TabHighlighter tabs;
     private NameMatcher nameMatcher = new("", caseSensitive: true);
     private NameMatcher customMatcher = NameMatcher.ForPhrases("", caseSensitive: false);
 
-    public TextAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter)
+    public TextAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter, TabHighlighter tabs)
     {
         this.configuration = configuration;
         this.sound = sound;
         this.highlighter = highlighter;
+        this.tabs = tabs;
         // Dalamud's place for formatting a line; skipped for a line another plugin has already hidden
         Plugin.ChatGui.CheckMessageHandled += OnCheckMessageHandled;
         // Unhandled only: a message another plugin has hidden shouldn't alert
@@ -37,7 +39,7 @@ public sealed class TextAlert : IDisposable
 
     private void OnChatMessage(IChatMessage message)
     {
-        if (!configuration.PlaySound || !Listening(message, out var channel, out var name, out var custom, out var you, out var fromYou))
+        if (!(configuration.PlaySound || tabs.Enabled) || !Listening(message, out var channel, out var name, out var custom, out var you, out var fromYou))
         {
             return;
         }
@@ -55,6 +57,7 @@ public sealed class TextAlert : IDisposable
         if (nameMatched || customMatched)
         {
             sound.Alert();
+            tabs.Alert();
         }
     }
 
