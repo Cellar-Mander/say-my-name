@@ -32,8 +32,8 @@ print_claim() {
 
 deploy() {
     local task=${1:-}
-    # Platform x64 as the solution builds it: a bare project build is AnyCPU and goes to bin/Debug,
-    # so the copy below from bin/x64/Debug would ship whatever the last solution build left there
+    # x64 so the build lands in bin/x64/Debug, where the copy below reads it; a bare project
+    # build is AnyCPU and goes to bin/Debug
     dotnet build "$top/SayMyName/SayMyName.csproj" -c Debug -p:Platform=x64 --nologo -v q
 
     mkdir -p "$dev_dir"
