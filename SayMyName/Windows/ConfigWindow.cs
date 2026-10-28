@@ -49,6 +49,7 @@ public class ConfigWindow : Window, IDisposable
     private byte[] previewBytes = [];
     private static readonly PickerIds TextPicker = new("Text", "highlightText");
     private static readonly PickerIds GlowPicker = new("Glow", "highlightGlow");
+    private static readonly PickerIds TabPicker = new("Tab name", "highlightTab");
 
     private sealed record PickerIds(string Label, string Id)
     {
@@ -356,27 +357,45 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        using var indent = ImRaii.PushIndent();
-        using var disabled = ImRaii.Disabled(!highlight);
         UpdatePalette();
-        var textColor = configuration.HighlightTextColor;
-        if (DrawColorPicker(TextPicker, ref textColor, colors, palette))
+        using (ImRaii.PushIndent())
+        using (ImRaii.Disabled(!highlight))
         {
-            configuration.HighlightTextColor = textColor;
+            var textColor = configuration.HighlightTextColor;
+            if (DrawColorPicker(TextPicker, ref textColor, colors, palette))
+            {
+                configuration.HighlightTextColor = textColor;
+                configuration.Save();
+            }
+
+            ImGui.SameLine();
+            var glowColor = configuration.HighlightGlowColor;
+            if (DrawColorPicker(GlowPicker, ref glowColor, colors, palette))
+            {
+                configuration.HighlightGlowColor = glowColor;
+                configuration.Save();
+            }
+
+            ImGui.SameLine(0, ImGui.GetStyle().ItemSpacing.X * 3);
+            DrawHighlightPreview();
+            ImGui.TextDisabled("Your name, custom words, and 'you' words from someone targeting you");
+        }
+
+        var highlightTabs = configuration.HighlightTabs;
+        if (ImGui.Checkbox("Colour the chat tabs an alert arrives in, until opened", ref highlightTabs))
+        {
+            configuration.HighlightTabs = highlightTabs;
             configuration.Save();
         }
 
-        ImGui.SameLine();
-        var glowColor = configuration.HighlightGlowColor;
-        if (DrawColorPicker(GlowPicker, ref glowColor, colors, palette))
+        using var indent = ImRaii.PushIndent();
+        using var disabled = ImRaii.Disabled(!highlightTabs);
+        var tabColor = configuration.TabHighlightColor;
+        if (DrawColorPicker(TabPicker, ref tabColor, colors, palette))
         {
-            configuration.HighlightGlowColor = glowColor;
+            configuration.TabHighlightColor = tabColor;
             configuration.Save();
         }
-
-        ImGui.SameLine(0, ImGui.GetStyle().ItemSpacing.X * 3);
-        DrawHighlightPreview();
-        ImGui.TextDisabled("Your name, custom words, and 'you' words from someone targeting you");
     }
 
     /// <summary>

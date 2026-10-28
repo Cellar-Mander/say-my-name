@@ -75,6 +75,8 @@ public class ConfigurationRoundTripTests
         config.Highlight = false;
         config.HighlightTextColor = 45;
         config.HighlightGlowColor = ConfigurationBase.NoColor;
+        config.HighlightTabs = false;
+        config.TabHighlightColor = 31;
 
         var loaded = SaveAndLoad(config);
 
@@ -87,6 +89,8 @@ public class ConfigurationRoundTripTests
         Assert.False(loaded.Highlight);
         Assert.Equal(45, loaded.HighlightTextColor);
         Assert.Equal(ConfigurationBase.NoColor, loaded.HighlightGlowColor);
+        Assert.False(loaded.HighlightTabs);
+        Assert.Equal(31, loaded.TabHighlightColor);
     }
 
     [Fact]

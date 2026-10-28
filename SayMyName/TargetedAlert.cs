@@ -12,7 +12,7 @@ namespace SayMyName;
 /// <summary>
 /// Plays the alert sound when another player emotes at you, or says a 'you' word (Say or custom
 /// emote) while targeting you, on a channel the Targeted trigger listens on; the 'you' words are
-/// also coloured in chat.
+/// also coloured in chat, and the inactive chat tabs showing the line are coloured.
 /// </summary>
 public sealed unsafe class TargetedAlert : IDisposable
 {
@@ -21,6 +21,7 @@ public sealed unsafe class TargetedAlert : IDisposable
     private readonly Configuration configuration;
     private readonly AlertSound sound;
     private readonly ChatHighlighter highlighter;
+    private readonly TabHighlighter tabs;
 
     // Sees every other player's emote, including those whose log message is turned off and never
     // reach chat. Null if the game function wasn't found; emotes then come from chat instead.
@@ -32,11 +33,12 @@ public sealed unsafe class TargetedAlert : IDisposable
     /// <summary>Dev plugin only: treats a sender with this name as targeting you, for injected lines.</summary>
     public Predicate<string>? FakeTargetingYou { get; set; }
 
-    public TargetedAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter)
+    public TargetedAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter, TabHighlighter tabs)
     {
         this.configuration = configuration;
         this.sound = sound;
         this.highlighter = highlighter;
+        this.tabs = tabs;
 
         var playEmote = (nint)EmoteController.MemberFunctionPointers.PlayEmote;
         if (playEmote == 0)
@@ -62,7 +64,7 @@ public sealed unsafe class TargetedAlert : IDisposable
         playEmoteHook?.Dispose();
     }
 
-    private bool Listening(ChatChannel channel) => configuration.PlaySound && TriggerListens(channel);
+    private bool Listening(ChatChannel channel) => (configuration.PlaySound || tabs.Enabled) && TriggerListens(channel);
 
     private bool TriggerListens(ChatChannel channel)
     {
@@ -105,10 +107,14 @@ public sealed unsafe class TargetedAlert : IDisposable
 
     private void OnChatMessage(IChatMessage message)
     {
-        if (ChatChannels.FromChatType(message.LogKind) is not { } channel
-            || !Listening(channel)
-            // The hook already alerted for this emote, logged or not
-            || (channel == ChatChannel.StandardEmote && playEmoteHook != null))
+        if (ChatChannels.FromChatType(message.LogKind) is not { } channel || !Listening(channel))
+        {
+            return;
+        }
+
+        // The hook already played the sound for this emote, logged or not; only the tabs are left
+        var soundPlayed = channel == ChatChannel.StandardEmote && playEmoteHook != null;
+        if (soundPlayed && !tabs.Enabled)
         {
             return;
         }
@@ -127,7 +133,11 @@ public sealed unsafe class TargetedAlert : IDisposable
 
         if (matched)
         {
-            sound.Alert();
+            if (!soundPlayed)
+            {
+                sound.Alert();
+            }
+            tabs.Alert();
         }
     }
 

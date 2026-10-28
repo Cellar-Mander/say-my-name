@@ -54,6 +54,12 @@ public abstract class ConfigurationBase
     /// <summary>UIColor sheet row for the highlighted text's edge glow (orange), or <see cref="NoColor"/>.</summary>
     public ushort HighlightGlowColor { get; set; } = 500;
 
+    /// <summary>Colour the names of inactive chat tabs that show a line which set off an alert, until the tab is opened.</summary>
+    public bool HighlightTabs { get; set; } = true;
+
+    /// <summary>UIColor sheet row for a highlighted tab's name (orange), or <see cref="NoColor"/>.</summary>
+    public ushort TabHighlightColor { get; set; } = 500;
+
     /// <summary>Settings window sections shown expanded; any other, including ones added later, starts closed.</summary>
     // Null until loaded, for the same reason as Triggers: a pre-filled set would bring back sections
     // the user had closed. Normalize() opens only the trigger section for a config that never saved one.
