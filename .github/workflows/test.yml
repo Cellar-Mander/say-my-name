@@ -23,3 +23,23 @@ jobs:
     # Only the game-independent projects; the plugin itself needs a Dalamud install to build
     - name: Test
       run: dotnet test SayMyName.Core.Tests --configuration Release
+
+  # Do the PR's new or changed tests fail with its product changes reverted? Informs only:
+  # keep this job out of required checks.
+  revert-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Revert check
+      run: python3 tools/revert-check --ci
