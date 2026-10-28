@@ -6,6 +6,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Arrays;
 using Lumina.Excel.Sheets;
+using SayMyName.Core;
 using Serilog.Events;
 
 namespace SayMyName;
@@ -20,7 +21,7 @@ namespace SayMyName;
 /// shows): taken when the alerted line arrives (before the game adds it), then compared each frame
 /// until one goes up. Another line landing in the same frame can colour a tab that only shows that line.
 /// The game animates an unread tab's colour every frame, so the colour is put back after each of
-/// the chat log's updates, just before it draws.
+/// the chat log's updates, just before it draws, pulsed in step with the game's (see <see cref="TabPulse"/>).
 /// </remarks>
 public sealed unsafe class TabHighlighter : IDisposable
 {
@@ -98,7 +99,7 @@ public sealed unsafe class TabHighlighter : IDisposable
             return;
         }
 
-        ByteColor? color = null;
+        uint? color = null;
         for (var i = 0; i < CountedTabs; i++)
         {
             if (!highlighted[i])
@@ -115,8 +116,11 @@ public sealed unsafe class TabHighlighter : IDisposable
 
             if (chatLog->ChatTabs[i].Value is var tab && tab != null && tab->ButtonTextNode != null)
             {
+                // The game has just set this frame's step of its unread pulse; ours takes the same step
+                ref var text = ref tab->ButtonTextNode->TextColor;
                 color ??= TabColor();
-                tab->ButtonTextNode->TextColor = color.Value;
+                var pulsed = TabPulse.Apply(color.Value, TabPulse.Fraction((uint)(text.R << 16 | text.G << 8 | text.B)));
+                text = new ByteColor { R = (byte)(pulsed >> 16), G = (byte)(pulsed >> 8), B = (byte)pulsed, A = 255 };
             }
         }
     }
@@ -169,8 +173,8 @@ public sealed unsafe class TabHighlighter : IDisposable
         }
     }
 
-    // The UIColor row in the game's current theme, as the settings window's swatches show it
-    private ByteColor TabColor()
+    // The UIColor row in the game's current theme, as the settings window's swatches show it, as 0xRRGGBB
+    private uint TabColor()
     {
         var theme = Plugin.GameConfig.TryGet(SystemConfigOption.ColorThemeType, out uint t) && t < 4 ? t : 0;
         var row = Plugin.DataManager.GetExcelSheet<UIColor>().GetRowOrDefault(configuration.TabHighlightColor);
@@ -181,6 +185,6 @@ public sealed unsafe class TabHighlighter : IDisposable
             3 => r.ClearBlue,
             _ => r.Dark,
         };
-        return new ByteColor { R = (byte)(rgba >> 24), G = (byte)(rgba >> 16), B = (byte)(rgba >> 8), A = 255 };
+        return rgba >> 8;
     }
 }
