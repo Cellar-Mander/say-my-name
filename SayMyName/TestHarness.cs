@@ -150,8 +150,8 @@ public sealed unsafe class TestHarness : IDisposable
         return true;
     }
 
-    // Sets a chat tab's name colour once, then logs the frame the game changes it back.
-    // With "keep" it re-applies the colour every frame instead, to see whether that holds without flicker.
+    // Sets a chat tab's name colour and logs the frame the game first changes it. Without "keep" it
+    // then leaves the colour to the game; with "keep" it re-applies the colour every frame.
     private bool SetTabColour(string args)
     {
         var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -249,8 +249,8 @@ public sealed unsafe class TestHarness : IDisposable
         return button == null ? null : button->ButtonTextNode;
     }
 
-    // For ten seconds, logs each chat tab's message count and colours whenever they change, to see
-    // whether inactive tabs' counts go up and what the game's unread flash changes
+    // For ten seconds, logs each chat tab's message count, whether it's the active tab, and its
+    // text, edge and node colours whenever any of them changes
     private bool WatchTabs(string args)
     {
         if (args.Length > 0)
