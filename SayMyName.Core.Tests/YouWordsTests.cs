@@ -12,6 +12,13 @@ public class YouWordsTests
     [InlineData("you're late")]
     [InlineData("you’re late")]
     [InlineData("Hey, you.")]
+    [InlineData("youuu")]
+    [InlineData("thank youu")]
+    [InlineData("yooou")]
+    [InlineData("YOURRR turn")]
+    [InlineData("y o u")]
+    [InlineData("Y-O-U-R-S")]
+    [InlineData("youuu're late")]
     public void MatchesYouWords(string text)
     {
         Assert.True(YouWords.IsMatch(text));
@@ -24,7 +31,9 @@ public class YouWordsTests
     [InlineData("bayou")]
     [InlineData("you'll see")]
     [InlineData("yourself")]
-    [InlineData("y o u")]
+    [InlineData("yoou")]
+    [InlineData("youu'll")]
+    [InlineData("y o u t h")]
     public void IgnoresOtherWords(string text)
     {
         Assert.False(YouWords.IsMatch(text));
