@@ -53,22 +53,24 @@ public static class Triggers
 {
     public static readonly IReadOnlyList<TriggerKind> All = [.. Enum.GetValues<TriggerKind>().Where(k => k != TriggerKind.Targeted)];
 
-    private static readonly ChatChannel[] AllChannels = Enum.GetValues<ChatChannel>();
-    private static readonly ChatChannel[] SayAndEmotes = [ChatChannel.Say, ChatChannel.StandardEmote, ChatChannel.CustomEmote];
+    // Standard emote lines are written by the game, never by a player, so only the Emote trigger listens there
+    private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c != ChatChannel.StandardEmote)];
     private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
     private static readonly ChatChannel[] SayAndCustomEmotes = [ChatChannel.Say, ChatChannel.CustomEmote];
 
-    /// <summary>Every channel, those usable by the most triggers first; ties keep declaration order.</summary>
-    public static readonly IReadOnlyList<ChatChannel> ChannelsByUsage =
-        [.. AllChannels.OrderByDescending(c => All.Count(k => AllowedChannels(k).Contains(c)))];
+    /// <summary>Triggers whose channels are chosen in settings; the Emote trigger only ever listens on standard emotes.</summary>
+    public static readonly IReadOnlyList<TriggerKind> WithChannelChoice = [.. All.Where(k => k != TriggerKind.Emote)];
 
-    /// <summary>Channels the trigger may be configured to listen on.</summary>
+    /// <summary>Channels a player can choose, those usable by the most triggers first; ties keep declaration order.</summary>
+    public static readonly IReadOnlyList<ChatChannel> ChannelsByUsage =
+        [.. TextChannels.OrderByDescending(c => WithChannelChoice.Count(k => AllowedChannels(k).Contains(c)))];
+
+    /// <summary>Channels the trigger may listen on.</summary>
     public static IReadOnlyList<ChatChannel> AllowedChannels(TriggerKind kind) => kind switch
     {
         TriggerKind.Emote => StandardEmoteOnly,
-        TriggerKind.You => SayAndCustomEmotes,
-        TriggerKind.TargetSpeaks => SayAndEmotes,
-        _ => AllChannels,
+        TriggerKind.You or TriggerKind.TargetSpeaks => SayAndCustomEmotes,
+        _ => TextChannels,
     };
 
     /// <summary>
@@ -81,6 +83,12 @@ public static class Triggers
         {
             settings = Default(kind);
             saved[kind] = settings;
+        }
+
+        // Its channel can no longer be unticked, so an older config that unticked it turns the trigger off instead
+        if (kind == TriggerKind.Emote && settings.Channels.Add(ChatChannel.StandardEmote))
+        {
+            settings.Enabled = false;
         }
 
         var allowed = AllowedChannels(kind);

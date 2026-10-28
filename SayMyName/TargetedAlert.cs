@@ -1,9 +1,7 @@
 using System;
-using System.Linq;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using SayMyName.Core;
@@ -16,7 +14,7 @@ namespace SayMyName;
 /// a 'you' word while targeting you on a channel the You trigger listens on (Say, custom emotes);
 /// the 'you' words are also coloured in chat, and the inactive chat tabs showing the line are coloured.
 /// Also plays the sound, and only the sound, when your current target speaks on a channel the
-/// Target Speaks trigger listens on (Say, emotes).
+/// Target Speaks trigger listens on (Say, custom emotes).
 /// </summary>
 public sealed unsafe class TargetedAlert : IDisposable
 {
@@ -139,7 +137,7 @@ public sealed unsafe class TargetedAlert : IDisposable
         var matched = targeted && !fromYou && (emote
             ? message.TargetKind == XivChatRelationKind.LocalPlayer
             : YouWords.IsMatch(text) && SenderTargetsYou(message));
-        var targetSpoke = targetSpeaks && !fromYou && SenderIsYourTarget(message, emote);
+        var targetSpoke = targetSpeaks && !fromYou && SenderIsYourTarget(message);
 
         if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
         {
@@ -206,15 +204,9 @@ public sealed unsafe class TargetedAlert : IDisposable
     }
 
     // Compares the sender with your one target, so unlike SenderTargetsYou no search of nearby players is needed
-    private bool SenderIsYourTarget(IChatMessage message, bool emote)
+    private bool SenderIsYourTarget(IChatMessage message)
     {
         var link = ChatLines.SenderLink(message);
-        // A standard emote's line may name the emoter only in its text, taken to be its first player link
-        if (link == null && emote)
-        {
-            link = message.Message.Payloads.OfType<PlayerPayload>().FirstOrDefault();
-        }
-
         var name = link?.PlayerName ?? ChatSender.Name(message.Sender.TextValue).ToString();
         if (FakeYourTarget?.Invoke(name) == true)
         {

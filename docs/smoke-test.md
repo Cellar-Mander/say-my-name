@@ -68,8 +68,9 @@ Below, *Me* is your character's name and *A Friend* any other name.
 ### Settings persist
 
 - [ ] Untick a channel for Name, untick the You trigger, untick Match case, pick sound `<se.7>`, set quiet time to 0. Disable and re-enable the plugin in `/xlplugins`: all five are as you left them.
-- [ ] Emote offers only Emotes; You offers only Say and Custom emotes; Target Speaks offers Say and both emote channels.
-- [ ] With a config saved before Emote and You existed (Targeted unticked, Emotes unticked for it): after loading, both Emote and You are unticked, Emote's Emotes box is unticked, and You keeps Say and Custom emotes.
+- [ ] The channel table has no Emotes row and no Emote column; You and Target Speaks offer only Say and Custom emotes.
+- [ ] With a config saved before Emote and You existed (Targeted unticked, Emotes unticked for it): after loading, both Emote and You are unticked, and You keeps Say and Custom emotes.
+- [ ] With a config saved before the Emotes row was removed, with the Emote trigger ticked but Emotes unticked for it: after loading, the Emote trigger is unticked.
 - [ ] Untick a trigger: its column header and checkboxes dim.
 
 ### Settings sections
@@ -138,7 +139,7 @@ With a second player (*A Friend*, e.g. an alt on another client) near you:
 - [ ] A Friend targets you and uses `/pet`: one sound, and the log shows `emote ... at you, logged=True`.
 - [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`. Same with their emote log messages turned off in their settings.
 - [ ] A Friend targets someone else (or nobody) and emotes: no sound.
-- [ ] Untick Emotes for Emote, A Friend emotes at you: no sound. Tick it again and untick the Emote trigger: no sound; `/say thank you` from them still sounds.
+- [ ] Untick the Emote trigger, A Friend emotes at you: no sound; `/say thank you` from them still sounds.
 - [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, and `/em waves at you` (a custom emote, handled by You, not Emote). `/em waves` without a 'you' word: no sound. Untick Custom emotes for You: `/em waves at you` no longer sounds, while standard emotes still do.
 - [ ] A Friend targets you and says `/say hello`, or says `/say thank you` without targeting you: no sound.
 - [ ] You target A Friend and emote at them, or `/say thank you`: no sound.
@@ -150,8 +151,8 @@ Set quiet time to 0, turn off the Name, Custom, Emote and You triggers so only t
 
 Solo:
 
-- [ ] It is off by default on a fresh config, with Say and both emote channels ticked.
-- [ ] Tick it. `/saymyname my-target A Friend`, then `/saymyname inject Say A Friend hello`: sound. Same on `CustomEmote` and `StandardEmote`.
+- [ ] It is off by default on a fresh config, with Say and Custom emotes ticked.
+- [ ] Tick it. `/saymyname my-target A Friend`, then `/saymyname inject Say A Friend hello`: sound. Same on `CustomEmote`. On `StandardEmote`: no sound.
 - [ ] The line is not coloured, and no inactive chat tab changes colour.
 - [ ] Still pretending: `inject Say Someone Else hello`: no sound. `inject Party A Friend hello`: no sound (not a Target Speaks channel).
 - [ ] Untick Say for Target Speaks: `inject Say A Friend hello` no longer sounds. Untick Play a sound: nothing sounds.
@@ -159,7 +160,7 @@ Solo:
 
 With a second player (*A Friend*) near you:
 
-- [ ] Target A Friend. They `/say hello`: sound. They `/em waves`: sound. They `/pet` someone (or nobody): sound, and the log's `targetSpoke=True`. If a standard emote doesn't sound, its line doesn't name the emoter as its first player link: check the log's `sender=` and text.
+- [ ] Target A Friend. They `/say hello`: sound. They `/em waves`: sound. They `/pet` someone (or nobody): no sound.
 - [ ] Target A Friend while a third player (or nobody) speaks or emotes at A Friend: no sound.
 - [ ] Target someone else, or nobody, while A Friend speaks: no sound.
 - [ ] Target yourself and `/say hello`: no sound.

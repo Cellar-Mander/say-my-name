@@ -5,11 +5,52 @@ namespace SayMyName.Core.Tests;
 public class TriggersTests
 {
     [Fact]
-    public void TargetSpeaksOnlyAllowsSayAndEmotes()
+    public void TargetSpeaksOnlyAllowsSayAndCustomEmotes()
     {
-        Assert.Equal(
-            [ChatChannel.Say, ChatChannel.StandardEmote, ChatChannel.CustomEmote],
-            Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order());
+        Assert.Equal([ChatChannel.Say, ChatChannel.CustomEmote], Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order());
+    }
+
+    [Fact]
+    public void OnlyTheEmoteTriggerListensOnStandardEmotes()
+    {
+        Assert.Equal([TriggerKind.Emote], Triggers.All.Where(k => Triggers.AllowedChannels(k).Contains(ChatChannel.StandardEmote)));
+    }
+
+    [Fact]
+    public void ChannelTableHasNoStandardEmoteRowOrEmoteColumn()
+    {
+        Assert.DoesNotContain(ChatChannel.StandardEmote, Triggers.ChannelsByUsage);
+        Assert.Equal([TriggerKind.Name, TriggerKind.Custom, TriggerKind.You, TriggerKind.TargetSpeaks], Triggers.WithChannelChoice);
+    }
+
+    [Fact]
+    public void EmoteTriggerWithStandardEmotesUntickedLoadsOff()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.Emote] = new() { Enabled = true, Channels = [] },
+        };
+
+        var emote = Triggers.Resolve(saved, TriggerKind.Emote);
+
+        Assert.False(emote.Enabled);
+        Assert.Equal([ChatChannel.StandardEmote], emote.Channels);
+        // Settled: a second load keeps it as the user leaves it
+        emote.Enabled = true;
+        Assert.True(Triggers.Resolve(saved, TriggerKind.Emote).Enabled);
+    }
+
+    [Fact]
+    public void StandardEmotesAreDroppedFromTextTriggers()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.Name] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.StandardEmote] },
+            [TriggerKind.TargetSpeaks] = new() { Enabled = true, Channels = [ChatChannel.StandardEmote, ChatChannel.CustomEmote] },
+        };
+
+        Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.Name).Channels);
+        Assert.Equal([ChatChannel.CustomEmote], Triggers.Resolve(saved, TriggerKind.TargetSpeaks).Channels);
     }
 
     [Fact]
@@ -50,7 +91,7 @@ public class TriggersTests
     }
 
     [Fact]
-    public void MigrateWithoutEmotesLeavesEmoteTriggerListeningNowhere()
+    public void MigrateWithoutEmotesTurnsEmoteTriggerOff()
     {
         var saved = new Dictionary<TriggerKind, TriggerSettings>
         {
@@ -59,7 +100,7 @@ public class TriggersTests
 
         Triggers.Migrate(saved);
 
-        Assert.Empty(Triggers.Resolve(saved, TriggerKind.Emote).Channels);
+        Assert.False(Triggers.Resolve(saved, TriggerKind.Emote).Enabled);
         Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
     }
 
@@ -82,17 +123,17 @@ public class TriggersTests
     [Theory]
     [InlineData(TriggerKind.Name)]
     [InlineData(TriggerKind.Custom)]
-    public void WordTriggersAllowEveryChannel(TriggerKind kind)
+    public void WordTriggersAllowEveryChannelButStandardEmotes(TriggerKind kind)
     {
-        Assert.Equal(Enum.GetValues<ChatChannel>(), Triggers.AllowedChannels(kind));
+        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote]), Triggers.AllowedChannels(kind));
     }
 
     [Fact]
     public void ChannelsUsableByAllTriggersComeFirstThenTheRestInOrder()
     {
-        ChatChannel[] first = [ChatChannel.Say, ChatChannel.StandardEmote, ChatChannel.CustomEmote];
+        ChatChannel[] first = [ChatChannel.Say, ChatChannel.CustomEmote];
         Assert.Equal(
-            [.. first, .. Enum.GetValues<ChatChannel>().Except(first)],
+            [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote])],
             Triggers.ChannelsByUsage);
     }
 
