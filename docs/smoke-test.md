@@ -96,6 +96,7 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] The channel table has a Party row and no Cross-world Party row. Inject on CrossParty: sound. Untick Party for Name, inject on CrossParty: no sound. *(self-test)*
 - [ ] Untick the Name trigger: no sound on any channel. *(self-test)*
 - [ ] With Match case on, your name in lower case: no sound. Turn it off: sound. *(self-test)*
+- [ ] Your first name stretched (its last letter repeated, or a vowel repeated 3 times, e.g. `Aliiice`) and spelled out (`A-L-I-C-E`, `a l i c e`): sound. With a vowel doubled inside (`Aliice`): no sound. *(self-test: last letter repeated, and spelled out with hyphens for a name of letters only)*
 - [ ] With quiet time at 10 s, two injections within 10 s: one sound. After 10 s: sound again. *(self-test: the two lines within 10 s)*
 - [ ] Untick Play a sound: no sound. *(self-test)*
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): no sound. *(self-test)*
@@ -106,7 +107,7 @@ Below, *Me* is your character's name and *A Friend* any other name.
 Turn off the Name trigger first, so only custom words can sound.
 
 - [ ] Enter `raid` and `good morning` on separate lines. `/saymyname inject Say A Friend raid tonight?`: sound. Same with `Good morning!` and `RAID`. *(self-test)*
-- [ ] `inject Say A Friend afraid`, `... good`, `... morning`: no sound. *(self-test)*
+- [ ] `inject Say A Friend afraid`, `... good`, `... morning`, `... raiiid`: no sound. *(self-test)*
 - [ ] Tick Match case for custom words: `RAID` no longer sounds, `raid` still does. *(self-test)*
 - [ ] Untick Say for Custom, `inject Say A Friend raid`: no sound. Inject on Party: sound. *(self-test)*
 - [ ] `/saymyname inject Say <Me> raid` (you as the sender): no sound. *(self-test)*
@@ -118,7 +119,7 @@ Turn off the Name trigger first, so only custom words can sound.
 Turn on the Name and Custom triggers, enter `raid` as a custom word, and set quiet time to 0.
 
 - [ ] Highlight is on by default: `/saymyname inject Say A Friend hi <Me first name>, raid?` shows your name and `raid` in pale yellow with an orange glow; the rest of the line, and the sender name, keep the Say colour. *(self-test: which words get colour payloads; look at the colours yourself)*
-- [ ] `inject Say A Friend <Me first name>'s raid`: only the name is coloured, not the `'s`. `inject Say A Friend Primrose afraid`: nothing coloured. *(self-test)*
+- [ ] `inject Say A Friend <Me first name>'s raid`: only the name is coloured, not the `'s`. `inject Say A Friend Primrose afraid`: nothing coloured. `inject Say A Friend <Me first name, last letter repeated> and <Me first name spelled with hyphens>`: both whole words are coloured. *(self-test: name and possessive, and nothing coloured inside other words)*
 - [ ] Pick another text colour and glow in the Highlight section: the next injected line uses them. Pick None for glow: text colour only. None for both: lines are unchanged. *(self-test: which payloads are added)*
 - [ ] Untick Play a sound: lines are still coloured, with no sound. Untick Highlight, tick Play a sound: sound, no colour. *(self-test: sound and colour payloads)*
 - [ ] Untick Say for Name: `inject Say A Friend hi <Me first name>` is not coloured; on Party it is. *(self-test)*
@@ -127,7 +128,7 @@ Turn on the Name and Custom triggers, enter `raid` as a custom word, and set qui
 - [ ] The Text and Glow pop-ups are a full grid (10 swatches high): greys in the first column(s), then hue left to right from red round to magenta, each column light at the top to dark at the bottom. Hovering a swatch shows its row number.
 - [ ] Next to the pickers, the preview `hey <Me first name>, thank you!` shows your name in the picked text colour and glow, and updates as you pick. Inject a line with your name: its colours and glow match the preview (the font may differ). With None for both it is plain; with Highlight off it dims.
 - [ ] Switch the game's UI colour theme to Light, with a glow whose swatch changes: the swatches, preview and a newly injected line all use the Light theme's colours. Switch back.
-- [ ] `/saymyname targeting-me A Friend`, `/saymyname inject Say A Friend thank you, is this yours?`: `you` and `yours` are coloured. Same on `CustomEmote`. `inject Say Someone Else thank you`: not coloured. Untick Play a sound: still coloured. *(self-test: colour payloads)*
+- [ ] `/saymyname targeting-me A Friend`, `/saymyname inject Say A Friend thank youuu, is this yours?`: `youuu` and `yours` are coloured. Same on `CustomEmote`. `inject Say Someone Else thank you`: not coloured. Untick Play a sound: still coloured. *(self-test: colour payloads)*
 - [ ] Reload the plugin: the Highlight setting and both colours are kept.
 - [ ] With a second chat tab that shows Say open in the background, `inject Say A Friend hi <Me first name>`: that tab's name turns the tab colour and pulses, fading to the same dull beige and back at the same rate as the game's green for an unread tell; next to another unread tab they pulse in step. Opening the tab clears it.
 

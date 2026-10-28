@@ -235,6 +235,12 @@ public sealed partial class TestHarness
         yield return Sound("Name: first name on Say sounds", true, Say, friend, $"hi {first}");
         yield return Sound("Name: full name sounds", true, Say, friend, $"hi {me}");
         yield return Sound("Name: name inside other text sounds", true, Say, friend, $"{first}!");
+        yield return Sound("Name: last letter repeated sounds", true, Say, friend, $"hi {first}{first[^1]}{first[^1]}");
+        // Spelling out joins letters only, so a name with an apostrophe or hyphen is left to the checklist
+        if (first.All(char.IsLetter))
+        {
+            yield return Sound("Name: spelled out with hyphens sounds", true, Say, friend, $"hi {string.Join('-', first.ToUpperInvariant().ToCharArray())}");
+        }
         Trigger(TriggerKind.Name).Channels.Remove(Say);
         yield return Sound("Name: Say unticked, Say is silent", false, Say, friend, $"hi {first}");
         yield return Sound("Name: Say unticked, Party sounds", true, Party, friend, $"hi {first}");
@@ -266,7 +272,7 @@ public sealed partial class TestHarness
         {
             yield return Sound($"Custom: '{text}' sounds", true, Say, friend, text);
         }
-        foreach (var text in new[] { "afraid", "good", "morning" })
+        foreach (var text in new[] { "afraid", "good", "morning", "raiiid" })
         {
             yield return Sound($"Custom: '{text}' is silent", false, Say, friend, text);
         }
@@ -313,8 +319,8 @@ public sealed partial class TestHarness
         Trigger(TriggerKind.Name).Channels.Add(Say);
         yield return Coloured("Highlight: your own line not coloured", [], Say, me, $"hi {first}");
         fakeTargeter = friend;
-        yield return Coloured("Highlight: 'you' words coloured from a sender targeting you", ["you", "yours"], Say, friend, "thank you, is this yours?");
-        yield return Coloured("Highlight: 'you' words coloured on CustomEmote", ["you", "yours"], CustomEmote, friend, "thank you, is this yours?");
+        yield return Coloured("Highlight: 'you' words coloured from a sender targeting you", ["youuu", "yours"], Say, friend, "thank youuu, is this yours?");
+        yield return Coloured("Highlight: 'you' words coloured on CustomEmote", ["youuu", "yours"], CustomEmote, friend, "thank youuu, is this yours?");
         yield return Coloured("Highlight: 'you' words not coloured from a sender not targeting you", [], Say, other, "thank you");
         configuration.PlaySound = false;
         yield return Coloured("Highlight: Play a sound unticked, 'you' still coloured", ["you"], Say, friend, "thank you");
