@@ -20,11 +20,13 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
     [PluginService] internal static IGameInteropProvider GameInterop { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
+    [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
 
     private const string CommandName = "/saymyname";
 
     public Configuration Configuration { get; init; }
     public AlertSound AlertSound { get; init; }
+    public ChatHighlighter Highlighter { get; init; }
     private TextAlert TextAlert { get; init; }
     private TargetedAlert TargetedAlert { get; init; }
     // Dev plugin only: faking chat and targeting is a testing tool, not a user feature
@@ -42,9 +44,9 @@ public sealed class Plugin : IDalamudPlugin
         Log.Information($"Say My Name {typeof(Plugin).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion} loaded");
 
         AlertSound = new AlertSound(Configuration);
-        var highlighter = new ChatHighlighter(Configuration);
-        TextAlert = new TextAlert(Configuration, AlertSound, highlighter);
-        TargetedAlert = new TargetedAlert(Configuration, AlertSound, highlighter);
+        Highlighter = new ChatHighlighter(Configuration);
+        TextAlert = new TextAlert(Configuration, AlertSound, Highlighter);
+        TargetedAlert = new TargetedAlert(Configuration, AlertSound, Highlighter);
         if (PluginInterface.IsDev)
         {
             TestHarness = new TestHarness(TargetedAlert);

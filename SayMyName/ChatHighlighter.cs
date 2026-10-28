@@ -42,7 +42,7 @@ public sealed class ChatHighlighter(Configuration configuration)
         return plainText.ToString();
     }
 
-    /// <summary>Colours the <see cref="Matches"/> in the line, if there are any.</summary>
+    /// <summary>Colours the <see cref="Matches"/> in the chat line, if there are any.</summary>
     public void Apply(IHandleableChatMessage message)
     {
         if (Matches.Count == 0)
@@ -50,13 +50,16 @@ public sealed class ChatHighlighter(Configuration configuration)
             return;
         }
 
-        Highlights.Merge(Matches);
-        message.Message = Highlighted(message.Message);
+        message.Message = Highlight(message.Message);
     }
 
-    // Splits each text payload around the matches; other payloads (links, icons, auto-translate) are kept whole
-    private SeString Highlighted(SeString original)
+    /// <summary>
+    /// A copy of the line with the <see cref="Matches"/> coloured: each text payload is split around
+    /// them, and other payloads (links, icons, auto-translate) are kept whole.
+    /// </summary>
+    public SeString Highlight(SeString original)
     {
+        Highlights.Merge(Matches);
         var payloads = new List<Payload>(original.Payloads.Count + Matches.Count * 6);
         var offset = 0;
         foreach (var payload in original.Payloads)
