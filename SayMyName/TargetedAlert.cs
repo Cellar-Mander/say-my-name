@@ -1,7 +1,9 @@
 using System;
+using System.Linq;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using SayMyName.Core;
@@ -13,6 +15,8 @@ namespace SayMyName;
 /// Plays the alert sound when another player uses a standard emote on you (Emote trigger), or says
 /// a 'you' word while targeting you on a channel the You trigger listens on (Say, custom emotes);
 /// the 'you' words are also coloured in chat, and the inactive chat tabs showing the line are coloured.
+/// Also plays the sound, and only the sound, when your current target speaks on a channel the
+/// Target Speaks trigger listens on (Say, emotes).
 /// </summary>
 public sealed unsafe class TargetedAlert : IDisposable
 {
@@ -32,6 +36,9 @@ public sealed unsafe class TargetedAlert : IDisposable
 
     /// <summary>Dev plugin only: treats a sender with this name as targeting you, for injected lines.</summary>
     public Predicate<string>? FakeTargetingYou { get; set; }
+
+    /// <summary>Dev plugin only: treats a sender with this name as your current target, for injected lines.</summary>
+    public Predicate<string>? FakeYourTarget { get; set; }
 
     public TargetedAlert(Configuration configuration, AlertSound sound, ChatHighlighter highlighter, TabHighlighter tabs)
     {
@@ -112,39 +119,40 @@ public sealed unsafe class TargetedAlert : IDisposable
             return;
         }
 
-        // Each listens on channels the other can't use, so the channel says which trigger this is
+        // Emote and You listen on channels the other can't use, so the channel says which of them this is
         var emote = channel == ChatChannel.StandardEmote;
         var kind = emote ? TriggerKind.Emote : TriggerKind.You;
-        if (!Listening(kind, channel))
+        var targeted = Listening(kind, channel);
+        // Sound only: a target speaking colours no words and no tabs
+        var targetSpeaks = configuration.PlaySound && TriggerListens(TriggerKind.TargetSpeaks, channel);
+        if (!targeted && !targetSpeaks)
         {
             return;
         }
 
         // The hook already played the sound for this emote, logged or not; only the tabs are left
         var soundPlayed = emote && playEmoteHook != null;
-        if (soundPlayed && !tabs.Enabled)
-        {
-            return;
-        }
+        targeted &= !soundPlayed || tabs.Enabled;
 
         var fromYou = ChatLines.IsFromYou(message, Plugin.PlayerState.CharacterName);
         var text = message.Message.TextValue;
-        var matched = !fromYou && (emote
+        var matched = targeted && !fromYou && (emote
             ? message.TargetKind == XivChatRelationKind.LocalPlayer
             : YouWords.IsMatch(text) && SenderTargetsYou(message));
+        var targetSpoke = targetSpeaks && !fromYou && SenderIsYourTarget(message, emote);
 
         if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
         {
-            Plugin.Log.Verbose($"{kind} trigger: {channel} source={message.SourceKind} target={message.TargetKind} " +
-                $"sender={ChatLines.Escape(message.Sender.TextValue)} fromYou={fromYou} matched={matched} text={ChatLines.Escape(text)}");
+            Plugin.Log.Verbose($"{kind}/TargetSpeaks trigger: {channel} source={message.SourceKind} target={message.TargetKind} " +
+                $"sender={ChatLines.Escape(message.Sender.TextValue)} fromYou={fromYou} matched={matched} targetSpoke={targetSpoke} text={ChatLines.Escape(text)}");
         }
 
+        if ((matched && !soundPlayed) || targetSpoke)
+        {
+            sound.Alert();
+        }
         if (matched)
         {
-            if (!soundPlayed)
-            {
-                sound.Alert();
-            }
             tabs.Alert();
         }
     }
@@ -195,5 +203,26 @@ public sealed unsafe class TargetedAlert : IDisposable
             }
         }
         return false;
+    }
+
+    // Compares the sender with your one target, so unlike SenderTargetsYou no search of nearby players is needed
+    private bool SenderIsYourTarget(IChatMessage message, bool emote)
+    {
+        var link = ChatLines.SenderLink(message);
+        // A standard emote's line may name the emoter only in its text, taken to be its first player link
+        if (link == null && emote)
+        {
+            link = message.Message.Payloads.OfType<PlayerPayload>().FirstOrDefault();
+        }
+
+        var name = link?.PlayerName ?? ChatSender.Name(message.Sender.TextValue).ToString();
+        if (FakeYourTarget?.Invoke(name) == true)
+        {
+            return true;
+        }
+
+        return Plugin.ObjectTable.LocalPlayer?.TargetObject is IPlayerCharacter target
+            && (link == null || target.HomeWorld.RowId == link.World.RowId)
+            && target.Name.TextValue == name;
     }
 }

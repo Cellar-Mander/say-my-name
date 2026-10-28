@@ -16,12 +16,12 @@ namespace SayMyName;
 /// <summary>
 /// Dev-plugin helper for the smoke checklist (docs/smoke-test.md): puts fake player messages into
 /// chat and logs when each comes back through the chat events the triggers listen on, logs the
-/// emotes the Emote trigger sees, can pretend an injected sender is targeting you, and can
+/// emotes the Emote trigger sees, can pretend an injected sender is targeting you or is your target, and can
 /// recolour a chat tab's name to see whether the game keeps the colour.
 /// </summary>
 public sealed unsafe class TestHarness : IDisposable
 {
-    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
+    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
 
     private readonly TargetedAlert targetedAlert;
 
@@ -29,6 +29,7 @@ public sealed unsafe class TestHarness : IDisposable
     private readonly HashSet<string> pending = [];
 
     private string? fakeTargeter;
+    private string? fakeTarget;
     private bool watchingEmotes;
 
     // The recoloured tab (0-based), its colour and the colour it had before; only touched on the framework thread
@@ -48,6 +49,7 @@ public sealed unsafe class TestHarness : IDisposable
     {
         this.targetedAlert = targetedAlert;
         targetedAlert.FakeTargetingYou = name => name == fakeTargeter;
+        targetedAlert.FakeYourTarget = name => name == fakeTarget;
         Plugin.ChatGui.ChatMessage += OnChatMessage;
         Plugin.ChatGui.ChatMessageUnhandled += OnChatMessageUnhandled;
     }
@@ -62,6 +64,7 @@ public sealed unsafe class TestHarness : IDisposable
         Plugin.ChatGui.ChatMessage -= OnChatMessage;
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessageUnhandled;
         targetedAlert.FakeTargetingYou = null;
+        targetedAlert.FakeYourTarget = null;
         targetedAlert.EmotePlayed = null;
     }
 
@@ -80,6 +83,7 @@ public sealed unsafe class TestHarness : IDisposable
             "inject" => Inject(rest),
             "emotes" => ToggleEmoteWatch(rest),
             "targeting-me" => SetFakeTargeter(rest),
+            "my-target" => SetFakeTarget(rest),
             "tabcolor" => SetTabColour(rest),
             "tabwatch" => WatchTabs(rest),
             _ => (bool?)null,
@@ -147,6 +151,22 @@ public sealed unsafe class TestHarness : IDisposable
         Plugin.ChatGui.Print(fakeTargeter == null
             ? "Test harness: nobody is pretending to target you"
             : $"Test harness: {fakeTargeter} is pretending to target you");
+        return true;
+    }
+
+    // Lines from this name pass the Target Speaks trigger's "sender is your target" check
+    private bool SetFakeTarget(string args)
+    {
+        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length is not (0 or 2))
+        {
+            return false;
+        }
+
+        fakeTarget = parts.Length == 2 ? $"{parts[0]} {parts[1]}" : null;
+        Plugin.ChatGui.Print(fakeTarget == null
+            ? "Test harness: nobody is pretending to be your target"
+            : $"Test harness: {fakeTarget} is pretending to be your target");
         return true;
     }
 

@@ -30,6 +30,13 @@ For the Emote and You triggers, two more:
 /saymyname emotes                        # toggle logging every emote the Emote trigger sees
 ```
 
+For the Target Speaks trigger:
+
+```
+/saymyname my-target <First> <Last>      # injected lines from this name count as from your current target
+/saymyname my-target                     # stop pretending
+```
+
 `targeting-me` only skips the search for the sender among nearby players; everything else in the trigger runs as normal. With `emotes` on, each emote nearby logs a line like `Test harness: emote 105 from A Friend at Some Player, logged=True`, with `at you` when it is aimed at you.
 
 To try colouring chat tab names (task 7d98e301):
@@ -135,3 +142,23 @@ With a second player (*A Friend*, e.g. an alt on another client) near you:
 - [ ] A Friend targets you and says `/say hello`, or says `/say thank you` without targeting you: no sound.
 - [ ] You target A Friend and emote at them, or `/say thank you`: no sound.
 - [ ] Untick both the Emote and You triggers: none of the above sound.
+
+### Target Speaks trigger
+
+Set quiet time to 0, turn off the Name, Custom, Emote and You triggers so only this one can sound, and turn on verbose logging to see `TargetSpeaks trigger:` lines.
+
+Solo:
+
+- [ ] It is off by default on a fresh config, with Say and both emote channels ticked.
+- [ ] Tick it. `/saymyname my-target A Friend`, then `/saymyname inject Say A Friend hello`: sound. Same on `CustomEmote` and `StandardEmote`.
+- [ ] The line is not coloured, and no inactive chat tab changes colour.
+- [ ] Still pretending: `inject Say Someone Else hello`: no sound. `inject Party A Friend hello`: no sound (not a Target Speaks channel).
+- [ ] Untick Say for Target Speaks: `inject Say A Friend hello` no longer sounds. Untick Play a sound: nothing sounds.
+- [ ] `/saymyname my-target` (stop pretending), same inject: no sound.
+
+With a second player (*A Friend*) near you:
+
+- [ ] Target A Friend. They `/say hello`: sound. They `/em waves`: sound. They `/pet` someone (or nobody): sound, and the log's `targetSpoke=True`. If a standard emote doesn't sound, its line doesn't name the emoter as its first player link: check the log's `sender=` and text.
+- [ ] Target A Friend while a third player (or nobody) speaks or emotes at A Friend: no sound.
+- [ ] Target someone else, or nobody, while A Friend speaks: no sound.
+- [ ] Target yourself and `/say hello`: no sound.
