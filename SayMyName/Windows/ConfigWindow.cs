@@ -18,6 +18,7 @@ public class ConfigWindow : Window, IDisposable
 {
     // Rows, channels shared by the most triggers first so the full rows sit together
     private static readonly IReadOnlyList<ChatChannel> Channels = Triggers.ChannelsByUsage;
+    private static readonly IReadOnlyList<TriggerKind> Columns = Triggers.WithChannelChoice;
 
     // ImGui's default (0.6) is easy to miss on a disabled trigger's column
     private const float DisabledTriggerAlpha = 0.3f;
@@ -28,11 +29,11 @@ public class ConfigWindow : Window, IDisposable
 
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
-    private readonly string[] columnHeaders = new string[Triggers.All.Count];
+    private readonly string[] columnHeaders = new string[Columns.Count];
     private readonly string[] channelLabels = new string[Channels.Count];
     private static readonly string[] SoundLabels =
         [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
-    private readonly string?[,] channelCheckboxIds = new string?[Triggers.All.Count, Channels.Count];
+    private readonly string?[,] channelCheckboxIds = new string?[Columns.Count, Channels.Count];
 
     // The UIColor sheet (about 200 rows), with a colour per game theme: Dark, Light, Classic FF, Clear Blue.
     // Chat draws both text and glow in the theme set in the game's options, so the swatches use it too.
@@ -74,8 +75,12 @@ public class ConfigWindow : Window, IDisposable
 
         for (var t = 0; t < Triggers.All.Count; t++)
         {
-            var kind = Triggers.All[t];
-            triggerLabels[t] = TriggerLabel(kind);
+            triggerLabels[t] = TriggerLabel(Triggers.All[t]);
+        }
+
+        for (var t = 0; t < Columns.Count; t++)
+        {
+            var kind = Columns[t];
             columnHeaders[t] = ColumnHeader(kind);
             var allowed = Triggers.AllowedChannels(kind);
             for (var c = 0; c < Channels.Count; c++)
@@ -201,7 +206,7 @@ public class ConfigWindow : Window, IDisposable
     {
         ImGui.TextUnformatted("Listen on these channels (tells are never checked):");
 
-        using var table = ImRaii.Table("##channels", 1 + Triggers.All.Count,
+        using var table = ImRaii.Table("##channels", 1 + Columns.Count,
             ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingFixedFit);
         if (!table.Success)
         {
@@ -221,10 +226,10 @@ public class ConfigWindow : Window, IDisposable
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
         ImGui.TableNextColumn();
         ImGui.TableHeader("Channel");
-        for (var t = 0; t < Triggers.All.Count; t++)
+        for (var t = 0; t < Columns.Count; t++)
         {
             ImGui.TableNextColumn();
-            using (ImRaii.Disabled(!configuration.Triggers[Triggers.All[t]].Enabled))
+            using (ImRaii.Disabled(!configuration.Triggers[Columns[t]].Enabled))
             {
                 ImGui.TableHeader(columnHeaders[t]);
             }
@@ -237,7 +242,7 @@ public class ConfigWindow : Window, IDisposable
             ImGui.AlignTextToFramePadding();
             ImGui.TextUnformatted(channelLabels[c]);
 
-            for (var t = 0; t < Triggers.All.Count; t++)
+            for (var t = 0; t < Columns.Count; t++)
             {
                 ImGui.TableNextColumn();
                 var id = channelCheckboxIds[t, c];
@@ -246,7 +251,7 @@ public class ConfigWindow : Window, IDisposable
                     continue;
                 }
 
-                var settings = configuration.Triggers[Triggers.All[t]];
+                var settings = configuration.Triggers[Columns[t]];
                 var on = settings.Channels.Contains(Channels[c]);
                 using (ImRaii.Disabled(!settings.Enabled))
                 {
@@ -496,7 +501,6 @@ public class ConfigWindow : Window, IDisposable
     {
         TriggerKind.Name => "Name",
         TriggerKind.Custom => "Custom",
-        TriggerKind.Emote => "Emote",
         TriggerKind.You => "You",
         TriggerKind.TargetSpeaks => "Target",
         _ => kind.ToString(),
@@ -510,7 +514,6 @@ public class ConfigWindow : Window, IDisposable
         ChatChannel.NoviceNetwork => "Novice Network",
         >= ChatChannel.Linkshell1 and <= ChatChannel.Linkshell8 => $"Linkshell {channel - ChatChannel.Linkshell1 + 1}",
         >= ChatChannel.CrossLinkshell1 and <= ChatChannel.CrossLinkshell8 => $"Cross-world Linkshell {channel - ChatChannel.CrossLinkshell1 + 1}",
-        ChatChannel.StandardEmote => "Emotes",
         ChatChannel.CustomEmote => "Custom emotes",
         _ => channel.ToString(),
     };
