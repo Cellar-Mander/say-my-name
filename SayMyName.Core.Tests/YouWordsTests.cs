@@ -50,6 +50,7 @@ public class YouWordsTests
         Assert.True(YouWords.IsMatch(text));
     }
 
+    // revert-check: not revert-sensitive (near misses of each new You word, which the old list also rejected)
     [Theory]
     [InlineData("")]
     [InlineData("hello there")]

@@ -155,6 +155,7 @@ public class NameMatcherTests
         Assert.True(Rose.IsMatch(text));
     }
 
+    // revert-check: not revert-sensitive (near misses the old matcher also rejected; guards against over-matching)
     [Theory]
     [InlineData("Roose")]
     [InlineData("Rosse")]
@@ -174,6 +175,7 @@ public class NameMatcherTests
         Assert.False(Rose.IsMatch(text));
     }
 
+    // revert-check: not revert-sensitive (near misses the old matcher also rejected; guards against over-matching)
     [Theory]
     [InlineData("Pol Bob", "Pool")]
     [InlineData("Pol Bob", "Boob")]
@@ -203,6 +205,7 @@ public class NameMatcherTests
         Assert.True(new NameMatcher("Rose Thorne", caseSensitive: false).IsMatch("ROOOSEEE"));
     }
 
+    // revert-check: not revert-sensitive (phrases never matched stretches; guards against stretching leaking into phrases)
     [Theory]
     [InlineData("raiiid")]
     [InlineData("raidd")]

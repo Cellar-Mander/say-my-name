@@ -179,6 +179,7 @@ public class TriggersTests
         Assert.Equal([ChatChannel.Party], settings.Channels);
     }
 
+    // revert-check: not revert-sensitive (the dropping rule predates the change; edits only swap in channels that stay disallowed)
     [Fact]
     public void ResolveDropsChannelsTheTriggerMayNotUse()
     {
