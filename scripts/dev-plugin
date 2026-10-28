@@ -4,7 +4,13 @@
 # by another checkout or worktree. See "Testing in-game" in the README.
 set -euo pipefail
 
-dev_dir=${SAYMYNAME_DEV_DIR:-$HOME/.xlcore/devPlugins/SayMyName}
+if [[ -n ${APPDATA:-} ]] && command -v cygpath >/dev/null; then
+    # Git Bash on Windows: the folder scripts/dev-plugin.ps1 uses, under XIVLauncher's own
+    default_dir=$(cygpath -u "$APPDATA")/XIVLauncher/devPlugins/SayMyName
+else
+    default_dir=$HOME/.xlcore/devPlugins/SayMyName
+fi
+dev_dir=${SAYMYNAME_DEV_DIR:-$default_dir}
 # mkdir is atomic, so of two deploys racing for a free folder exactly one gets the claim
 claim=$dev_dir/.claim
 top=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
