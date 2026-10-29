@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.Config;
@@ -39,6 +40,10 @@ public sealed unsafe class TabHighlighter : IDisposable
     private int highlightedCount;
     private int framesWaited;
     private bool waiting;
+    // Whether the line being waited for is one to colour tabs for, and who wants to know where it landed
+    private bool colourWaited;
+    private List<Action<bool>> landedCallbacks = [];
+    private List<Action<bool>> spareCallbacks = [];
 
     public TabHighlighter(Configuration configuration)
     {
@@ -54,27 +59,41 @@ public sealed unsafe class TabHighlighter : IDisposable
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, ChatLogAddon, OnChatLogPreDraw);
     }
 
-    /// <summary>Call from the chat event for the line that set off an alert: the tabs it lands in are coloured.</summary>
-    public void Alert()
+    /// <summary>
+    /// Call from the chat event for the line that set off an alert, before the game adds it: the tabs
+    /// it lands in are coloured. <paramref name="landed"/>, if given, is told whether any tab showed
+    /// the line, whether or not tab colouring is on; call it before the line is printed.
+    /// </summary>
+    public void Alert(Action<bool>? landed = null)
     {
+        if (!Enabled && landed == null)
+        {
+            return;
+        }
+
         // Already waiting: those counts predate this line too, so it's caught with the first
-        if (!Enabled || waiting)
+        if (!waiting)
         {
-            return;
-        }
+            var array = ChatLogNumberArray.Instance();
+            if (array == null)
+            {
+                landed?.Invoke(false);
+                return;
+            }
 
-        var array = ChatLogNumberArray.Instance();
-        if (array == null)
-        {
-            return;
+            for (var i = 0; i < CountedTabs; i++)
+            {
+                counts[i] = TabCounts(array, i).TotalMessageCount;
+            }
+            framesWaited = 0;
+            waiting = true;
+            colourWaited = false;
         }
-
-        for (var i = 0; i < CountedTabs; i++)
+        colourWaited |= Enabled;
+        if (landed != null)
         {
-            counts[i] = TabCounts(array, i).TotalMessageCount;
+            landedCallbacks.Add(landed);
         }
-        framesWaited = 0;
-        waiting = true;
     }
 
     private void OnChatLogPreDraw(AddonEvent type, AddonArgs args)
@@ -131,6 +150,7 @@ public sealed unsafe class TabHighlighter : IDisposable
         if (array == null)
         {
             waiting = false;
+            NotifyLanded(false);
             return;
         }
 
@@ -143,7 +163,7 @@ public sealed unsafe class TabHighlighter : IDisposable
             }
 
             changed = true;
-            if (i != chatLog->TabIndex && !highlighted[i])
+            if (colourWaited && i != chatLog->TabIndex && !highlighted[i])
             {
                 highlighted[i] = true;
                 highlightedCount++;
@@ -159,7 +179,24 @@ public sealed unsafe class TabHighlighter : IDisposable
                     : $"Tab highlight: line didn't reach any tab within {MaxWaitFrames} frames");
             }
             waiting = false;
+            NotifyLanded(changed);
         }
+    }
+
+    // A callback may print a line and wait again, so it gets a fresh list to add to
+    private void NotifyLanded(bool landed)
+    {
+        if (landedCallbacks.Count == 0)
+        {
+            return;
+        }
+
+        (landedCallbacks, spareCallbacks) = (spareCallbacks, landedCallbacks);
+        foreach (var callback in spareCallbacks)
+        {
+            callback(landed);
+        }
+        spareCallbacks.Clear();
     }
 
     private static ref ChatLogNumberArray.ChatLogChatTabNumberArray TabCounts(ChatLogNumberArray* array, int tab)

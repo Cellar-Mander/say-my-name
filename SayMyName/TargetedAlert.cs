@@ -2,6 +2,8 @@ using System;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using SayMyName.Core;
@@ -15,9 +17,17 @@ namespace SayMyName;
 /// the 'you' words are also coloured in chat, and the inactive chat tabs showing the line are coloured.
 /// Also plays the sound, and only the sound, when your current target speaks on a channel the
 /// Target Speaks trigger listens on (Say, custom emotes).
+/// An emote at you whose log message the emoter turned off (motion only) is written to chat anyway,
+/// marked as the plugin's, so you can see who set off the alert; it alerts only if a chat tab shows it.
 /// </summary>
 public sealed unsafe class TargetedAlert : IDisposable
 {
+    /// <summary>Ends a line the plugin wrote to chat in place of an emote's missing log message.</summary>
+    public const string InsertedTag = " (Say My Name)";
+
+    // A line the game hasn't shown within this long after the emote, even in a tab, came too late to alert for
+    private const long InsertTimeoutMs = 1000;
+
     private delegate bool PlayEmoteDelegate(EmoteController* controller, uint emoteId, EmoteController.PlayEmoteOption* options);
 
     private readonly Configuration configuration;
@@ -28,6 +38,10 @@ public sealed unsafe class TargetedAlert : IDisposable
     // Sees every other player's emote, including those whose log message is turned off and never
     // reach chat. Null if the game function wasn't found; emotes then come from chat instead.
     private readonly Hook<PlayEmoteDelegate>? playEmoteHook;
+
+    // The unlogged emote at you whose log message the hook turned back on, until its line arrives
+    private string? insertSource;
+    private long insertAt;
 
     /// <summary>Dev plugin only: told of every emote the hook sees (emoting character's address, emote, target id, logged).</summary>
     public Action<nint, uint, ulong, bool>? EmotePlayed { get; set; }
@@ -79,27 +93,58 @@ public sealed unsafe class TargetedAlert : IDisposable
 
     private bool OnPlayEmote(EmoteController* controller, uint emoteId, EmoteController.PlayEmoteOption* options)
     {
-        var result = playEmoteHook!.Original(controller, emoteId, options);
+        var logged = options == null || !options->DisableLogMessage;
+        var atYou = false;
 
         // An exception must not escape into the game
         try
         {
-            if (options != null)
-            {
-                EmotePlayed?.Invoke((nint)controller->OwnerObject, emoteId, options->TargetId, !options->DisableLogMessage);
-            }
-
-            if (options != null
+            atYou = options != null
                 && Listening(TriggerKind.Emote, ChatChannel.StandardEmote)
                 && Plugin.ObjectTable.LocalPlayer is { } me
                 && options->TargetId == me.GameObjectId
-                && (nint)controller->OwnerObject != me.Address)
+                && (nint)controller->OwnerObject != me.Address;
+
+            // Motion only: without a line in chat you couldn't tell who set off the alert, so the
+            // game is asked to write its own line, which OnCheckMessageHandled marks as ours
+            if (atYou && !logged)
+            {
+                insertSource = controller->OwnerObject->NameString;
+                insertAt = Environment.TickCount64;
+                options->DisableLogMessage = false;
+            }
+        }
+        catch (Exception e)
+        {
+            Plugin.Log.Error(e, "Emote trigger: emote check failed");
+        }
+
+        var result = playEmoteHook!.Original(controller, emoteId, options);
+
+        try
+        {
+            if (atYou && !logged)
+            {
+                // Put back for anything else reading the options after us
+                options->DisableLogMessage = true;
+            }
+
+            if (options != null)
+            {
+                EmotePlayed?.Invoke((nint)controller->OwnerObject, emoteId, options->TargetId, logged);
+            }
+
+            if (atYou)
             {
                 if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
                 {
-                    Plugin.Log.Verbose($"Emote trigger: emote {emoteId} at you, logged={!options->DisableLogMessage}");
+                    Plugin.Log.Verbose($"Emote trigger: emote {emoteId} at you, logged={logged}");
                 }
-                sound.Alert();
+                // An unlogged emote alerts once its line is known to show in a tab
+                if (logged)
+                {
+                    sound.Alert();
+                }
             }
         }
         catch (Exception e)
@@ -110,9 +155,72 @@ public sealed unsafe class TargetedAlert : IDisposable
         return result;
     }
 
+    // The game's line for the emote whose log message the hook turned back on
+    private bool IsInsertedEmote(IChatMessage message) =>
+        insertSource != null
+        && message.LogKind == XivChatType.StandardEmote
+        && Environment.TickCount64 - insertAt <= InsertTimeoutMs
+        && message.Message.TextValue.Contains(insertSource, StringComparison.Ordinal);
+
+    // Alerts if a tab shows the inserted line; if none logs standard emotes, it's tried once as a custom emote
+    private void AlertForInserted(SeString line)
+    {
+        var since = Environment.TickCount64;
+        tabs.Alert(landed =>
+        {
+            if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
+            {
+                Plugin.Log.Verbose($"Emote trigger: inserted standard emote line shown={landed}");
+            }
+
+            if (landed)
+            {
+                AlertIfRecent(since);
+                return;
+            }
+
+            // Sender left empty: no trigger takes it for a player's line, see IsInsertedCustomEmote
+            tabs.Alert(shown =>
+            {
+                if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
+                {
+                    Plugin.Log.Verbose($"Emote trigger: inserted custom emote line shown={shown}");
+                }
+                if (shown)
+                {
+                    AlertIfRecent(since);
+                }
+            });
+            Plugin.ChatGui.Print(new XivChatEntry { Type = XivChatType.CustomEmote, Message = line });
+        });
+    }
+
+    // Only a hidden chat log holds up the tabs' answer; a sound that late wouldn't match anything on screen
+    private void AlertIfRecent(long since)
+    {
+        if (configuration.PlaySound && Environment.TickCount64 - since <= InsertTimeoutMs)
+        {
+            sound.Alert();
+        }
+    }
+
+    /// <summary>
+    /// Whether this is the custom emote line the plugin wrote for an unlogged emote: a player's
+    /// custom emote always has a sender. Triggers skip it, as the emote has already alerted.
+    /// </summary>
+    public static bool IsInsertedCustomEmote(IChatMessage message) =>
+        message.LogKind == XivChatType.CustomEmote && message.Sender.TextValue.Length == 0;
+
     private void OnChatMessage(IChatMessage message)
     {
-        if (ChatChannels.FromChatType(message.LogKind) is not { } channel)
+        if (IsInsertedEmote(message))
+        {
+            insertSource = null;
+            AlertForInserted(message.Message);
+            return;
+        }
+
+        if (ChatChannels.FromChatType(message.LogKind) is not { } channel || IsInsertedCustomEmote(message))
         {
             return;
         }
@@ -155,10 +263,17 @@ public sealed unsafe class TargetedAlert : IDisposable
         }
     }
 
-    // Colours the 'you' words; emotes at you have no word to colour
+    // Colours the 'you' words, and marks and colours the line written for an unlogged emote at you
     private void OnCheckMessageHandled(IHandleableChatMessage message)
     {
+        if (IsInsertedEmote(message))
+        {
+            MarkInserted(message);
+            return;
+        }
+
         if (!highlighter.Enabled
+            || IsInsertedCustomEmote(message)
             || ChatChannels.FromChatType(message.LogKind) is not { } channel
             || !TriggerListens(TriggerKind.You, channel)
             || ChatLines.IsFromYou(message, Plugin.PlayerState.CharacterName))
@@ -173,6 +288,24 @@ public sealed unsafe class TargetedAlert : IDisposable
         {
             highlighter.Apply(message);
         }
+    }
+
+    // The 'you' words, or your name where the language has none (e.g. Japanese), are coloured
+    private void MarkInserted(IHandleableChatMessage message)
+    {
+        var line = message.Message;
+        if (highlighter.Enabled)
+        {
+            var text = highlighter.Begin(line);
+            YouWords.FindAll(text, highlighter.Matches);
+            var you = Plugin.PlayerState.CharacterName;
+            for (var at = you.Length == 0 ? -1 : text.IndexOf(you, StringComparison.Ordinal); at >= 0; at = text.IndexOf(you, at + you.Length, StringComparison.Ordinal))
+            {
+                highlighter.Matches.Add((at, you.Length));
+            }
+            line = highlighter.Highlight(line);
+        }
+        message.Message = line.Append(new TextPayload(InsertedTag));
     }
 
     // Finds the sender among nearby players (a few hundred at most); only reached for lines with a 'you' word

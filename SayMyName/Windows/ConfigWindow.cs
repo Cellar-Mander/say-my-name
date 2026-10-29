@@ -199,6 +199,13 @@ public class ConfigWindow : Window, IDisposable
             {
                 DrawCustomOptions(settings.Enabled);
             }
+            else if (Triggers.All[t] == TriggerKind.Emote)
+            {
+                using var indent = ImRaii.PushIndent();
+                // The plugin writes these lines itself, so say so before someone wonders why emotes show with logging off
+                ImGui.TextDisabled($"Motion-only emotes at you are written to chat, ending \"{TargetedAlert.InsertedTag.Trim()}\";");
+                ImGui.TextDisabled("they alert only if a chat tab shows standard or custom emotes");
+            }
         }
     }
 
