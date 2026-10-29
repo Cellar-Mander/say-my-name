@@ -70,6 +70,7 @@ public class ConfigurationRoundTripTests
         config.PlaySound = false;
         config.SoundEffect = 7;
         config.CooldownSeconds = 0;
+        config.Nicknames = "Ro\nBig Ro";
         config.CustomWords = "raid\ngood morning";
         config.CustomWordsCaseSensitive = true;
         config.Highlight = false;
@@ -84,6 +85,7 @@ public class ConfigurationRoundTripTests
         Assert.False(loaded.PlaySound);
         Assert.Equal(7, loaded.SoundEffect);
         Assert.Equal(0, loaded.CooldownSeconds);
+        Assert.Equal("Ro\nBig Ro", loaded.Nicknames);
         Assert.Equal("raid\ngood morning", loaded.CustomWords);
         Assert.True(loaded.CustomWordsCaseSensitive);
         Assert.False(loaded.Highlight);
@@ -157,6 +159,15 @@ public class ConfigurationRoundTripTests
         config.CustomWords = new string('a', ConfigurationBase.MaxCustomWordsLength + 10);
 
         Assert.Equal(ConfigurationBase.MaxCustomWordsLength, SaveAndLoad(config).CustomWords.Length);
+    }
+
+    [Fact]
+    public void OverlongNicknamesAreCutToTheLimit()
+    {
+        var config = Fresh();
+        config.Nicknames = new string('a', ConfigurationBase.MaxNicknamesLength + 10);
+
+        Assert.Equal(ConfigurationBase.MaxNicknamesLength, SaveAndLoad(config).Nicknames.Length);
     }
 
     [Fact]

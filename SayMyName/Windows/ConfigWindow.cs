@@ -130,7 +130,7 @@ public class ConfigWindow : Window, IDisposable
 
     public void Dispose() { }
 
-    // Custom words save when their box loses focus, which closing the window mid-edit skips
+    // Nicknames and custom words save when their box loses focus, which closing the window mid-edit skips
     public override void OnClose() => configuration.Save();
 
     public override void Draw()
@@ -289,6 +289,19 @@ public class ConfigWindow : Window, IDisposable
             configuration.NameCaseSensitive = caseSensitive;
             configuration.Save();
         }
+
+        var nicknames = configuration.Nicknames;
+        if (ImGui.InputTextMultiline("##nicknames", ref nicknames, Configuration.MaxNicknamesLength,
+                new Vector2(-1, ImGui.GetTextLineHeight() * 3 + ImGui.GetStyle().FramePadding.Y * 2)))
+        {
+            configuration.Nicknames = nicknames;
+        }
+        // Saved once editing ends rather than on every keystroke
+        if (ImGui.IsItemDeactivatedAfterEdit())
+        {
+            configuration.Save();
+        }
+        ImGui.TextDisabled("Nicknames, one per line, matched like your name");
     }
 
     private void DrawCustomOptions(bool enabled)
@@ -390,7 +403,7 @@ public class ConfigWindow : Window, IDisposable
 
             ImGui.SameLine(0, ImGui.GetStyle().ItemSpacing.X * 3);
             DrawHighlightPreview();
-            ImGui.TextDisabled("Your name, custom words, and 'you' words from someone targeting you");
+            ImGui.TextDisabled("Your name and nicknames, custom words, and 'you' words from someone targeting you");
         }
 
         var highlightTabs = configuration.HighlightTabs;
@@ -496,7 +509,7 @@ public class ConfigWindow : Window, IDisposable
 
     private static string TriggerLabel(TriggerKind kind) => kind switch
     {
-        TriggerKind.Name => "Another player says your name",
+        TriggerKind.Name => "Another player says your name or a nickname",
         TriggerKind.Custom => "Someone says one of your custom words or phrases",
         TriggerKind.Emote => "Someone uses an emote on you",
         TriggerKind.You => "Someone targeting you uses a 'you' word",

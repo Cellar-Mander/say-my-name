@@ -19,6 +19,7 @@ public abstract class ConfigurationBase
     public const int MaxSoundEffect = 16;
     public const int MaxCooldownSeconds = 60;
     public const int MaxCustomWordsLength = 2000;
+    public const int MaxNicknamesLength = 500;
     /// <summary>UIColor sheet row meaning no colour change.</summary>
     public const ushort NoColor = 0;
 
@@ -29,6 +30,10 @@ public abstract class ConfigurationBase
 
     /// <summary>Match your name only as written (e.g. Rose but not "a rose").</summary>
     public bool NameCaseSensitive { get; set; } = true;
+
+    /// <summary>Nicknames for the Name trigger, one per line, matched like your name.</summary>
+    // A string rather than a list, as for CustomWords
+    public string Nicknames { get; set; } = "";
 
     /// <summary>Words and phrases for the Custom trigger, one per line.</summary>
     // A string rather than a list: Json.NET would append a loaded list to a pre-filled one
@@ -80,6 +85,11 @@ public abstract class ConfigurationBase
         if (CustomWords.Length > MaxCustomWordsLength)
         {
             CustomWords = CustomWords[..MaxCustomWordsLength];
+        }
+        Nicknames ??= "";
+        if (Nicknames.Length > MaxNicknamesLength)
+        {
+            Nicknames = Nicknames[..MaxNicknamesLength];
         }
         ExpandedSections ??= [SettingsSection.Triggers];
     }

@@ -52,6 +52,56 @@ public class NameMatcherTests
         Assert.True(new NameMatcher("Rose Thorne", caseSensitive: false).IsMatch(text));
     }
 
+    private static readonly NameMatcher RoseAndNicknames = new("Rose Thorne", caseSensitive: true, nicknames: "Ro\n\n  Big   Ro \r\nThorne\n");
+
+    [Theory]
+    [InlineData("Ro")]
+    [InlineData("hey Ro!")]
+    [InlineData("Ro's chocobo")]
+    [InlineData("Ro’s chocobo")]
+    [InlineData("Rooo")]
+    [InlineData("R-O")]
+    [InlineData("Big Ro")]
+    [InlineData("Big Ro's")]
+    [InlineData("Rose")]
+    public void NicknamesMatchLikeNames(string text)
+    {
+        Assert.True(RoseAndNicknames.IsMatch(text));
+    }
+
+    [Theory]
+    [InlineData("ro")]
+    [InlineData("Rob")]
+    [InlineData("Ro'ka")]
+    [InlineData("Big")]
+    [InlineData("Big Rob")]
+    public void NicknamesNeedWholeWordsAndCase(string text)
+    {
+        Assert.False(RoseAndNicknames.IsMatch(text));
+    }
+
+    [Fact]
+    public void NicknamesFollowCaseSetting()
+    {
+        Assert.True(new NameMatcher("Rose Thorne", caseSensitive: false, nicknames: "Ro").IsMatch("hey ro"));
+    }
+
+    [Fact]
+    public void NicknamesWorkWithoutACharacterName()
+    {
+        Assert.True(new NameMatcher("", caseSensitive: true, nicknames: "Ro").IsMatch("hey Ro"));
+    }
+
+    [Fact]
+    public void FindAllReportsNicknamesWithoutPossessive()
+    {
+        var matches = new List<(int Start, int Length)>();
+        RoseAndNicknames.FindAll("ask Big Ro's friend", matches);
+
+        Assert.Contains((4, 6), matches);
+        Assert.Contains((8, 2), matches);
+    }
+
     [Fact]
     public void CaseInsensitiveStillNeedsWholeWords()
     {

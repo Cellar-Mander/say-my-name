@@ -1,10 +1,10 @@
 namespace SayMyName.Core;
 
 /// <summary>
-/// Finds a character's first or last name, or one of a list of custom words and phrases, in chat
+/// Finds a character's first or last name or a nickname, or one of a list of custom words and phrases, in chat
 /// text as a whole word. Apostrophes and hyphens between letters join a word (Y'shtola, Mary-Jane), except a trailing
 /// possessive 's, so "Rin's" mentions Rin but "Rin'ka" and "Mary-Rin" do not.
-/// Names also match stretched (Riiin, Rinnn) or spelled out (R-I-N, r i n); custom phrases match only as written.
+/// Names and nicknames also match stretched (Riiin, Rinnn) or spelled out (R-I-N, r i n); custom phrases match only as written.
 /// </summary>
 public sealed class NameMatcher
 {
@@ -17,20 +17,29 @@ public sealed class NameMatcher
 
     /// <summary>The name or phrase list this matcher was built from.</summary>
     public string Source { get; }
+    /// <summary>The nickname list this matcher was built from; empty for a phrase matcher.</summary>
+    public string Nicknames { get; }
     public bool CaseSensitive { get; }
 
     /// <param name="fullName">The character name, e.g. "Alice Smith". Empty matches nothing.</param>
     /// <param name="caseSensitive">
     /// Match the name only as written (title case), so a name like Rose doesn't fire on "a rose".
     /// </param>
-    public NameMatcher(string fullName, bool caseSensitive)
-        : this(fullName, fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries), caseSensitive, elongated: true)
+    /// <param name="nicknames">
+    /// Nicknames, one per line, each matched as a whole like a name part: "Big Al" matches "Big Aaal's"
+    /// but not "Big" alone. Blank lines are skipped.
+    /// </param>
+    public NameMatcher(string fullName, bool caseSensitive, string nicknames = "")
+        : this(fullName, nicknames,
+            fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Concat(Lines(nicknames)).Distinct(),
+            caseSensitive, elongated: true)
     {
     }
 
-    private NameMatcher(string source, IEnumerable<string> parts, bool caseSensitive, bool elongated)
+    private NameMatcher(string source, string nicknames, IEnumerable<string> parts, bool caseSensitive, bool elongated)
     {
         Source = source;
+        Nicknames = nicknames;
         CaseSensitive = caseSensitive;
         this.parts = [.. parts.Select(p => p.Replace(CurlyApostrophe, '\''))];
         comparison = caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
@@ -42,13 +51,13 @@ public sealed class NameMatcher
     /// "Good morning!" but not "good" alone. Runs of spaces inside a phrase count as one; blank lines are skipped.
     /// </summary>
     public static NameMatcher ForPhrases(string lines, bool caseSensitive) =>
-        new(lines,
-            lines.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(line => string.Join(' ', line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))
-                .Where(phrase => phrase.Length > 0)
-                .Distinct(),
-            caseSensitive,
-            elongated: false);
+        new(lines, "", Lines(lines).Distinct(), caseSensitive, elongated: false);
+
+    // One entry per non-blank line, with runs of spaces inside it made one
+    private static IEnumerable<string> Lines(string lines) =>
+        lines.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(line => string.Join(' ', line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))
+            .Where(phrase => phrase.Length > 0);
 
     public bool IsMatch(ReadOnlySpan<char> text) => Scan(text, null);
 
