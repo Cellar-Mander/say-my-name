@@ -74,6 +74,7 @@ public class ConfigurationRoundTripTests
         config.Nicknames = "Ro\nBig Ro";
         config.CustomWords = "raid\ngood morning";
         config.CustomWordsCaseSensitive = true;
+        config.TargetSpeaksOnlyTargetingYou = true;
         config.Highlight = false;
         config.HighlightTextColor = 45;
         config.HighlightGlowColor = ConfigurationBase.NoColor;
@@ -89,11 +90,18 @@ public class ConfigurationRoundTripTests
         Assert.Equal("Ro\nBig Ro", loaded.Nicknames);
         Assert.Equal("raid\ngood morning", loaded.CustomWords);
         Assert.True(loaded.CustomWordsCaseSensitive);
+        Assert.True(loaded.TargetSpeaksOnlyTargetingYou);
         Assert.False(loaded.Highlight);
         Assert.Equal(45, loaded.HighlightTextColor);
         Assert.Equal(ConfigurationBase.NoColor, loaded.HighlightGlowColor);
         Assert.False(loaded.HighlightTabs);
         Assert.Equal(31, loaded.TabHighlightColor);
+    }
+
+    [Fact]
+    public void TargetSpeaksAlertsForEveryMessageByDefault()
+    {
+        Assert.False(SaveAndLoad(Fresh()).TargetSpeaksOnlyTargetingYou);
     }
 
     [Fact]

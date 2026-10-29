@@ -42,6 +42,9 @@ public abstract class ConfigurationBase
     /// <summary>Match custom words only as written.</summary>
     public bool CustomWordsCaseSensitive { get; set; }
 
+    /// <summary>Target Speaks alerts only for lines your target sends while targeting you, rather than every line they send.</summary>
+    public bool TargetSpeaksOnlyTargetingYou { get; set; }
+
     public bool PlaySound { get; set; } = true;
 
     /// <summary>The chat sound effect, as in &lt;se.1&gt; to &lt;se.16&gt;.</summary>

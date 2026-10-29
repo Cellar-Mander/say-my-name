@@ -206,6 +206,10 @@ public class ConfigWindow : Window, IDisposable
                 ImGui.TextDisabled($"Motion-only emotes at you are written to chat, ending \"{TargetedAlert.InsertedTag.Trim()}\";");
                 ImGui.TextDisabled("they alert only if a chat tab shows standard or custom emotes");
             }
+            else if (Triggers.All[t] == TriggerKind.TargetSpeaks)
+            {
+                DrawTargetSpeaksOptions(settings.Enabled);
+            }
         }
     }
 
@@ -302,6 +306,29 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
         ImGui.TextDisabled("Nicknames, one per line, matched like your name");
+    }
+
+    private static readonly string[] TargetSpeaksLabels = ["Every message they send", "Only messages sent while targeting you"];
+
+    private void DrawTargetSpeaksOptions(bool enabled)
+    {
+        using var indent = ImRaii.PushIndent();
+        using var disabled = ImRaii.Disabled(!enabled);
+        var onlyTargetingYou = configuration.TargetSpeaksOnlyTargetingYou;
+        ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 280f);
+        using var combo = ImRaii.Combo("##targetSpeaks", TargetSpeaksLabels[onlyTargetingYou ? 1 : 0]);
+        if (!combo.Success)
+        {
+            return;
+        }
+        for (var i = 0; i < TargetSpeaksLabels.Length; i++)
+        {
+            if (ImGui.Selectable(TargetSpeaksLabels[i], (i == 1) == onlyTargetingYou))
+            {
+                configuration.TargetSpeaksOnlyTargetingYou = i == 1;
+                configuration.Save();
+            }
+        }
     }
 
     private void DrawCustomOptions(bool enabled)
