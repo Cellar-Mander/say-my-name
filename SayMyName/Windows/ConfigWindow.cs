@@ -44,7 +44,7 @@ public class ConfigWindow : Window, IDisposable
 
     // The preview: a sample line run through the chat highlighter, encoded again only when an input changes
     private const string PreviewFallbackName = "Rose";
-    private const string PreviewBefore = "hey ";
+    private const string PreviewBefore = "Hey ";
     private const string PreviewAfter = ", thank you!";
     private (string You, ushort Text, ushort Glow)? previewInputs;
     private byte[] previewBytes = [];
@@ -59,7 +59,7 @@ public class ConfigWindow : Window, IDisposable
         public string Popup { get; } = $"##{Id}-popup";
     }
 
-    public ConfigWindow(Plugin plugin) : base("Say My Name###SayMyNameSettings")
+    public ConfigWindow(Plugin plugin) : base("Say My Name Settings###SayMyNameSettings")
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -135,7 +135,7 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
-        if (DrawSectionHeader(SettingsSection.Triggers, "Alert when###Triggers"))
+        if (DrawSectionHeader(SettingsSection.Triggers, "Alert Triggers###Triggers"))
         {
             DrawTriggerOptions();
         }
@@ -151,7 +151,7 @@ public class ConfigWindow : Window, IDisposable
         }
 
         // Last, as its table scrolls in whatever height the window has left
-        if (DrawSectionHeader(SettingsSection.Channels, "Channels###Channels"))
+        if (DrawSectionHeader(SettingsSection.Channels, "Chat Channels###Channels"))
         {
             DrawChannelTable();
         }
@@ -215,7 +215,7 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawChannelTable()
     {
-        ImGui.TextUnformatted("Listen on these channels (tells are never checked):");
+        ImGui.TextUnformatted("Listen on these channels:");
 
         using var table = ImRaii.Table("##channels", 1 + Columns.Count,
             ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingFixedFit);
@@ -294,9 +294,9 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
+        ImGui.TextUnformatted("Nicknames, one per line, matched like your name:");
         var nicknames = configuration.Nicknames;
-        if (ImGui.InputTextMultiline("##nicknames", ref nicknames, Configuration.MaxNicknamesLength,
-                new Vector2(-1, ImGui.GetTextLineHeight() * 3 + ImGui.GetStyle().FramePadding.Y * 2)))
+        if (ImGui.InputTextMultiline("##nicknames", ref nicknames, Configuration.MaxNicknamesLength, ListBoxSize()))
         {
             configuration.Nicknames = nicknames;
         }
@@ -305,8 +305,10 @@ public class ConfigWindow : Window, IDisposable
         {
             configuration.Save();
         }
-        ImGui.TextDisabled("Nicknames, one per line, matched like your name");
     }
+
+    // The nicknames and custom words boxes, the same size
+    private static Vector2 ListBoxSize() => new(-1, ImGui.GetTextLineHeight() * 4 + ImGui.GetStyle().FramePadding.Y * 2);
 
     private static readonly string[] TargetSpeaksLabels = ["Every message they send", "Only messages sent while targeting you"];
 
@@ -335,23 +337,22 @@ public class ConfigWindow : Window, IDisposable
     {
         using var indent = ImRaii.PushIndent();
         using var disabled = ImRaii.Disabled(!enabled);
+        var caseSensitive = configuration.CustomWordsCaseSensitive;
+        if (ImGui.Checkbox("Match case##customCase", ref caseSensitive))
+        {
+            configuration.CustomWordsCaseSensitive = caseSensitive;
+            configuration.Save();
+        }
+
+        ImGui.TextUnformatted("Custom words and phrases, one per line:");
         var words = configuration.CustomWords;
-        if (ImGui.InputTextMultiline("##customWords", ref words, Configuration.MaxCustomWordsLength,
-                new Vector2(-1, ImGui.GetTextLineHeight() * 4 + ImGui.GetStyle().FramePadding.Y * 2)))
+        if (ImGui.InputTextMultiline("##customWords", ref words, Configuration.MaxCustomWordsLength, ListBoxSize()))
         {
             configuration.CustomWords = words;
         }
         // Saved once editing ends rather than on every keystroke
         if (ImGui.IsItemDeactivatedAfterEdit())
         {
-            configuration.Save();
-        }
-        ImGui.TextDisabled("One word or phrase per line");
-
-        var caseSensitive = configuration.CustomWordsCaseSensitive;
-        if (ImGui.Checkbox("Match case##customCase", ref caseSensitive))
-        {
-            configuration.CustomWordsCaseSensitive = caseSensitive;
             configuration.Save();
         }
     }
