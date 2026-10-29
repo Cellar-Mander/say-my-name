@@ -2,7 +2,7 @@
 
 Run before merging anything that changes what the plugin does in-game. Each feature adds its cases here.
 
-Setup: deploy with `scripts/dev-plugin deploy <task-ref>` (see "Testing in-game" in the README), log in, open `/xllog`. Release the dev folder with `scripts/dev-plugin release` when done.
+Setup: deploy with `scripts/dev-plugin deploy <task-ref>` (see "Testing in-game" in [CONTRIBUTING.md](../CONTRIBUTING.md)), log in, open `/xllog`. Release the dev folder with `scripts/dev-plugin release` when done.
 
 ## Test harness
 
