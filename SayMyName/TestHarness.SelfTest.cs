@@ -365,8 +365,8 @@ public sealed partial class TestHarness
 
         // Target Speaks trigger, solo
         var fresh = defaults.Triggers[TriggerKind.TargetSpeaks];
-        Check("Target Speaks: off by default with Say and Custom emotes",
-            !fresh.Enabled && fresh.Channels.SetEquals([Say, CustomEmote]), $"enabled={fresh.Enabled} channels={string.Join(",", fresh.Channels)}");
+        Check("Target Speaks: off by default, listening on every channel but standard emotes",
+            !fresh.Enabled && fresh.Channels.SetEquals(Triggers.AllowedChannels(TriggerKind.TargetSpeaks)) && !fresh.Channels.Contains(StandardEmote), $"enabled={fresh.Enabled} channels={string.Join(",", fresh.Channels)}");
         Baseline(TriggerKind.TargetSpeaks);
         fakeTarget = friend;
         yield return Sound("Target Speaks: Say sounds", true, Say, friend, "hello");
@@ -374,10 +374,8 @@ public sealed partial class TestHarness
         yield return Sound("Target Speaks: CustomEmote sounds", true, CustomEmote, friend, "waves");
         yield return Sound("Target Speaks: StandardEmote is silent", false, StandardEmote, friend, "waves");
         yield return Sound("Target Speaks: someone else is silent", false, Say, other, "hello");
-        yield return Sound("Target Speaks: Party is silent", false, Party, friend, "hello");
-        Trigger(TriggerKind.TargetSpeaks).Channels.Remove(Say);
-        yield return Sound("Target Speaks: Say unticked, silent", false, Say, friend, "hello");
-        Trigger(TriggerKind.TargetSpeaks).Channels.Add(Say);
+        yield return Sound("Target Speaks: Party sounds", true, Party, friend, "hello");
+        yield return Sound("Target Speaks: Linkshell1 sounds", true, Linkshell1, friend, "hello");
         configuration.PlaySound = false;
         yield return Sound("Target Speaks: Play a sound unticked, silent", false, Say, friend, "hello");
         configuration.PlaySound = true;

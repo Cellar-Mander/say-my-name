@@ -59,7 +59,6 @@ public static class Triggers
     // Standard emote lines are written by the game, never by a player, so only the Emote trigger listens there
     private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c is not (ChatChannel.StandardEmote or ChatChannel.CrossParty))];
     private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
-    private static readonly ChatChannel[] SayAndCustomEmotes = [ChatChannel.Say, ChatChannel.CustomEmote];
     // Party and alliance members are often nearby, so the sender can be checked for targeting you
     private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
     // Large groups talk all day, mostly not to you, so these start unticked
@@ -69,8 +68,11 @@ public static class Triggers
         .. Enum.GetValues<ChatChannel>().Where(c => c is >= ChatChannel.Linkshell1 and <= ChatChannel.CrossLinkshell8),
     ];
 
-    /// <summary>Triggers whose channels are chosen in settings; the Emote trigger only ever listens on standard emotes.</summary>
-    public static readonly IReadOnlyList<TriggerKind> WithChannelChoice = [.. All.Where(k => k != TriggerKind.Emote)];
+    /// <summary>
+    /// Triggers whose channels are chosen in settings; the Emote trigger only ever listens on standard
+    /// emotes, and Target Speaks on every channel a player writes in.
+    /// </summary>
+    public static readonly IReadOnlyList<TriggerKind> WithChannelChoice = [.. All.Where(k => k is not (TriggerKind.Emote or TriggerKind.TargetSpeaks))];
 
     /// <summary>Channels a player can choose, those usable by the most triggers first; ties keep declaration order.</summary>
     public static readonly IReadOnlyList<ChatChannel> ChannelsByUsage =
@@ -81,7 +83,6 @@ public static class Triggers
     {
         TriggerKind.Emote => StandardEmoteOnly,
         TriggerKind.You => YouChannels,
-        TriggerKind.TargetSpeaks => SayAndCustomEmotes,
         _ => TextChannels,
     };
 
@@ -101,6 +102,11 @@ public static class Triggers
         if (kind == TriggerKind.Emote && settings.Channels.Add(ChatChannel.StandardEmote))
         {
             settings.Enabled = false;
+        }
+        // Older versions let it be limited to some channels, which hid a target speaking elsewhere
+        else if (kind == TriggerKind.TargetSpeaks)
+        {
+            settings.Channels.UnionWith(AllowedChannels(kind));
         }
 
         var allowed = AllowedChannels(kind);
@@ -125,7 +131,8 @@ public static class Triggers
     {
         // Watching the target is opt-in; the others are what people install the plugin for
         Enabled = kind != TriggerKind.TargetSpeaks,
-        Channels = [.. AllowedChannels(kind).Where(c => !OffByDefault.Contains(c))],
+        // Only a channel that can be ticked again in settings starts unticked
+        Channels = [.. AllowedChannels(kind).Where(c => !OffByDefault.Contains(c) || !WithChannelChoice.Contains(kind))],
     };
 }
 

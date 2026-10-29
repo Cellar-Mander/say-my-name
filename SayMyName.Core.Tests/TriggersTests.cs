@@ -5,9 +5,10 @@ namespace SayMyName.Core.Tests;
 public class TriggersTests
 {
     [Fact]
-    public void TargetSpeaksOnlyAllowsSayAndCustomEmotes()
+    public void TargetSpeaksListensOnEveryChannelButStandardEmotes()
     {
-        Assert.Equal([ChatChannel.Say, ChatChannel.CustomEmote], Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order());
+        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote, ChatChannel.CrossParty]), Triggers.AllowedChannels(TriggerKind.TargetSpeaks));
+        Assert.Equal(Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order(), Triggers.Default(TriggerKind.TargetSpeaks).Channels.Order());
     }
 
     [Fact]
@@ -20,7 +21,7 @@ public class TriggersTests
     public void ChannelTableHasNoStandardEmoteRowOrEmoteColumn()
     {
         Assert.DoesNotContain(ChatChannel.StandardEmote, Triggers.ChannelsByUsage);
-        Assert.Equal([TriggerKind.Name, TriggerKind.Custom, TriggerKind.You, TriggerKind.TargetSpeaks], Triggers.WithChannelChoice);
+        Assert.Equal([TriggerKind.Name, TriggerKind.Custom, TriggerKind.You], Triggers.WithChannelChoice);
     }
 
     [Fact]
@@ -50,7 +51,7 @@ public class TriggersTests
         };
 
         Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.Name).Channels);
-        Assert.Equal([ChatChannel.CustomEmote], Triggers.Resolve(saved, TriggerKind.TargetSpeaks).Channels);
+        Assert.DoesNotContain(ChatChannel.StandardEmote, Triggers.Resolve(saved, TriggerKind.TargetSpeaks).Channels);
     }
 
     [Fact]
@@ -131,7 +132,7 @@ public class TriggersTests
     [Fact]
     public void ChannelsUsableByAllTriggersComeFirstThenTheRestInOrder()
     {
-        ChatChannel[] first = [ChatChannel.Say, ChatChannel.CustomEmote, ChatChannel.Party, ChatChannel.Alliance];
+        ChatChannel[] first = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
         Assert.Equal(
             [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote, ChatChannel.CrossParty])],
             Triggers.ChannelsByUsage);
@@ -152,7 +153,7 @@ public class TriggersTests
         ChatChannel[] groups = [ChatChannel.Alliance, ChatChannel.FreeCompany, ChatChannel.NoviceNetwork, .. linkshells];
         Assert.Equal(16, linkshells.Length);
 
-        foreach (var kind in Triggers.All)
+        foreach (var kind in Triggers.WithChannelChoice)
         {
             Assert.Equal(
                 Triggers.AllowedChannels(kind).Except(groups).Order(),
@@ -204,11 +205,23 @@ public class TriggersTests
         var saved = new Dictionary<TriggerKind, TriggerSettings>
         {
             [TriggerKind.You] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.Linkshell1, ChatChannel.StandardEmote, (ChatChannel)999] },
-            [TriggerKind.TargetSpeaks] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.Party] },
         };
 
         Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
-        Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.TargetSpeaks).Channels);
+    }
+
+    [Fact]
+    public void ResolveWidensAnOlderTargetSpeaksToEveryChannel()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.TargetSpeaks] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.StandardEmote] },
+        };
+
+        var settings = Triggers.Resolve(saved, TriggerKind.TargetSpeaks);
+
+        Assert.True(settings.Enabled);
+        Assert.Equal(Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order(), settings.Channels.Order());
     }
 
     [Fact]
