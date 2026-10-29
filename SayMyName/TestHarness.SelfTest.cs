@@ -204,6 +204,7 @@ public sealed partial class TestHarness
                 configuration.Triggers[kind].Enabled = enabled.Contains(kind);
             }
             configuration.NameCaseSensitive = true;
+            configuration.Nicknames = "";
             configuration.CustomWords = "";
             configuration.CustomWordsCaseSensitive = false;
             configuration.PlaySound = true;
@@ -264,6 +265,14 @@ public sealed partial class TestHarness
         yield return Sound("Name: Play a sound unticked, silent", false, Say, friend, $"hi {first}");
         configuration.PlaySound = true;
         yield return Sound("Name: your own line is silent", false, Say, me, $"hi {first}");
+        configuration.Nicknames = "Zuzu\nBig Zed";
+        yield return Sound("Name: nickname sounds", true, Say, friend, "hi Zuzu");
+        yield return Sound("Name: multi-word nickname, possessive sounds", true, Say, friend, "is that Big Zed's?");
+        yield return Sound("Name: nickname stretched sounds", true, Say, friend, "Zuzuuu!");
+        yield return Sound("Name: part of a multi-word nickname is silent", false, Say, friend, "Zed");
+        yield return Sound("Name: Match case on, lower-case nickname is silent", false, Say, friend, "hi zuzu");
+        yield return Coloured("Highlight: nickname coloured without possessive", ["Big Zed"], Say, friend, "Big Zed's turn");
+        configuration.Nicknames = "";
 
         // Custom trigger
         Baseline(TriggerKind.Custom);

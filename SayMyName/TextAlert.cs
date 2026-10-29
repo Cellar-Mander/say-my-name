@@ -6,7 +6,7 @@ using Serilog.Events;
 namespace SayMyName;
 
 /// <summary>
-/// Alerts when another player says your name (Name trigger) or one of your custom words or
+/// Alerts when another player says your name or a nickname (Name trigger) or one of your custom words or
 /// phrases (Custom trigger), on a channel that trigger listens on: plays the alert sound, colours
 /// the matched words in the chat line, and colours the inactive chat tabs that show it.
 /// </summary>
@@ -112,12 +112,15 @@ public sealed class TextAlert : IDisposable
         return settings.Enabled && settings.Channels.Contains(channel);
     }
 
-    // The matchers are rebuilt only when their input or case setting changes, not per message
+    // The matchers are rebuilt only when their input or case setting changes, not per message.
+    // Nicknames by reference, as for custom words below
     private NameMatcher CurrentNameMatcher(string name)
     {
-        if (nameMatcher.Source != name || nameMatcher.CaseSensitive != configuration.NameCaseSensitive)
+        if (nameMatcher.Source != name
+            || !ReferenceEquals(nameMatcher.Nicknames, configuration.Nicknames)
+            || nameMatcher.CaseSensitive != configuration.NameCaseSensitive)
         {
-            nameMatcher = new NameMatcher(name, configuration.NameCaseSensitive);
+            nameMatcher = new NameMatcher(name, configuration.NameCaseSensitive, configuration.Nicknames);
         }
         return nameMatcher;
     }

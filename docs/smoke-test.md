@@ -101,6 +101,8 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] Untick Play a sound: no sound. *(self-test)*
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): no sound. *(self-test)*
 - [ ] Real chat: say your own name in /say: no sound.
+- [ ] Enter `Zuzu` and `Big Zed` as nicknames on separate lines. `inject Say A Friend hi Zuzu`, `... Big Zed's?` and `... Zuzuuu!`: sound, and the nickname is coloured without the `'s`. `... Zed` and, with Match case on, `... zuzu`: no sound. *(self-test)*
+- [ ] Type nicknames, close the window without clicking elsewhere, reload the plugin: they are kept.
 
 ### Custom trigger
 
