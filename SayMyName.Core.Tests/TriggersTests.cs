@@ -4,17 +4,50 @@ namespace SayMyName.Core.Tests;
 
 public class TriggersTests
 {
+    private static TriggerSettings On(params ChatChannel[] channels) => new() { Enabled = true, Channels = [.. channels] };
+
     [Fact]
-    public void TargetSpeaksListensOnEveryChannelButStandardEmotes()
+    public void TargetSpeaksListensOnEveryChannelButStandardEmotesWithoutSavedChannels()
     {
-        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote]), Triggers.AllowedChannels(TriggerKind.TargetSpeaks));
-        Assert.Equal(Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order(), Triggers.Default(TriggerKind.TargetSpeaks).Channels.Order());
+        Assert.Equal(
+            Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote]),
+            Enum.GetValues<ChatChannel>().Where(c => Triggers.Listens(TriggerKind.TargetSpeaks, On(), c)));
+    }
+
+    [Fact]
+    public void EmoteTriggerListensOnlyOnStandardEmotesWhateverIsSaved()
+    {
+        Assert.Equal(
+            [ChatChannel.StandardEmote],
+            Enum.GetValues<ChatChannel>().Where(c => Triggers.Listens(TriggerKind.Emote, On(ChatChannel.Say), c)));
     }
 
     [Fact]
     public void OnlyTheEmoteTriggerListensOnStandardEmotes()
     {
-        Assert.Equal([TriggerKind.Emote], Triggers.All.Where(k => Triggers.AllowedChannels(k).Contains(ChatChannel.StandardEmote)));
+        // Every channel saved, as a hand-edited config might; loading drops the ones a trigger may not use
+        var saved = Triggers.All.ToDictionary(k => k, _ => On(Enum.GetValues<ChatChannel>()));
+        Assert.Equal([TriggerKind.Emote], Triggers.All.Where(k => Triggers.Listens(k, Triggers.Resolve(saved, k), ChatChannel.StandardEmote)));
+    }
+
+    [Theory]
+    [InlineData(TriggerKind.Name)]
+    [InlineData(TriggerKind.Custom)]
+    [InlineData(TriggerKind.Emote)]
+    [InlineData(TriggerKind.You)]
+    [InlineData(TriggerKind.TargetSpeaks)]
+    public void TriggerThatIsOffListensNowhere(TriggerKind kind)
+    {
+        var off = new TriggerSettings { Enabled = false, Channels = [.. Enum.GetValues<ChatChannel>()] };
+        Assert.DoesNotContain(Enum.GetValues<ChatChannel>(), c => Triggers.Listens(kind, off, c));
+    }
+
+    [Fact]
+    public void ChosenChannelTriggersListenOnlyOnTheirSavedChannels()
+    {
+        Assert.True(Triggers.Listens(TriggerKind.Name, On(ChatChannel.Party), ChatChannel.Party));
+        Assert.False(Triggers.Listens(TriggerKind.Name, On(ChatChannel.Party), ChatChannel.Say));
+        Assert.False(Triggers.Listens(TriggerKind.You, On(), ChatChannel.Say));
     }
 
     [Fact]
@@ -24,23 +57,6 @@ public class TriggersTests
         Assert.Equal([TriggerKind.Name, TriggerKind.Custom, TriggerKind.You], Triggers.WithChannelChoice);
     }
 
-    [Fact]
-    public void EmoteTriggerWithStandardEmotesUntickedLoadsOff()
-    {
-        var saved = new Dictionary<TriggerKind, TriggerSettings>
-        {
-            [TriggerKind.Emote] = new() { Enabled = true, Channels = [] },
-        };
-
-        var emote = Triggers.Resolve(saved, TriggerKind.Emote);
-
-        Assert.False(emote.Enabled);
-        Assert.Equal([ChatChannel.StandardEmote], emote.Channels);
-        // Settled: a second load keeps it as the user leaves it
-        emote.Enabled = true;
-        Assert.True(Triggers.Resolve(saved, TriggerKind.Emote).Enabled);
-    }
-
     // revert-check: not revert-sensitive (the rule predates the change; the edit only loosens the Target Speaks assert to still hold once it listens everywhere)
     [Fact]
     public void StandardEmotesAreDroppedFromTextTriggers()
@@ -48,78 +64,32 @@ public class TriggersTests
         var saved = new Dictionary<TriggerKind, TriggerSettings>
         {
             [TriggerKind.Name] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.StandardEmote] },
-            [TriggerKind.TargetSpeaks] = new() { Enabled = true, Channels = [ChatChannel.StandardEmote, ChatChannel.CustomEmote] },
         };
 
         Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.Name).Channels);
-        Assert.DoesNotContain(ChatChannel.StandardEmote, Triggers.Resolve(saved, TriggerKind.TargetSpeaks).Channels);
     }
 
-    [Fact]
-    public void EmoteTriggerOnlyAllowsStandardEmotes()
+    [Theory]
+    [InlineData(TriggerKind.Emote)]
+    [InlineData(TriggerKind.TargetSpeaks)]
+    public void TriggersWithoutChannelChoiceKeepNoChannels(TriggerKind kind)
     {
-        Assert.Equal([ChatChannel.StandardEmote], Triggers.AllowedChannels(TriggerKind.Emote));
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [kind] = On(ChatChannel.Say, ChatChannel.StandardEmote),
+        };
+
+        Assert.Empty(Triggers.AllowedChannels(kind));
+        Assert.Empty(Triggers.Default(kind).Channels);
+        var settings = Triggers.Resolve(saved, kind);
+        Assert.True(settings.Enabled);
+        Assert.Empty(settings.Channels);
     }
 
     [Fact]
     public void YouTriggerAllowsSayPartyAllianceAndCustomEmotes()
     {
         Assert.Equal([ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote], Triggers.AllowedChannels(TriggerKind.You).Order());
-    }
-
-    [Fact]
-    public void LegacyTargetedIsNotATrigger()
-    {
-        Assert.DoesNotContain(TriggerKind.Targeted, Triggers.All);
-    }
-
-    [Fact]
-    public void MigrateSplitsTargetedKeepingOnOffAndUsableChannels()
-    {
-        var saved = new Dictionary<TriggerKind, TriggerSettings>
-        {
-            [TriggerKind.Targeted] = new() { Enabled = false, Channels = [ChatChannel.StandardEmote, ChatChannel.CustomEmote] },
-        };
-
-        Triggers.Migrate(saved);
-        var emote = Triggers.Resolve(saved, TriggerKind.Emote);
-        var you = Triggers.Resolve(saved, TriggerKind.You);
-
-        Assert.DoesNotContain(TriggerKind.Targeted, saved.Keys);
-        Assert.False(emote.Enabled);
-        Assert.Equal([ChatChannel.StandardEmote], emote.Channels);
-        Assert.False(you.Enabled);
-        Assert.Equal([ChatChannel.CustomEmote], you.Channels);
-    }
-
-    [Fact]
-    public void MigrateWithoutEmotesTurnsEmoteTriggerOff()
-    {
-        var saved = new Dictionary<TriggerKind, TriggerSettings>
-        {
-            [TriggerKind.Targeted] = new() { Enabled = true, Channels = [ChatChannel.Say] },
-        };
-
-        Triggers.Migrate(saved);
-
-        Assert.False(Triggers.Resolve(saved, TriggerKind.Emote).Enabled);
-        Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
-    }
-
-    [Fact]
-    public void MigrateKeepsSettingsAlreadySavedForTheNewTriggers()
-    {
-        var saved = new Dictionary<TriggerKind, TriggerSettings>
-        {
-            [TriggerKind.Targeted] = new() { Enabled = true, Channels = [ChatChannel.Say] },
-            [TriggerKind.You] = new() { Enabled = false, Channels = [ChatChannel.CustomEmote] },
-        };
-
-        Triggers.Migrate(saved);
-
-        Assert.False(saved[TriggerKind.You].Enabled);
-        Assert.Equal([ChatChannel.CustomEmote], saved[TriggerKind.You].Channels);
-        Assert.True(saved[TriggerKind.Emote].Enabled);
     }
 
     [Theory]
@@ -210,19 +180,5 @@ public class TriggersTests
         };
 
         Assert.Equal([ChatChannel.Say], Triggers.Resolve(saved, TriggerKind.You).Channels);
-    }
-
-    [Fact]
-    public void ResolveWidensAnOlderTargetSpeaksToEveryChannel()
-    {
-        var saved = new Dictionary<TriggerKind, TriggerSettings>
-        {
-            [TriggerKind.TargetSpeaks] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.StandardEmote] },
-        };
-
-        var settings = Triggers.Resolve(saved, TriggerKind.TargetSpeaks);
-
-        Assert.True(settings.Enabled);
-        Assert.Equal(Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order(), settings.Channels.Order());
     }
 }

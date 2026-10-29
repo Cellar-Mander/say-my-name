@@ -137,23 +137,6 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
-    public void OlderTargetedSettingsLoadAsEmoteAndYou()
-    {
-        var config = Fresh();
-        config.Triggers.Remove(TriggerKind.Emote);
-        config.Triggers.Remove(TriggerKind.You);
-        config.Triggers[TriggerKind.Targeted] = new() { Enabled = false, Channels = [ChatChannel.Say, ChatChannel.StandardEmote] };
-
-        var loaded = SaveAndLoad(config);
-
-        Assert.DoesNotContain(TriggerKind.Targeted, loaded.Triggers.Keys);
-        Assert.False(loaded.Triggers[TriggerKind.Emote].Enabled);
-        Assert.Equal([ChatChannel.StandardEmote], loaded.Triggers[TriggerKind.Emote].Channels);
-        Assert.False(loaded.Triggers[TriggerKind.You].Enabled);
-        Assert.Equal([ChatChannel.Say], loaded.Triggers[TriggerKind.You].Channels);
-    }
-
-    [Fact]
     public void OverlongCustomWordsAreCutToTheLimit()
     {
         var config = Fresh();
@@ -182,29 +165,12 @@ public class ConfigurationRoundTripTests
         Assert.Contains("\"Channels\":[\"CustomEmote\"]", json);
     }
 
-    // Older versions saved channels by number, with Cross-world Party at 4 and PvP Team at 7
-    [Fact]
-    public void ChannelsSavedByNumberLoadAsTheChannelsTheyMeant()
-    {
-        var json = JsonConvert.SerializeObject(Fresh(), DalamudSettings);
-        var nameChannels = JsonConvert.SerializeObject(Triggers.Default(TriggerKind.Name).Channels.Select(c => c.ToString()));
-        var oldJson = json.Replace($"\"Channels\":{nameChannels}", "\"Channels\":[0,3,4,7,8,16,17,26]", StringComparison.Ordinal);
-        Assert.NotEqual(json, oldJson);
-
-        var loaded = JsonConvert.DeserializeObject<ConfigurationBase>(oldJson, DalamudSettings)!;
-        loaded.Normalize();
-
-        Assert.Equal(
-            [ChatChannel.Say, ChatChannel.Party, ChatChannel.NoviceNetwork, ChatChannel.Linkshell8, ChatChannel.CrossLinkshell1, ChatChannel.CustomEmote],
-            loaded.Triggers[TriggerKind.Name].Channels.Order());
-    }
-
     [Fact]
     public void UnknownSavedChannelsAreDropped()
     {
         var json = JsonConvert.SerializeObject(Fresh(), DalamudSettings);
         var nameChannels = JsonConvert.SerializeObject(Triggers.Default(TriggerKind.Name).Channels.Select(c => c.ToString()));
-        var edited = json.Replace($"\"Channels\":{nameChannels}", "\"Channels\":[\"Say\",\"PvPTeam\",\"say\",\"3\",-1,27,null,\"Party\"]", StringComparison.Ordinal);
+        var edited = json.Replace($"\"Channels\":{nameChannels}", "\"Channels\":[\"Say\",\"PvPTeam\",\"say\",\"3\",1,8,-1,27,null,\"Party\"]", StringComparison.Ordinal);
         Assert.NotEqual(json, edited);
 
         var loaded = JsonConvert.DeserializeObject<ConfigurationBase>(edited, DalamudSettings)!;

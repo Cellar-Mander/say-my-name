@@ -255,6 +255,7 @@ public sealed partial class TestHarness
         yield return Sound("Name: Match case on, lower-case name is silent", false, Say, friend, $"hi {first.ToLowerInvariant()}");
         configuration.NameCaseSensitive = false;
         yield return Sound("Name: Match case off, lower-case name sounds", true, Say, friend, $"hi {first.ToLowerInvariant()}");
+        configuration.NameCaseSensitive = true;
         configuration.CooldownSeconds = 10;
         alertSound.ResetQuietTime();
         yield return Send(Say, friend, $"hi {first}");
@@ -366,8 +367,7 @@ public sealed partial class TestHarness
 
         // Target Speaks trigger, solo
         var fresh = defaults.Triggers[TriggerKind.TargetSpeaks];
-        Check("Target Speaks: off by default, listening on every channel but standard emotes",
-            !fresh.Enabled && fresh.Channels.SetEquals(Triggers.AllowedChannels(TriggerKind.TargetSpeaks)) && !fresh.Channels.Contains(StandardEmote), $"enabled={fresh.Enabled} channels={string.Join(",", fresh.Channels)}");
+        Check("Target Speaks: off by default", !fresh.Enabled, $"enabled={fresh.Enabled}");
         Baseline(TriggerKind.TargetSpeaks);
         fakeTarget = friend;
         yield return Sound("Target Speaks: Say sounds", true, Say, friend, "hello");

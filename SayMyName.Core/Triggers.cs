@@ -48,18 +48,14 @@ public enum TriggerKind
     You,
     /// <summary>Your current target speaks.</summary>
     TargetSpeaks,
-    /// <summary>Saved by older versions; split into <see cref="Emote"/> and <see cref="You"/> on load. Not in <see cref="Triggers.All"/>.</summary>
-    // Kept so a config that still names it loads: Json.NET rejects an unknown dictionary key
-    Targeted,
 }
 
 public static class Triggers
 {
-    public static readonly IReadOnlyList<TriggerKind> All = [.. Enum.GetValues<TriggerKind>().Where(k => k != TriggerKind.Targeted)];
+    public static readonly IReadOnlyList<TriggerKind> All = Enum.GetValues<TriggerKind>();
 
     // Standard emote lines are written by the game, never by a player, so only the Emote trigger listens there
     private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c != ChatChannel.StandardEmote)];
-    private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
     // Party and alliance members are often nearby, so the sender can be checked for targeting you
     private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
     // Large groups talk all day, mostly not to you, so these start unticked
@@ -79,12 +75,23 @@ public static class Triggers
     public static readonly IReadOnlyList<ChatChannel> ChannelsByUsage =
         [.. TextChannels.OrderByDescending(c => WithChannelChoice.Count(k => AllowedChannels(k).Contains(c)))];
 
-    /// <summary>Channels the trigger may listen on.</summary>
+    /// <summary>Channels the trigger may be set to listen on; none for a trigger without a channel choice.</summary>
     public static IReadOnlyList<ChatChannel> AllowedChannels(TriggerKind kind) => kind switch
     {
-        TriggerKind.Emote => StandardEmoteOnly,
+        TriggerKind.Name or TriggerKind.Custom => TextChannels,
         TriggerKind.You => YouChannels,
-        _ => TextChannels,
+        _ => [],
+    };
+
+    /// <summary>
+    /// Whether the trigger is on and listens on <paramref name="channel"/>. The Emote trigger always listens on
+    /// standard emotes and Target Speaks on every channel a player writes in; the others on their chosen channels.
+    /// </summary>
+    public static bool Listens(TriggerKind kind, TriggerSettings settings, ChatChannel channel) => settings.Enabled && kind switch
+    {
+        TriggerKind.Emote => channel == ChatChannel.StandardEmote,
+        TriggerKind.TargetSpeaks => channel != ChatChannel.StandardEmote,
+        _ => settings.Channels.Contains(channel),
     };
 
     /// <summary>
@@ -99,41 +106,16 @@ public static class Triggers
             saved[kind] = settings;
         }
 
-        // Its channel can no longer be unticked, so an older config that unticked it turns the trigger off instead
-        if (kind == TriggerKind.Emote && settings.Channels.Add(ChatChannel.StandardEmote))
-        {
-            settings.Enabled = false;
-        }
-        // Older versions let it be limited to some channels, which hid a target speaking elsewhere
-        else if (kind == TriggerKind.TargetSpeaks)
-        {
-            settings.Channels.UnionWith(AllowedChannels(kind));
-        }
-
         var allowed = AllowedChannels(kind);
         settings.Channels.RemoveWhere(c => !allowed.Contains(c));
         return settings;
-    }
-
-    /// <summary>
-    /// Replaces an older version's Targeted settings with Emote and You settings that keep its
-    /// on/off and channels; Resolve() then drops the channels each may not use.
-    /// </summary>
-    public static void Migrate(IDictionary<TriggerKind, TriggerSettings> saved)
-    {
-        if (saved.Remove(TriggerKind.Targeted, out var targeted))
-        {
-            saved.TryAdd(TriggerKind.Emote, new() { Enabled = targeted.Enabled, Channels = [.. targeted.Channels] });
-            saved.TryAdd(TriggerKind.You, new() { Enabled = targeted.Enabled, Channels = [.. targeted.Channels] });
-        }
     }
 
     public static TriggerSettings Default(TriggerKind kind) => new()
     {
         // Watching the target is opt-in; the others are what people install the plugin for
         Enabled = kind != TriggerKind.TargetSpeaks,
-        // Only a channel that can be ticked again in settings starts unticked
-        Channels = [.. AllowedChannels(kind).Where(c => !OffByDefault.Contains(c) || !WithChannelChoice.Contains(kind))],
+        Channels = [.. AllowedChannels(kind).Where(c => !OffByDefault.Contains(c))],
     };
 }
 

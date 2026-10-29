@@ -70,10 +70,9 @@ public abstract class ConfigurationBase
     // the user had closed. Normalize() opens only the trigger section for a config that never saved one.
     public HashSet<SettingsSection>? ExpandedSections { get; set; }
 
-    /// <summary>Moves older versions' trigger settings over, fills in defaults for unsaved triggers and pulls hand-edited values back into range.</summary>
+    /// <summary>Fills in defaults for unsaved triggers and pulls hand-edited values back into range.</summary>
     public void Normalize()
     {
-        Core.Triggers.Migrate(Triggers);
         foreach (var kind in Core.Triggers.All)
         {
             Core.Triggers.Resolve(Triggers, kind);
