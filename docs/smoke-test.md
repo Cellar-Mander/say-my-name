@@ -65,7 +65,7 @@ Below, *Me* is your character's name and *A Friend* any other name.
 ### Loading
 
 - [ ] `/xllog` shows `Say My Name <version>+<commit> loaded` with the commit you deployed.
-- [ ] `/saymyname` and the installer's settings and open buttons each toggle the settings window.
+- [ ] `/saymyname` and the installer's settings button each toggle the settings window; the installer shows no open button.
 - [ ] `/saymyname inject Say` (too few arguments) and `/saymyname inject Nowhere A Friend hi` print the usage error. *(self-test: both are rejected; look for the chat error yourself)*
 
 ### Harness
