@@ -34,6 +34,7 @@ public class ConfigurationRoundTripTests
         return loaded;
     }
 
+    // revert-check: not revert-sensitive (checks the save/load round trip; the edit only compares against the default instead of every allowed channel)
     [Fact]
     public void ChannelsTurnedOffStayOff()
     {

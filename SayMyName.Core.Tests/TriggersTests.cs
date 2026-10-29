@@ -171,6 +171,7 @@ public class TriggersTests
         Assert.Contains(ChatChannel.Say, b.Channels);
     }
 
+    // revert-check: not revert-sensitive (checks Resolve stores the default; the edit only compares against Default() instead of every allowed channel)
     [Fact]
     public void ResolveAddsMissingDefaultsAndStoresThem()
     {
