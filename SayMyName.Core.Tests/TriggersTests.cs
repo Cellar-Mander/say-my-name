@@ -7,7 +7,7 @@ public class TriggersTests
     [Fact]
     public void TargetSpeaksListensOnEveryChannelButStandardEmotes()
     {
-        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote, ChatChannel.CrossParty]), Triggers.AllowedChannels(TriggerKind.TargetSpeaks));
+        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote, ChatChannel.CrossParty, ChatChannel.PvPTeam]), Triggers.AllowedChannels(TriggerKind.TargetSpeaks));
         Assert.Equal(Triggers.AllowedChannels(TriggerKind.TargetSpeaks).Order(), Triggers.Default(TriggerKind.TargetSpeaks).Channels.Order());
     }
 
@@ -127,7 +127,7 @@ public class TriggersTests
     [InlineData(TriggerKind.Custom)]
     public void WordTriggersAllowEveryChannelButStandardEmotes(TriggerKind kind)
     {
-        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote, ChatChannel.CrossParty]), Triggers.AllowedChannels(kind));
+        Assert.Equal(Enum.GetValues<ChatChannel>().Except([ChatChannel.StandardEmote, ChatChannel.CrossParty, ChatChannel.PvPTeam]), Triggers.AllowedChannels(kind));
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public class TriggersTests
     {
         ChatChannel[] first = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
         Assert.Equal(
-            [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote, ChatChannel.CrossParty])],
+            [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote, ChatChannel.CrossParty, ChatChannel.PvPTeam])],
             Triggers.ChannelsByUsage);
     }
 
@@ -242,5 +242,34 @@ public class TriggersTests
         };
 
         Assert.Equal([ChatChannel.Party, ChatChannel.Alliance], Triggers.Resolve(saved, TriggerKind.Name).Channels.Order());
+    }
+
+    [Fact]
+    public void PvPTeamIsNotAChannel()
+    {
+        Assert.DoesNotContain(ChatChannel.PvPTeam, Triggers.ChannelsByUsage);
+        Assert.All(Triggers.All, k => Assert.DoesNotContain(ChatChannel.PvPTeam, Triggers.AllowedChannels(k)));
+        Assert.All(Triggers.All, k => Assert.DoesNotContain(ChatChannel.PvPTeam, Triggers.Default(k).Channels));
+    }
+
+    [Fact]
+    public void ResolveDropsPvPTeamSavedByOlderVersions()
+    {
+        var saved = new Dictionary<TriggerKind, TriggerSettings>
+        {
+            [TriggerKind.Name] = new() { Enabled = true, Channels = [ChatChannel.Say, ChatChannel.PvPTeam, ChatChannel.NoviceNetwork] },
+            [TriggerKind.TargetSpeaks] = new() { Enabled = true, Channels = [ChatChannel.PvPTeam] },
+        };
+
+        Assert.Equal([ChatChannel.Say, ChatChannel.NoviceNetwork], Triggers.Resolve(saved, TriggerKind.Name).Channels.Order());
+        Assert.DoesNotContain(ChatChannel.PvPTeam, Triggers.Resolve(saved, TriggerKind.TargetSpeaks).Channels);
+    }
+
+    [Fact]
+    public void LaterChannelsKeepTheirSavedNumbers()
+    {
+        // revert-check: not revert-sensitive (the numbers held before the change too; this guards against a later edit deleting an entry instead of keeping it)
+        Assert.Equal(8, (int)ChatChannel.NoviceNetwork);
+        Assert.Equal(26, (int)ChatChannel.CustomEmote);
     }
 }
