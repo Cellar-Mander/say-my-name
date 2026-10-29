@@ -9,6 +9,7 @@ namespace SayMyName.Core;
 public enum ChatChannel
 {
     Say,
+    CustomEmote,
     Yell,
     Shout,
     /// <summary>Your party, on your world or cross-world.</summary>
@@ -33,7 +34,6 @@ public enum ChatChannel
     CrossLinkshell7,
     CrossLinkshell8,
     StandardEmote,
-    CustomEmote,
 }
 
 public enum TriggerKind
@@ -57,7 +57,7 @@ public static class Triggers
     // Standard emote lines are written by the game, never by a player, so only the Emote trigger listens there
     private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c != ChatChannel.StandardEmote)];
     // Party and alliance members are often nearby, so the sender can be checked for targeting you
-    private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
+    private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.CustomEmote, ChatChannel.Party, ChatChannel.Alliance];
     // Large groups talk all day, mostly not to you, so these start unticked
     private static readonly HashSet<ChatChannel> OffByDefault =
     [

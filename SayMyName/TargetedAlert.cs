@@ -23,7 +23,7 @@ namespace SayMyName;
 public sealed unsafe class TargetedAlert : IDisposable
 {
     /// <summary>Ends a line the plugin wrote to chat in place of an emote's missing log message.</summary>
-    public const string InsertedTag = " (Say My Name)";
+    public const string InsertedTag = " [Say My Name]";
 
     // A line the game hasn't shown within this long after the emote, even in a tab, came too late to alert for
     private const long InsertTimeoutMs = 1000;

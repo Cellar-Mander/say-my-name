@@ -89,7 +89,7 @@ public class TriggersTests
     [Fact]
     public void YouTriggerAllowsSayPartyAllianceAndCustomEmotes()
     {
-        Assert.Equal([ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote], Triggers.AllowedChannels(TriggerKind.You).Order());
+        Assert.Equal([ChatChannel.Say, ChatChannel.CustomEmote, ChatChannel.Party, ChatChannel.Alliance], Triggers.AllowedChannels(TriggerKind.You).Order());
     }
 
     [Theory]
@@ -103,7 +103,7 @@ public class TriggersTests
     [Fact]
     public void ChannelsUsableByAllTriggersComeFirstThenTheRestInOrder()
     {
-        ChatChannel[] first = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
+        ChatChannel[] first = [ChatChannel.Say, ChatChannel.CustomEmote, ChatChannel.Party, ChatChannel.Alliance];
         Assert.Equal(
             [.. first, .. Enum.GetValues<ChatChannel>().Except([.. first, ChatChannel.StandardEmote])],
             Triggers.ChannelsByUsage);
@@ -131,7 +131,7 @@ public class TriggersTests
                 Triggers.AllowedChannels(kind).Except(groups).Order(),
                 Triggers.Default(kind).Channels.Order());
         }
-        Assert.Equal([ChatChannel.Say, ChatChannel.Party, ChatChannel.CustomEmote], Triggers.Default(TriggerKind.You).Channels.Order());
+        Assert.Equal([ChatChannel.Say, ChatChannel.CustomEmote, ChatChannel.Party], Triggers.Default(TriggerKind.You).Channels.Order());
         Assert.Contains(ChatChannel.Shout, Triggers.Default(TriggerKind.Name).Channels);
     }
 

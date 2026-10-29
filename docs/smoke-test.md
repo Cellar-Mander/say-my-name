@@ -84,9 +84,10 @@ Below, *Me* is your character's name and *A Friend* any other name.
 
 ### Settings sections
 
-- [ ] On first open (no saved config, or one saved before this feature), only Alert when is expanded; Sound and Channels show just their headers.
-- [ ] Collapse Alert when and expand Channels. Disable and re-enable the plugin in `/xlplugins` and reopen the window: only Channels is open.
+- [ ] On first open (no saved config, or one saved before this feature), only Alert Triggers is expanded; Sound and Chat Channels show just their headers.
+- [ ] Collapse Alert Triggers and expand Chat Channels. Disable and re-enable the plugin in `/xlplugins` and reopen the window: only Chat Channels is open.
 - [ ] Collapse all three and reload: all stay closed.
+- [ ] The window is titled Say My Name Settings. Under Name and Custom, Match case comes first, then a label naming the box, then the box; both boxes are the same size.
 - [ ] With all three open at the minimum window size, the channel table scrolls inside the window and its header row stays visible.
 
 ### Name trigger
@@ -129,7 +130,7 @@ Turn on the Name and Custom triggers, enter `raid` as a custom word, and set qui
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): not coloured. *(self-test)*
 - [ ] A real line with an item or map link and your name after it: the link still works and only your name is coloured.
 - [ ] The Text and Glow pop-ups are a full grid (10 swatches high): greys in the first column(s), then hue left to right from red round to magenta, each column light at the top to dark at the bottom. Hovering a swatch shows its row number.
-- [ ] Next to the pickers, the preview `hey <Me first name>, thank you!` shows your name in the picked text colour and glow, and updates as you pick. Inject a line with your name: its colours and glow match the preview (the font may differ). With None for both it is plain; with Highlight off it dims.
+- [ ] Next to the pickers, the preview `Hey <Me first name>, thank you!` shows your name in the picked text colour and glow, and updates as you pick. Inject a line with your name: its colours and glow match the preview (the font may differ). With None for both it is plain; with Highlight off it dims.
 - [ ] Switch the game's UI colour theme to Light, with a glow whose swatch changes: the swatches, preview and a newly injected line all use the Light theme's colours. Switch back.
 - [ ] `/saymyname targeting-me A Friend`, `/saymyname inject Say A Friend thank youuu, is this yours?`: `youuu` and `yours` are coloured. Same on `CustomEmote`. `inject Say Someone Else thank you`: not coloured. Untick Play a sound: still coloured. *(self-test: colour payloads)*
 - [ ] Reload the plugin: the Highlight setting and both colours are kept.
@@ -151,7 +152,7 @@ Solo:
 With a second player (*A Friend*, e.g. an alt on another client) near you:
 
 - [ ] A Friend targets you and uses `/pet`: one sound, and the log shows `emote ... at you, logged=True`.
-- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`, and chat shows the game's line ("A Friend pets you.") ending `(Say My Name)`, with `you` coloured if Highlight is on. Verbose log: `inserted standard emote line shown=True`. Same with their emote log messages turned off in their settings.
+- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`, and chat shows the game's line ("A Friend pets you.") ending `[Say My Name]`, with `you` coloured if Highlight is on. Verbose log: `inserted standard emote line shown=True`. Same with their emote log messages turned off in their settings.
 - [ ] Turn off standard emotes in every chat tab (Log Filters), keep custom emotes on in one: `/pet motion` from A Friend shows the marked line in that tab, as a custom emote with no sender, and sounds once; verbose log shows `shown=False` then `inserted custom emote line shown=True`. No other trigger (You, Target Speaks, Name, Custom) sounds or colours it.
 - [ ] Also turn off custom emotes in every tab: `/pet motion` shows nothing and makes no sound (`shown=False` twice). Turn both back on.
 - [ ] Settings: under the Emote trigger, a dimmed note says motion-only emotes are written to chat.
