@@ -1,6 +1,6 @@
-<img src="SayMyName/images/icon.png" alt="Say My Name logo: a speech bubble saying &quot;Hey You&quot;" width="128" align="right">
+<p align="center"><img src="SayMyName/images/icon.png" alt="Say My Name logo: a speech bubble saying &quot;Hey You&quot;" width="128"></p>
 
-# Say My Name
+<h1 align="center">Say My Name</h1>
 
 A Dalamud plugin for FINAL FANTASY XIV that alerts you when other players call for you in chat, so you notice even while busy or looking away.
 
