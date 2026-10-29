@@ -53,14 +53,17 @@ public class ConfigurationRoundTripTests
     [Fact]
     public void EnabledFlagsSurviveBothWays()
     {
+        // Every trigger both ways, so the check holds whichever way each default is set
         var config = Fresh();
-        config.Triggers[TriggerKind.Name].Enabled = false;
-        config.Triggers[TriggerKind.TargetSpeaks].Enabled = true;
+        foreach (var enabled in new[] { true, false })
+        {
+            foreach (var kind in Triggers.All)
+                config.Triggers[kind].Enabled = enabled;
 
-        var loaded = SaveAndLoad(config);
+            var loaded = SaveAndLoad(config);
 
-        Assert.False(loaded.Triggers[TriggerKind.Name].Enabled);
-        Assert.True(loaded.Triggers[TriggerKind.TargetSpeaks].Enabled);
+            Assert.All(Triggers.All, kind => Assert.Equal(enabled, loaded.Triggers[kind].Enabled));
+        }
     }
 
     [Fact]
@@ -69,35 +72,40 @@ public class ConfigurationRoundTripTests
         // revert-check: not revert-sensitive (checks saving; a branch that only changes defaults leaves saving intact)
         var config = Fresh();
         // Flipped from the default, so the check holds whichever way the default is set
+        var nameCaseSensitive = !config.NameCaseSensitive;
+        var playSound = !config.PlaySound;
+        var customWordsCaseSensitive = !config.CustomWordsCaseSensitive;
         var onlyTargetingYou = !config.TargetSpeaksOnlyTargetingYou;
-        config.NameCaseSensitive = false;
-        config.PlaySound = false;
+        var highlight = !config.Highlight;
+        var highlightTabs = !config.HighlightTabs;
+        config.NameCaseSensitive = nameCaseSensitive;
+        config.PlaySound = playSound;
         config.SoundEffect = 7;
         config.CooldownSeconds = 0;
         config.Nicknames = "Ro\nBig Ro";
         config.CustomWords = "raid\ngood morning";
-        config.CustomWordsCaseSensitive = true;
+        config.CustomWordsCaseSensitive = customWordsCaseSensitive;
         config.TargetSpeaksOnlyTargetingYou = onlyTargetingYou;
-        config.Highlight = false;
+        config.Highlight = highlight;
         config.HighlightTextColor = 45;
         config.HighlightGlowColor = ConfigurationBase.NoColor;
-        config.HighlightTabs = false;
+        config.HighlightTabs = highlightTabs;
         config.TabHighlightColor = 31;
 
         var loaded = SaveAndLoad(config);
 
-        Assert.False(loaded.NameCaseSensitive);
-        Assert.False(loaded.PlaySound);
+        Assert.Equal(nameCaseSensitive, loaded.NameCaseSensitive);
+        Assert.Equal(playSound, loaded.PlaySound);
         Assert.Equal(7, loaded.SoundEffect);
         Assert.Equal(0, loaded.CooldownSeconds);
         Assert.Equal("Ro\nBig Ro", loaded.Nicknames);
         Assert.Equal("raid\ngood morning", loaded.CustomWords);
-        Assert.True(loaded.CustomWordsCaseSensitive);
+        Assert.Equal(customWordsCaseSensitive, loaded.CustomWordsCaseSensitive);
         Assert.Equal(onlyTargetingYou, loaded.TargetSpeaksOnlyTargetingYou);
-        Assert.False(loaded.Highlight);
+        Assert.Equal(highlight, loaded.Highlight);
         Assert.Equal(45, loaded.HighlightTextColor);
         Assert.Equal(ConfigurationBase.NoColor, loaded.HighlightGlowColor);
-        Assert.False(loaded.HighlightTabs);
+        Assert.Equal(highlightTabs, loaded.HighlightTabs);
         Assert.Equal(31, loaded.TabHighlightColor);
     }
 
@@ -116,13 +124,15 @@ public class ConfigurationRoundTripTests
     [Fact]
     public void ExpandedSectionsSurvive()
     {
+        // The opposite of the default set, so the check holds whichever sections start open
         var config = Fresh();
-        config.ExpandedSections!.Remove(SettingsSection.Triggers);
-        config.ExpandedSections.Add(SettingsSection.Channels);
+        var opposite = Enum.GetValues<SettingsSection>().Except(config.ExpandedSections!).ToHashSet();
+        Assert.NotEmpty(opposite);
+        config.ExpandedSections = [.. opposite];
 
         var loaded = SaveAndLoad(config);
 
-        Assert.Equal([SettingsSection.Channels], loaded.ExpandedSections!);
+        Assert.Equal(opposite.Order(), loaded.ExpandedSections!.Order());
     }
 
     [Fact]
