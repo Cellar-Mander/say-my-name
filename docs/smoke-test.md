@@ -173,6 +173,8 @@ Solo:
 - [ ] The line is not coloured, and no inactive chat tab changes colour. *(self-test: no colour payloads; check the tabs yourself)*
 - [ ] Still pretending: `inject Say Someone Else hello`: no sound. `inject Party A Friend hello` and `inject Linkshell1 A Friend hello`: sound (every channel counts). *(self-test)*
 - [ ] Untick Play a sound: nothing sounds. *(self-test)*
+- [ ] Under the trigger, a dropdown reads "Every message they send" by default, and dims when the trigger is unticked. *(self-test: default)*
+- [ ] Choose "Only messages sent while targeting you": with only `my-target A Friend`, `inject Say A Friend hello`: no sound. Add `/saymyname targeting-me A Friend`: sound, also on `Linkshell1`. Stop `my-target` (still targeting-me): no sound. Choose "Every message they send" again. *(self-test)*
 - [ ] `/saymyname my-target` (stop pretending), same inject: no sound. *(self-test)*
 
 With a second player (*A Friend*) near you:
@@ -181,3 +183,4 @@ With a second player (*A Friend*) near you:
 - [ ] Target A Friend while a third player (or nobody) speaks or emotes at A Friend: no sound.
 - [ ] Target someone else, or nobody, while A Friend speaks: no sound.
 - [ ] Target yourself and `/say hello`: no sound.
+- [ ] Choose "Only messages sent while targeting you". Target A Friend; they target someone else (or nobody) and `/say hello`: no sound. They target you and `/say hello`: sound.

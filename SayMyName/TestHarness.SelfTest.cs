@@ -208,6 +208,7 @@ public sealed partial class TestHarness
             configuration.Nicknames = "";
             configuration.CustomWords = "";
             configuration.CustomWordsCaseSensitive = false;
+            configuration.TargetSpeaksOnlyTargetingYou = false;
             configuration.PlaySound = true;
             configuration.CooldownSeconds = 0;
             configuration.Highlight = true;
@@ -380,7 +381,16 @@ public sealed partial class TestHarness
         configuration.PlaySound = false;
         yield return Sound("Target Speaks: Play a sound unticked, silent", false, Say, friend, "hello");
         configuration.PlaySound = true;
+        Check("Target Speaks: every message by default", !defaults.TargetSpeaksOnlyTargetingYou);
+        configuration.TargetSpeaksOnlyTargetingYou = true;
+        yield return Sound("Target Speaks: only while targeting you, not targeting you is silent", false, Say, friend, "hello");
+        fakeTargeter = friend;
+        yield return Sound("Target Speaks: only while targeting you, targeting you sounds", true, Say, friend, "hello");
+        yield return Sound("Target Speaks: only while targeting you, Linkshell1 sounds", true, Linkshell1, friend, "hello");
         fakeTarget = null;
+        yield return Sound("Target Speaks: only while targeting you, targeting you but not your target is silent", false, Say, friend, "hello");
+        fakeTargeter = null;
+        configuration.TargetSpeaksOnlyTargetingYou = false;
         yield return Sound("Target Speaks: not pretending, silent", false, Say, friend, "hello");
     }
 }

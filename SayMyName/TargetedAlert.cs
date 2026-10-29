@@ -16,7 +16,7 @@ namespace SayMyName;
 /// a 'you' word while targeting you on a channel the You trigger listens on (Say, Party, Alliance, custom emotes);
 /// the 'you' words are also coloured in chat, and the inactive chat tabs showing the line are coloured.
 /// Also plays the sound, and only the sound, when your current target speaks on any channel but
-/// tells (Target Speaks trigger).
+/// tells (Target Speaks trigger), or optionally only while your target is targeting you.
 /// An emote at you whose log message the emoter turned off (motion only) is written to chat anyway,
 /// marked as the plugin's, so you can see who set off the alert; it alerts only if a chat tab shows it.
 /// </summary>
@@ -241,7 +241,7 @@ public sealed unsafe class TargetedAlert : IDisposable
         var matched = targeted && !fromYou && (emote
             ? message.TargetKind == XivChatRelationKind.LocalPlayer
             : YouWords.IsMatch(text) && SenderTargetsYou(message));
-        var targetSpoke = targetSpeaks && !fromYou && SenderIsYourTarget(message);
+        var targetSpoke = targetSpeaks && !fromYou && SenderIsYourTarget(message, configuration.TargetSpeaksOnlyTargetingYou);
 
         if (Plugin.Log.MinimumLogLevel <= LogEventLevel.Verbose)
         {
@@ -332,18 +332,21 @@ public sealed unsafe class TargetedAlert : IDisposable
         return false;
     }
 
-    // Compares the sender with your one target, so unlike SenderTargetsYou no search of nearby players is needed
-    private bool SenderIsYourTarget(IChatMessage message)
+    // Compares the sender with your one target, so unlike SenderTargetsYou no search of nearby players is needed;
+    // with targetingYou, your target must also be targeting you
+    private bool SenderIsYourTarget(IChatMessage message, bool targetingYou)
     {
         var link = ChatLines.SenderLink(message);
         var name = link?.PlayerName ?? ChatSender.Name(message.Sender.TextValue).ToString();
         if (FakeYourTarget?.Invoke(name) == true)
         {
-            return true;
+            return !targetingYou || FakeTargetingYou?.Invoke(name) == true;
         }
 
-        return Plugin.ObjectTable.LocalPlayer?.TargetObject is IPlayerCharacter target
+        return Plugin.ObjectTable.LocalPlayer is { } me
+            && me.TargetObject is IPlayerCharacter target
             && (link == null || target.HomeWorld.RowId == link.World.RowId)
-            && target.Name.TextValue == name;
+            && target.Name.TextValue == name
+            && (!targetingYou || target.TargetObjectId == me.GameObjectId);
     }
 }
