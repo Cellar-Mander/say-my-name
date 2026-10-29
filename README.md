@@ -1,3 +1,5 @@
+<img src="SayMyName/images/icon.png" alt="Say My Name logo: a speech bubble saying &quot;Hey You&quot;" width="128" align="right">
+
 # Say My Name
 
 A Dalamud plugin for FINAL FANTASY XIV, started from [goatcorp/SamplePlugin](https://github.com/goatcorp/SamplePlugin).
