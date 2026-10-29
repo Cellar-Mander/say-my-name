@@ -43,7 +43,7 @@ public abstract class ConfigurationBase
     public bool CustomWordsCaseSensitive { get; set; }
 
     /// <summary>Target Speaks alerts only for lines your target sends while targeting you, rather than every line they send.</summary>
-    public bool TargetSpeaksOnlyTargetingYou { get; set; }
+    public bool TargetSpeaksOnlyTargetingYou { get; set; } = true;
 
     public bool PlaySound { get; set; } = true;
 
