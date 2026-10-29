@@ -85,11 +85,7 @@ public sealed unsafe class TargetedAlert : IDisposable
 
     private bool Listening(TriggerKind kind, ChatChannel channel) => (configuration.PlaySound || tabs.Enabled) && TriggerListens(kind, channel);
 
-    private bool TriggerListens(TriggerKind kind, ChatChannel channel)
-    {
-        var settings = configuration.Triggers[kind];
-        return settings.Enabled && settings.Channels.Contains(channel);
-    }
+    private bool TriggerListens(TriggerKind kind, ChatChannel channel) => Triggers.Listens(kind, configuration.Triggers[kind], channel);
 
     private bool OnPlayEmote(EmoteController* controller, uint emoteId, EmoteController.PlayEmoteOption* options)
     {

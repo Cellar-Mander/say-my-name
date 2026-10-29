@@ -106,11 +106,7 @@ public sealed class TextAlert : IDisposable
         return true;
     }
 
-    private bool Listening(TriggerKind kind, ChatChannel channel)
-    {
-        var settings = configuration.Triggers[kind];
-        return settings.Enabled && settings.Channels.Contains(channel);
-    }
+    private bool Listening(TriggerKind kind, ChatChannel channel) => Triggers.Listens(kind, configuration.Triggers[kind], channel);
 
     // The matchers are rebuilt only when their input or case setting changes, not per message.
     // Nicknames by reference, as for custom words below
