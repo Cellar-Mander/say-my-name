@@ -42,11 +42,11 @@ function Write-Claim([switch]$ToError) {
 
 # Copy to a temp name, then rename into place, so Dalamud's reload on change never sees a
 # half-copied file
-function Copy-Into([string]$file) {
+function Copy-Into([string]$file, [string]$dir = $devDir) {
     $name = Split-Path -Leaf $file
-    $tmp = Join-Path $devDir ".$name.tmp"
+    $tmp = Join-Path $dir ".$name.tmp"
     Copy-Item -LiteralPath $file -Destination $tmp -Force
-    Move-Item -LiteralPath $tmp -Destination (Join-Path $devDir $name) -Force
+    Move-Item -LiteralPath $tmp -Destination (Join-Path $dir $name) -Force
 }
 
 function Invoke-Deploy([string]$task) {
@@ -75,6 +75,10 @@ function Invoke-Deploy([string]$task) {
     # Plugin dll last, so a reload never sees a new dll next to old dependencies
     $out = "$top/SayMyName/bin/x64/Debug"
     Get-ChildItem -LiteralPath $out -File | Where-Object Name -ne 'SayMyName.dll' | ForEach-Object { Copy-Into $_.FullName }
+    # The plugin icon, which Dalamud reads from images/icon.png beside the dll
+    $images = Join-Path $devDir 'images'
+    New-Item -ItemType Directory -Force -Path $images | Out-Null
+    Get-ChildItem -LiteralPath "$out/images" -File | ForEach-Object { Copy-Into $_.FullName $images }
     Copy-Into "$out/SayMyName.dll"
 
     Write-Output "Deployed to ${devDir}:"

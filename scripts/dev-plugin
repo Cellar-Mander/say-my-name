@@ -70,6 +70,11 @@ EOF
         [[ -f $f && ${f##*/} != SayMyName.dll ]] || continue
         cp "$f" "$dev_dir/.${f##*/}.tmp" && mv "$dev_dir/.${f##*/}.tmp" "$dev_dir/${f##*/}"
     done
+    # The plugin icon, which Dalamud reads from images/icon.png beside the dll
+    mkdir -p "$dev_dir/images"
+    for f in "$out"/images/*; do
+        cp "$f" "$dev_dir/images/.${f##*/}.tmp" && mv "$dev_dir/images/.${f##*/}.tmp" "$dev_dir/images/${f##*/}"
+    done
     cp "$out/SayMyName.dll" "$dev_dir/.SayMyName.dll.tmp" && mv "$dev_dir/.SayMyName.dll.tmp" "$dev_dir/SayMyName.dll"
 
     echo "Deployed to $dev_dir:"
