@@ -22,6 +22,10 @@ Open the settings with /saymyname.</Description>
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="images\icon.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SayMyName.Core\SayMyName.Core.csproj" />
   </ItemGroup>
 </Project>
