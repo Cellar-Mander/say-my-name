@@ -148,7 +148,10 @@ Solo:
 With a second player (*A Friend*, e.g. an alt on another client) near you:
 
 - [ ] A Friend targets you and uses `/pet`: one sound, and the log shows `emote ... at you, logged=True`.
-- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`. Same with their emote log messages turned off in their settings.
+- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`, and chat shows the game's line ("A Friend pets you.") ending `(Say My Name)`, with `you` coloured if Highlight is on. Verbose log: `inserted standard emote line shown=True`. Same with their emote log messages turned off in their settings.
+- [ ] Turn off standard emotes in every chat tab (Log Filters), keep custom emotes on in one: `/pet motion` from A Friend shows the marked line in that tab, as a custom emote with no sender, and sounds once; verbose log shows `shown=False` then `inserted custom emote line shown=True`. No other trigger (You, Target Speaks, Name, Custom) sounds or colours it.
+- [ ] Also turn off custom emotes in every tab: `/pet motion` shows nothing and makes no sound (`shown=False` twice). Turn both back on.
+- [ ] Settings: under the Emote trigger, a dimmed note says motion-only emotes are written to chat.
 - [ ] A Friend targets someone else (or nobody) and emotes: no sound.
 - [ ] Untick the Emote trigger, A Friend emotes at you: no sound; `/say thank you` from them still sounds.
 - [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, `you'll`, `y'all`, `thee`, and `/em waves at you` (a custom emote, handled by You, not Emote). `/em waves` without a 'you' word: no sound. Untick Custom emotes for You: `/em waves at you` no longer sounds, while standard emotes still do.
