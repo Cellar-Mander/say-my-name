@@ -268,6 +268,7 @@ public class TriggersTests
     [Fact]
     public void LaterChannelsKeepTheirSavedNumbers()
     {
+        // revert-check: not revert-sensitive (the numbers held before the change too; this guards against a later edit deleting an entry instead of keeping it)
         Assert.Equal(8, (int)ChatChannel.NoviceNetwork);
         Assert.Equal(26, (int)ChatChannel.CustomEmote);
     }
