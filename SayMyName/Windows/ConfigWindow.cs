@@ -513,7 +513,7 @@ public class ConfigWindow : Window, IDisposable
         TriggerKind.Custom => "Someone says one of your custom words or phrases",
         TriggerKind.Emote => "Someone uses an emote on you",
         TriggerKind.You => "Someone targeting you uses a 'you' word",
-        TriggerKind.TargetSpeaks => "Your current target speaks",
+        TriggerKind.TargetSpeaks => "Your current target speaks on any channel",
         _ => kind.ToString(),
     };
 
@@ -522,7 +522,6 @@ public class ConfigWindow : Window, IDisposable
         TriggerKind.Name => "Name",
         TriggerKind.Custom => "Custom",
         TriggerKind.You => "You",
-        TriggerKind.TargetSpeaks => "Target",
         _ => kind.ToString(),
     };
 
