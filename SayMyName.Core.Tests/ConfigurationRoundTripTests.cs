@@ -66,6 +66,7 @@ public class ConfigurationRoundTripTests
     [Fact]
     public void ScalarSettingsSurvive()
     {
+        // revert-check: not revert-sensitive (checks saving; a branch that only changes defaults leaves saving intact)
         var config = Fresh();
         // Flipped from the default, so the check holds whichever way the default is set
         var onlyTargetingYou = !config.TargetSpeaksOnlyTargetingYou;
