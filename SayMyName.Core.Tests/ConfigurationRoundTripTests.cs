@@ -66,8 +66,9 @@ public class ConfigurationRoundTripTests
     [Fact]
     public void ScalarSettingsSurvive()
     {
-        // revert-check: not revert-sensitive (checks saving, so each value differs from the current default)
         var config = Fresh();
+        // Flipped from the default, so the check holds whichever way the default is set
+        var onlyTargetingYou = !config.TargetSpeaksOnlyTargetingYou;
         config.NameCaseSensitive = false;
         config.PlaySound = false;
         config.SoundEffect = 7;
@@ -75,7 +76,7 @@ public class ConfigurationRoundTripTests
         config.Nicknames = "Ro\nBig Ro";
         config.CustomWords = "raid\ngood morning";
         config.CustomWordsCaseSensitive = true;
-        config.TargetSpeaksOnlyTargetingYou = false;
+        config.TargetSpeaksOnlyTargetingYou = onlyTargetingYou;
         config.Highlight = false;
         config.HighlightTextColor = 45;
         config.HighlightGlowColor = ConfigurationBase.NoColor;
@@ -91,7 +92,7 @@ public class ConfigurationRoundTripTests
         Assert.Equal("Ro\nBig Ro", loaded.Nicknames);
         Assert.Equal("raid\ngood morning", loaded.CustomWords);
         Assert.True(loaded.CustomWordsCaseSensitive);
-        Assert.False(loaded.TargetSpeaksOnlyTargetingYou);
+        Assert.Equal(onlyTargetingYou, loaded.TargetSpeaksOnlyTargetingYou);
         Assert.False(loaded.Highlight);
         Assert.Equal(45, loaded.HighlightTextColor);
         Assert.Equal(ConfigurationBase.NoColor, loaded.HighlightGlowColor);
