@@ -44,7 +44,7 @@ public class ConfigurationRoundTripTests
         var loaded = SaveAndLoad(config);
 
         Assert.Equal(
-            Triggers.AllowedChannels(TriggerKind.Name).Where(c => c != ChatChannel.Say).Order(),
+            Triggers.Default(TriggerKind.Name).Channels.Where(c => c != ChatChannel.Say).Order(),
             loaded.Triggers[TriggerKind.Name].Channels.Order());
         Assert.Empty(loaded.Triggers[TriggerKind.You].Channels);
     }
