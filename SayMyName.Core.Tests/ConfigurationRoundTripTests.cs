@@ -66,6 +66,7 @@ public class ConfigurationRoundTripTests
     [Fact]
     public void ScalarSettingsSurvive()
     {
+        // revert-check: not revert-sensitive (checks saving, so each value differs from the current default)
         var config = Fresh();
         config.NameCaseSensitive = false;
         config.PlaySound = false;
