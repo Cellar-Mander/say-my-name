@@ -152,7 +152,7 @@ public class TriggersTests
         var settings = Triggers.Resolve(saved, TriggerKind.Custom);
 
         Assert.Same(settings, saved[TriggerKind.Custom]);
-        Assert.True(settings.Enabled);
+        Assert.Equal(Triggers.Default(TriggerKind.Custom).Enabled, settings.Enabled);
         Assert.Equal(Triggers.Default(TriggerKind.Custom).Channels.Order(), settings.Channels.Order());
     }
 
