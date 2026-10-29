@@ -7,7 +7,7 @@ A Dalamud plugin for FINAL FANTASY XIV that alerts you when other players call f
 Alerts can be configured to trigger on certain criteria and chat message content appearing:
 - **Name**: your character's name or nicknames, even stretched (Aliiice) or spelled out (A-L-I-C-E)
 - **Custom**: your own words and phrases
-- **You**: a player targeting you says "you", "your", "thank you" and the like
+- **You**: a player targeting you says "you", "your", "thou", "thine" and the like
 - **Emote**: a player uses an emote on you, including motion-only emotes
 - **Target Speaks**: your current target says something (off by default)
 
