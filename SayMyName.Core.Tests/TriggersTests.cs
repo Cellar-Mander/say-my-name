@@ -41,6 +41,7 @@ public class TriggersTests
         Assert.True(Triggers.Resolve(saved, TriggerKind.Emote).Enabled);
     }
 
+    // revert-check: not revert-sensitive (the rule predates the change; the edit only loosens the Target Speaks assert to still hold once it listens everywhere)
     [Fact]
     public void StandardEmotesAreDroppedFromTextTriggers()
     {
@@ -146,6 +147,7 @@ public class TriggersTests
             Triggers.All.Where(k => !Triggers.Default(k).Enabled));
     }
 
+    // revert-check: not revert-sensitive (the rule predates the change; the edit only leaves out Target Speaks, which has no channel choice and is covered by its own test)
     [Fact]
     public void LargeGroupChannelsStartOffAndTheRestOn()
     {
