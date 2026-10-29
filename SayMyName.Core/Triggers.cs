@@ -13,6 +13,8 @@ public enum ChatChannel
     CrossParty,
     Alliance,
     FreeCompany,
+    /// <summary>Saved by older versions; PvP teams are gone from the game. Not choosable.</summary>
+    // Kept so later channels keep their saved numbers
     PvPTeam,
     NoviceNetwork,
     Linkshell1,
@@ -57,7 +59,7 @@ public static class Triggers
     public static readonly IReadOnlyList<TriggerKind> All = [.. Enum.GetValues<TriggerKind>().Where(k => k != TriggerKind.Targeted)];
 
     // Standard emote lines are written by the game, never by a player, so only the Emote trigger listens there
-    private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c is not (ChatChannel.StandardEmote or ChatChannel.CrossParty))];
+    private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c is not (ChatChannel.StandardEmote or ChatChannel.CrossParty or ChatChannel.PvPTeam))];
     private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
     // Party and alliance members are often nearby, so the sender can be checked for targeting you
     private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
