@@ -23,6 +23,7 @@ namespace SayMyName;
 /// until one goes up. Another line landing in the same frame can colour a tab that only shows that line.
 /// The game animates an unread tab's colour every frame, so the colour is put back after each of
 /// the chat log's updates, just before it draws, pulsed in step with the game's (see <see cref="TabPulse"/>).
+/// Logging out clears the colours, as it clears the game's chat history and unread colour.
 /// </remarks>
 public sealed unsafe class TabHighlighter : IDisposable
 {
@@ -49,6 +50,7 @@ public sealed unsafe class TabHighlighter : IDisposable
     {
         this.configuration = configuration;
         Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw, ChatLogAddon, OnChatLogPreDraw);
+        Plugin.ClientState.Logout += OnLogout;
     }
 
     /// <summary>Whether tab colouring is on and has a colour to use.</summary>
@@ -56,7 +58,20 @@ public sealed unsafe class TabHighlighter : IDisposable
 
     public void Dispose()
     {
+        Plugin.ClientState.Logout -= OnLogout;
         Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, ChatLogAddon, OnChatLogPreDraw);
+    }
+
+    // The game drops its chat history, so a line still being waited for won't land either
+    private void OnLogout(int type, int code)
+    {
+        Array.Clear(highlighted);
+        highlightedCount = 0;
+        if (waiting)
+        {
+            waiting = false;
+            NotifyLanded(false);
+        }
     }
 
     /// <summary>
