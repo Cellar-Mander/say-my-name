@@ -381,7 +381,7 @@ public sealed partial class TestHarness
         configuration.PlaySound = false;
         yield return Sound("Target Speaks: Play a sound unticked, silent", false, Say, friend, "hello");
         configuration.PlaySound = true;
-        Check("Target Speaks: every message by default", !defaults.TargetSpeaksOnlyTargetingYou);
+        Check("Target Speaks: only while targeting you by default", defaults.TargetSpeaksOnlyTargetingYou);
         configuration.TargetSpeaksOnlyTargetingYou = true;
         yield return Sound("Target Speaks: only while targeting you, not targeting you is silent", false, Say, friend, "hello");
         fakeTargeter = friend;

@@ -169,11 +169,11 @@ Set quiet time to 0, turn off the Name, Custom, Emote and You triggers so only t
 Solo:
 
 - [ ] It is off by default on a fresh config, and has no column in the channel table. *(self-test: off and listening on every channel but standard emotes; check the table yourself)*
-- [ ] Tick it. `/saymyname my-target A Friend`, then `/saymyname inject Say A Friend hello`: sound. Same on `CustomEmote`. On `StandardEmote`: no sound. *(self-test)*
+- [ ] Under the trigger, a dropdown reads "Only messages sent while targeting you" by default, and dims when the trigger is unticked. *(self-test: default)*
+- [ ] Choose "Every message they send". Tick it. `/saymyname my-target A Friend`, then `/saymyname inject Say A Friend hello`: sound. Same on `CustomEmote`. On `StandardEmote`: no sound. *(self-test)*
 - [ ] The line is not coloured, and no inactive chat tab changes colour. *(self-test: no colour payloads; check the tabs yourself)*
 - [ ] Still pretending: `inject Say Someone Else hello`: no sound. `inject Party A Friend hello` and `inject Linkshell1 A Friend hello`: sound (every channel counts). *(self-test)*
 - [ ] Untick Play a sound: nothing sounds. *(self-test)*
-- [ ] Under the trigger, a dropdown reads "Every message they send" by default, and dims when the trigger is unticked. *(self-test: default)*
 - [ ] Choose "Only messages sent while targeting you": with only `my-target A Friend`, `inject Say A Friend hello`: no sound. Add `/saymyname targeting-me A Friend`: sound, also on `Linkshell1`. Stop `my-target` (still targeting-me): no sound. Choose "Every message they send" again. *(self-test)*
 - [ ] `/saymyname my-target` (stop pretending), same inject: no sound. *(self-test)*
 
