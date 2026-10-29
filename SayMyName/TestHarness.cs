@@ -109,9 +109,21 @@ public sealed unsafe partial class TestHarness : IDisposable
     private bool Inject(string args)
     {
         var parts = args.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length < 4
-            || !Enum.TryParse<ChatChannel>(parts[0], ignoreCase: true, out var channel)
-            || !Enum.IsDefined(channel))
+        if (parts.Length < 4)
+        {
+            return false;
+        }
+        XivChatType type;
+        if (Enum.TryParse<ChatChannel>(parts[0], ignoreCase: true, out var channel) && Enum.IsDefined(channel))
+        {
+            type = ChatChannels.ToChatType(channel);
+        }
+        // Cross-world party lines count as Party, so they have no channel of their own to name
+        else if (parts[0].Equals(nameof(XivChatType.CrossParty), StringComparison.OrdinalIgnoreCase))
+        {
+            type = XivChatType.CrossParty;
+        }
+        else
         {
             return false;
         }
@@ -124,11 +136,11 @@ public sealed unsafe partial class TestHarness : IDisposable
         // PlayerPayload encodes the name text and link terminator itself; adding them again doubles the name.
         Plugin.ChatGui.Print(new XivChatEntry
         {
-            Type = ChatChannels.ToChatType(channel),
+            Type = type,
             Name = new SeString(new PlayerPayload(name, Plugin.PlayerState.CurrentWorld.RowId)),
             Message = text,
         });
-        Plugin.Log.Information($"Test harness: injected {channel} from {name}: {text}");
+        Plugin.Log.Information($"Test harness: injected {type} from {name}: {text}");
         return true;
     }
 
