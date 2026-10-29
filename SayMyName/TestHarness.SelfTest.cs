@@ -344,10 +344,14 @@ public sealed partial class TestHarness
         yield return Sound("You: CustomEmote sounds", true, CustomEmote, friend, "waves at you");
         yield return Sound("You: no 'you' word is silent", false, Say, friend, "hello");
         yield return Sound("You: sender not targeting you is silent", false, Say, other, "thank you");
-        foreach (var channel in new[] { Party, Alliance, CrossParty })
+        foreach (var channel in new[] { Party, CrossParty })
         {
             yield return Sound($"You: {channel} sounds", true, channel, friend, "thank you");
         }
+        yield return Sound("You: Alliance is silent by default", false, Alliance, friend, "thank you");
+        Trigger(TriggerKind.You).Channels.Add(Alliance);
+        yield return Sound("You: Alliance ticked, Alliance sounds", true, Alliance, friend, "thank you");
+        Trigger(TriggerKind.You).Channels.Remove(Alliance);
         yield return Sound("You: Linkshell1 is silent", false, Linkshell1, friend, "thank you");
         Trigger(TriggerKind.You).Channels.Remove(Party);
         yield return Sound("You: Party unticked, Party is silent", false, Party, friend, "thank you");

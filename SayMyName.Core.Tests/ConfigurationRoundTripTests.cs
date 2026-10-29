@@ -34,6 +34,7 @@ public class ConfigurationRoundTripTests
         return loaded;
     }
 
+    // revert-check: not revert-sensitive (checks the save/load round trip; the edit only compares against the default instead of every allowed channel)
     [Fact]
     public void ChannelsTurnedOffStayOff()
     {
@@ -44,7 +45,7 @@ public class ConfigurationRoundTripTests
         var loaded = SaveAndLoad(config);
 
         Assert.Equal(
-            Triggers.AllowedChannels(TriggerKind.Name).Where(c => c != ChatChannel.Say).Order(),
+            Triggers.Default(TriggerKind.Name).Channels.Where(c => c != ChatChannel.Say).Order(),
             loaded.Triggers[TriggerKind.Name].Channels.Order());
         Assert.Empty(loaded.Triggers[TriggerKind.You].Channels);
     }

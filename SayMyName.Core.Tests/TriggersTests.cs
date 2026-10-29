@@ -146,6 +146,23 @@ public class TriggersTests
     }
 
     [Fact]
+    public void LargeGroupChannelsStartOffAndTheRestOn()
+    {
+        ChatChannel[] linkshells = [.. Enum.GetValues<ChatChannel>().Where(c => c.ToString().Contains("Linkshell"))];
+        ChatChannel[] groups = [ChatChannel.Alliance, ChatChannel.FreeCompany, ChatChannel.NoviceNetwork, .. linkshells];
+        Assert.Equal(16, linkshells.Length);
+
+        foreach (var kind in Triggers.All)
+        {
+            Assert.Equal(
+                Triggers.AllowedChannels(kind).Except(groups).Order(),
+                Triggers.Default(kind).Channels.Order());
+        }
+        Assert.Equal([ChatChannel.Say, ChatChannel.Party, ChatChannel.CustomEmote], Triggers.Default(TriggerKind.You).Channels.Order());
+        Assert.Contains(ChatChannel.Shout, Triggers.Default(TriggerKind.Name).Channels);
+    }
+
+    [Fact]
     public void DefaultsDoNotShareChannelSets()
     {
         var a = Triggers.Default(TriggerKind.Name);
@@ -154,6 +171,7 @@ public class TriggersTests
         Assert.Contains(ChatChannel.Say, b.Channels);
     }
 
+    // revert-check: not revert-sensitive (checks Resolve stores the default; the edit only compares against Default() instead of every allowed channel)
     [Fact]
     public void ResolveAddsMissingDefaultsAndStoresThem()
     {
@@ -162,7 +180,7 @@ public class TriggersTests
 
         Assert.Same(settings, saved[TriggerKind.Custom]);
         Assert.True(settings.Enabled);
-        Assert.Equal(Triggers.AllowedChannels(TriggerKind.Custom).Count, settings.Channels.Count);
+        Assert.Equal(Triggers.Default(TriggerKind.Custom).Channels.Order(), settings.Channels.Order());
     }
 
     [Fact]

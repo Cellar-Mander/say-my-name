@@ -62,6 +62,12 @@ public static class Triggers
     private static readonly ChatChannel[] SayAndCustomEmotes = [ChatChannel.Say, ChatChannel.CustomEmote];
     // Party and alliance members are often nearby, so the sender can be checked for targeting you
     private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
+    // Large groups talk all day, mostly not to you, so these start unticked
+    private static readonly HashSet<ChatChannel> OffByDefault =
+    [
+        ChatChannel.Alliance, ChatChannel.FreeCompany, ChatChannel.NoviceNetwork,
+        .. Enum.GetValues<ChatChannel>().Where(c => c is >= ChatChannel.Linkshell1 and <= ChatChannel.CrossLinkshell8),
+    ];
 
     /// <summary>Triggers whose channels are chosen in settings; the Emote trigger only ever listens on standard emotes.</summary>
     public static readonly IReadOnlyList<TriggerKind> WithChannelChoice = [.. All.Where(k => k != TriggerKind.Emote)];
@@ -119,7 +125,7 @@ public static class Triggers
     {
         // Watching the target is opt-in; the others are what people install the plugin for
         Enabled = kind != TriggerKind.TargetSpeaks,
-        Channels = [.. AllowedChannels(kind)],
+        Channels = [.. AllowedChannels(kind).Where(c => !OffByDefault.Contains(c))],
     };
 }
 
