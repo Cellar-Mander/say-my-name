@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- For the channel converter's attributes only. Dalamud loads its own Json.NET into the plugin, so none is
+         shipped: a second copy would carry attribute types Dalamud's serializer does not recognise -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+
 </Project>

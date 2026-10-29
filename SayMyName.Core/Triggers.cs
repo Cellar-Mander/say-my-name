@@ -1,6 +1,11 @@
+using Newtonsoft.Json;
+
 namespace SayMyName.Core;
 
-/// <summary>Player chat channels a trigger can listen on. Tells are deliberately absent.</summary>
+/// <summary>
+/// Player chat channels a trigger can listen on. Tells are deliberately absent.
+/// Saved by name (see <see cref="ChannelSetConverter"/>), so entries may be removed or reordered, but not renamed.
+/// </summary>
 public enum ChatChannel
 {
     Say,
@@ -8,14 +13,8 @@ public enum ChatChannel
     Shout,
     /// <summary>Your party, on your world or cross-world.</summary>
     Party,
-    /// <summary>Saved by older versions; cross-world party lines now count as <see cref="Party"/>. Not choosable.</summary>
-    // Kept so later channels keep their saved numbers
-    CrossParty,
     Alliance,
     FreeCompany,
-    /// <summary>Saved by older versions; PvP teams are gone from the game. Not choosable.</summary>
-    // Kept so later channels keep their saved numbers
-    PvPTeam,
     NoviceNetwork,
     Linkshell1,
     Linkshell2,
@@ -59,7 +58,7 @@ public static class Triggers
     public static readonly IReadOnlyList<TriggerKind> All = [.. Enum.GetValues<TriggerKind>().Where(k => k != TriggerKind.Targeted)];
 
     // Standard emote lines are written by the game, never by a player, so only the Emote trigger listens there
-    private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c is not (ChatChannel.StandardEmote or ChatChannel.CrossParty or ChatChannel.PvPTeam))];
+    private static readonly ChatChannel[] TextChannels = [.. Enum.GetValues<ChatChannel>().Where(c => c != ChatChannel.StandardEmote)];
     private static readonly ChatChannel[] StandardEmoteOnly = [ChatChannel.StandardEmote];
     // Party and alliance members are often nearby, so the sender can be checked for targeting you
     private static readonly ChatChannel[] YouChannels = [ChatChannel.Say, ChatChannel.Party, ChatChannel.Alliance, ChatChannel.CustomEmote];
@@ -141,5 +140,6 @@ public static class Triggers
 public class TriggerSettings
 {
     public bool Enabled { get; set; }
+    [JsonConverter(typeof(ChannelSetConverter))]
     public HashSet<ChatChannel> Channels { get; set; } = [];
 }

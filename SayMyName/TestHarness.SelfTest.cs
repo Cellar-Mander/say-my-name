@@ -169,7 +169,8 @@ public sealed partial class TestHarness
         defaults.Normalize();
         SelfTestLine line = null!;
 
-        SelfTestLine Send(ChatChannel channel, string sender, string text)
+        // A ChatChannel, or an XivChatType the harness injects that is no channel of its own (cross-world party)
+        SelfTestLine Send(Enum channel, string sender, string text)
         {
             line = new SelfTestLine(text);
             if (!Inject($"{channel} {sender} {text}"))
@@ -181,7 +182,7 @@ public sealed partial class TestHarness
 
         string Arrival() => line.UnhandledKind == null ? "line never arrived" : "";
         // Send a line and, once it is back, check whether it alerted or which words were coloured
-        SelfTestLine Sound(string name, bool expected, ChatChannel channel, string sender, string text)
+        SelfTestLine Sound(string name, bool expected, Enum channel, string sender, string text)
         {
             var sent = Send(channel, sender, text);
             sent.Verify = () => Check(name, sent.UnhandledKind != null && sent.Alerts > 0 == expected, Arrival() is { Length: > 0 } a ? a : $"{sent.Alerts} alerts");
@@ -245,9 +246,9 @@ public sealed partial class TestHarness
         Trigger(TriggerKind.Name).Channels.Remove(Say);
         yield return Sound("Name: Say unticked, Say is silent", false, Say, friend, $"hi {first}");
         yield return Sound("Name: Say unticked, Party sounds", true, Party, friend, $"hi {first}");
-        yield return Sound("Name: CrossParty sounds through Party", true, CrossParty, friend, $"hi {first}");
+        yield return Sound("Name: CrossParty sounds through Party", true, XivChatType.CrossParty, friend, $"hi {first}");
         Trigger(TriggerKind.Name).Channels.Remove(Party);
-        yield return Sound("Name: Party unticked, CrossParty is silent", false, CrossParty, friend, $"hi {first}");
+        yield return Sound("Name: Party unticked, CrossParty is silent", false, XivChatType.CrossParty, friend, $"hi {first}");
         Baseline();
         yield return Sound("Name: trigger unticked, silent", false, Say, friend, $"hi {first}");
         Baseline(TriggerKind.Name);
@@ -344,7 +345,7 @@ public sealed partial class TestHarness
         yield return Sound("You: CustomEmote sounds", true, CustomEmote, friend, "waves at you");
         yield return Sound("You: no 'you' word is silent", false, Say, friend, "hello");
         yield return Sound("You: sender not targeting you is silent", false, Say, other, "thank you");
-        foreach (var channel in new[] { Party, CrossParty })
+        foreach (var channel in new Enum[] { Party, XivChatType.CrossParty })
         {
             yield return Sound($"You: {channel} sounds", true, channel, friend, "thank you");
         }

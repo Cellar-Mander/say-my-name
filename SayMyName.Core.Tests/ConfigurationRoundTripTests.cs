@@ -172,6 +172,48 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
+    public void ChannelsAreSavedByName()
+    {
+        var config = Fresh();
+        config.Triggers[TriggerKind.You].Channels = [ChatChannel.CustomEmote];
+
+        var json = JsonConvert.SerializeObject(config, DalamudSettings);
+
+        Assert.Contains("\"Channels\":[\"CustomEmote\"]", json);
+    }
+
+    // Older versions saved channels by number, with Cross-world Party at 4 and PvP Team at 7
+    [Fact]
+    public void ChannelsSavedByNumberLoadAsTheChannelsTheyMeant()
+    {
+        var json = JsonConvert.SerializeObject(Fresh(), DalamudSettings);
+        var nameChannels = JsonConvert.SerializeObject(Triggers.Default(TriggerKind.Name).Channels.Select(c => c.ToString()));
+        var oldJson = json.Replace($"\"Channels\":{nameChannels}", "\"Channels\":[0,3,4,7,8,16,17,26]", StringComparison.Ordinal);
+        Assert.NotEqual(json, oldJson);
+
+        var loaded = JsonConvert.DeserializeObject<ConfigurationBase>(oldJson, DalamudSettings)!;
+        loaded.Normalize();
+
+        Assert.Equal(
+            [ChatChannel.Say, ChatChannel.Party, ChatChannel.NoviceNetwork, ChatChannel.Linkshell8, ChatChannel.CrossLinkshell1, ChatChannel.CustomEmote],
+            loaded.Triggers[TriggerKind.Name].Channels.Order());
+    }
+
+    [Fact]
+    public void UnknownSavedChannelsAreDropped()
+    {
+        var json = JsonConvert.SerializeObject(Fresh(), DalamudSettings);
+        var nameChannels = JsonConvert.SerializeObject(Triggers.Default(TriggerKind.Name).Channels.Select(c => c.ToString()));
+        var edited = json.Replace($"\"Channels\":{nameChannels}", "\"Channels\":[\"Say\",\"PvPTeam\",\"say\",\"3\",-1,27,null,\"Party\"]", StringComparison.Ordinal);
+        Assert.NotEqual(json, edited);
+
+        var loaded = JsonConvert.DeserializeObject<ConfigurationBase>(edited, DalamudSettings)!;
+        loaded.Normalize();
+
+        Assert.Equal([ChatChannel.Say, ChatChannel.Party], loaded.Triggers[TriggerKind.Name].Channels.Order());
+    }
+
+    [Fact]
     public void LoadsAsTheSavedType()
     {
         Assert.IsType<TestConfiguration>(SaveAndLoad(Fresh()));
