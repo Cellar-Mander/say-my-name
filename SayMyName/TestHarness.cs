@@ -128,20 +128,23 @@ public sealed unsafe partial class TestHarness : IDisposable
             return false;
         }
 
-        var name = $"{parts[1]} {parts[2]}";
-        var text = parts[3];
-        pending.Add(text);
-
         // Other players' lines carry a player link, so give the fake sender one on your world.
         // PlayerPayload encodes the name text and link terminator itself; adding them again doubles the name.
+        var name = $"{parts[1]} {parts[2]}";
+        InjectLine(type, new SeString(new PlayerPayload(name, Plugin.PlayerState.CurrentWorld.RowId)), parts[3]);
+        return true;
+    }
+
+    private void InjectLine(XivChatType type, SeString sender, string text)
+    {
+        pending.Add(text);
         Plugin.ChatGui.Print(new XivChatEntry
         {
             Type = type,
-            Name = new SeString(new PlayerPayload(name, Plugin.PlayerState.CurrentWorld.RowId)),
+            Name = sender,
             Message = text,
         });
-        Plugin.Log.Information($"Test harness: injected {type} from {name}: {text}");
-        return true;
+        Plugin.Log.Information($"Test harness: injected {type} from {sender.TextValue}: {text}");
     }
 
     // Logs every emote the Emote trigger's hook sees, so other players' emotes in a busy place

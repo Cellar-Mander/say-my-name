@@ -181,10 +181,18 @@ public sealed partial class TestHarness
         }
 
         string Arrival() => line.UnhandledKind == null ? "line never arrived" : "";
-        // Send a line and, once it is back, check whether it alerted or which words were coloured
-        SelfTestLine Sound(string name, bool expected, Enum channel, string sender, string text)
+        // Your own lines often come with no player link; Party Icons then puts a job tag before your name
+        SelfTestLine SendTaggedOwn(ChatChannel channel, string text)
         {
-            var sent = Send(channel, sender, text);
+            line = new SelfTestLine(text);
+            InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload("WAR"), new TextPayload(" "), new TextPayload(me)), text);
+            return line;
+        }
+        // Send a line and, once it is back, check whether it alerted or which words were coloured
+        SelfTestLine Sound(string name, bool expected, Enum channel, string sender, string text) =>
+            Verified(name, expected, Send(channel, sender, text));
+        SelfTestLine Verified(string name, bool expected, SelfTestLine sent)
+        {
             sent.Verify = () => Check(name, sent.UnhandledKind != null && sent.Alerts > 0 == expected, Arrival() is { Length: > 0 } a ? a : $"{sent.Alerts} alerts");
             return sent;
         }
@@ -268,6 +276,7 @@ public sealed partial class TestHarness
         yield return Sound("Name: Play a sound unticked, silent", false, Say, friend, $"hi {first}");
         configuration.PlaySound = true;
         yield return Sound("Name: your own line is silent", false, Say, me, $"hi {first}");
+        yield return Verified("Name: your own unlinked line with a job tag is silent", false, SendTaggedOwn(Say, $"hey {first}"));
         configuration.Nicknames = "Zuzu\nBig Zed";
         yield return Sound("Name: nickname sounds", true, Say, friend, "hi Zuzu");
         yield return Sound("Name: multi-word nickname, possessive sounds", true, Say, friend, "is that Big Zed's?");
@@ -297,6 +306,7 @@ public sealed partial class TestHarness
         yield return Sound("Custom: Say unticked, Party sounds", true, Party, friend, "raid");
         Trigger(TriggerKind.Custom).Channels.Add(Say);
         yield return Sound("Custom: your own line is silent", false, Say, me, "raid");
+        yield return Verified("Custom: your own unlinked line with a job tag is silent", false, SendTaggedOwn(Say, "raid time"));
         configuration.CustomWords = "";
         yield return Sound("Custom: empty list is silent", false, Say, friend, "raid");
         configuration.CustomWords = "raid";

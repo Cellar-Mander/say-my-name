@@ -23,7 +23,33 @@ public static class ChatSender
         return senderText[start..end];
     }
 
-    /// <summary>Whether the sender text names <paramref name="characterName"/>, ignoring the game's marks.</summary>
-    public static bool Is(ReadOnlySpan<char> senderText, string characterName) =>
-        characterName.Length > 0 && Name(senderText).SequenceEqual(characterName);
+    /// <summary>
+    /// Whether the sender text names <paramref name="characterName"/>, ignoring the game's marks and any
+    /// tags other plugins put around the name (Party Icons' job prefix, Player Tags' tags), so long as no
+    /// letter touches the name.
+    /// </summary>
+    public static bool Is(ReadOnlySpan<char> senderText, string characterName)
+    {
+        if (characterName.Length == 0)
+        {
+            return false;
+        }
+
+        for (var from = 0; from <= senderText.Length - characterName.Length;)
+        {
+            var at = senderText[from..].IndexOf(characterName, StringComparison.Ordinal);
+            if (at < 0)
+            {
+                return false;
+            }
+            at += from;
+            var end = at + characterName.Length;
+            if ((at == 0 || !char.IsLetter(senderText[at - 1])) && (end == senderText.Length || !char.IsLetter(senderText[end])))
+            {
+                return true;
+            }
+            from = at + 1;
+        }
+        return false;
+    }
 }
