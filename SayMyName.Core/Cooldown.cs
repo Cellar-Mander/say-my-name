@@ -9,7 +9,7 @@ public sealed class Cooldown
     /// <param name="nowMs">A monotonic clock in milliseconds, e.g. <see cref="Environment.TickCount64"/>.</param>
     public bool TryFire(long nowMs, TimeSpan length)
     {
-        if (lastFiredMs is { } last && nowMs - last < length.TotalMilliseconds)
+        if (!IsReady(nowMs, length))
         {
             return false;
         }
@@ -17,4 +17,8 @@ public sealed class Cooldown
         lastFiredMs = nowMs;
         return true;
     }
+
+    /// <summary>Whether <see cref="TryFire"/> would fire now, without restarting the cooldown.</summary>
+    public bool IsReady(long nowMs, TimeSpan length) =>
+        lastFiredMs is not { } last || nowMs - last >= length.TotalMilliseconds;
 }
