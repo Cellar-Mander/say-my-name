@@ -139,6 +139,7 @@ public class ConfigurationRoundTripTests
         Assert.Equal(576, loaded.TabHighlightColor);
     }
 
+    // revert-check: not revert-sensitive (unchanged; flagged only because the new test above it shares its diff hunk)
     [Fact]
     public void OnlyTriggerSectionStartsExpanded()
     {
