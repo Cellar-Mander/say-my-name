@@ -6,7 +6,7 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ### Fixed
 
-- Your own lines no longer set off alerts or get coloured when Party Icons or Player Tags put a tag next to your name.
+- Your own lines no longer set off alerts or get coloured when Party Icons or Player Tags tag or rename the sender.
 
 ## 0.1.0.0 - 2026-10-30
 

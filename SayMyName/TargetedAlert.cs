@@ -308,7 +308,7 @@ public sealed unsafe class TargetedAlert : IDisposable
     private bool SenderTargetsYou(IChatMessage message)
     {
         var link = ChatLines.SenderLink(message);
-        var name = link?.PlayerName ?? ChatSender.Name(message.Sender.TextValue).ToString();
+        var name = link?.PlayerName ?? ChatSender.Name(ChatLines.OriginalSenderText(message)).ToString();
         if (FakeTargetingYou?.Invoke(name) == true)
         {
             return true;
@@ -337,7 +337,7 @@ public sealed unsafe class TargetedAlert : IDisposable
     private bool SenderIsYourTarget(IChatMessage message, bool targetingYou)
     {
         var link = ChatLines.SenderLink(message);
-        var name = link?.PlayerName ?? ChatSender.Name(message.Sender.TextValue).ToString();
+        var name = link?.PlayerName ?? ChatSender.Name(ChatLines.OriginalSenderText(message)).ToString();
         if (FakeYourTarget?.Invoke(name) == true)
         {
             return !targetingYou || FakeTargetingYou?.Invoke(name) == true;

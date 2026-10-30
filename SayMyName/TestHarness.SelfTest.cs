@@ -188,6 +188,14 @@ public sealed partial class TestHarness
             InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload("WAR"), new TextPayload(" "), new TextPayload(me)), text);
             return line;
         }
+        // Your own unlinked line whose shown name another plugin replaces (Player Tags' random names)
+        SelfTestLine SendRenamedOwn(ChatChannel channel, string text)
+        {
+            line = new SelfTestLine(text);
+            rewriteSender.Add(text);
+            InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload(me)), text);
+            return line;
+        }
         // Send a line and, once it is back, check whether it alerted or which words were coloured
         SelfTestLine Sound(string name, bool expected, Enum channel, string sender, string text) =>
             Verified(name, expected, Send(channel, sender, text));
@@ -277,6 +285,7 @@ public sealed partial class TestHarness
         configuration.PlaySound = true;
         yield return Sound("Name: your own line is silent", false, Say, me, $"hi {first}");
         yield return Verified("Name: your own unlinked line with a job tag is silent", false, SendTaggedOwn(Say, $"hey {first}"));
+        yield return Verified("Name: your own unlinked line renamed by a plugin is silent", false, SendRenamedOwn(Say, $"yo {first}"));
         configuration.Nicknames = "Zuzu\nBig Zed";
         yield return Sound("Name: nickname sounds", true, Say, friend, "hi Zuzu");
         yield return Sound("Name: multi-word nickname, possessive sounds", true, Say, friend, "is that Big Zed's?");
