@@ -1,6 +1,9 @@
 name: Release
 
 # Push a tag named after the plugin's <Version>, e.g. v0.1.0.0, to publish that commit.
+# Main only takes PRs, so a release pushes repo.json to the release/repo-json branch and opens a PR
+# (or updates the open one); installs see the release once you merge it. This needs "Allow GitHub
+# Actions to create and approve pull requests" on in Settings > Actions > General.
 # A test tag, e.g. v0.1.0.0-test1, makes a prerelease and pushes repo.json to the release-test
 # branch instead of main; delete both afterwards:
 #   gh release delete v0.1.0.0-test1 --cleanup-tag --yes && git push origin --delete release-test
@@ -52,6 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
       TAG: ${{ github.ref_name }}
@@ -105,9 +109,17 @@ jobs:
         git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
         git add repo.json
         git commit -m "Update repo.json for $TAG"
-        # The test branch is a throwaway copy of main, so overwrite whatever an earlier test left
+        # Both branches are throwaway copies of main, so overwrite whatever an earlier run left;
+        # an unmerged release PR then always holds the newest repo.json, with no conflict
         if [[ $BRANCH == main ]]; then
-          git push origin main
+          git push --force origin HEAD:release/repo-json
+          title="Update repo.json for $TAG"
+          if [[ -n $(gh pr list --head release/repo-json --base main --state open --json number --jq '.[].number') ]]; then
+            gh pr edit release/repo-json --title "$title"
+          else
+            gh pr create --head release/repo-json --base main --title "$title" \
+              --body "Merge to publish $TAG to /xlsettings installs. Check the version and download links first."
+          fi
         else
           git push --force origin "HEAD:$BRANCH"
         fi
