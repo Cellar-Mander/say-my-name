@@ -56,7 +56,7 @@ public class ConfigWindow : Window, IDisposable
 
     private sealed record PickerIds(string Label, string Id)
     {
-        public string Swatch { get; } = $"##{Id}-swatch";
+        public string Swatch { get; } = $"###{Id}-swatch";
         public string None { get; } = $"None##{Id}-swatch";
         public string Popup { get; } = $"##{Id}-popup";
     }
@@ -491,7 +491,9 @@ public class ConfigWindow : Window, IDisposable
         var swatch = new Vector2(ImGui.GetFrameHeight());
         if (key != Configuration.NoColor && colors.TryGetValue(key, out var current))
         {
-            if (ImGui.ColorButton(ids.Swatch, current, ImGuiColorEditFlags.NoTooltip, swatch))
+            // Same tooltip as the palette's swatches (the row number and colour), hidden while the palette is open
+            var flags = ImGui.IsPopupOpen(ids.Popup) ? ImGuiColorEditFlags.NoTooltip : ImGuiColorEditFlags.None;
+            if (ImGui.ColorButton($"{key}{ids.Swatch}", current, flags, swatch))
             {
                 ImGui.OpenPopup(ids.Popup);
             }
