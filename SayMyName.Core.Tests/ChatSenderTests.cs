@@ -11,6 +11,11 @@ public class ChatSenderTests
     [InlineData("★Rose Thorne")]
     [InlineData(" Rose Thorne ")]
     [InlineData("Rose Thorne")]
+    // Tags other plugins add: Party Icons' job prefix (after the party number it keeps), Player Tags before or after
+    [InlineData("WAR Rose Thorne")]
+    [InlineData("WAR Rose Thorne")]
+    [InlineData("Rose Thorne Mentor")]
+    [InlineData("Healer Rose Thorne Friend")]
     public void RecognisesTheNameInsideTheGamesMarks(string sender)
     {
         Assert.True(ChatSender.Is(sender, "Rose Thorne"));
@@ -22,8 +27,12 @@ public class ChatSenderTests
     [InlineData("rose thorne")]
     [InlineData("Rose")]
     [InlineData("")]
+    [InlineData("WAR Rose Thornet")]
+    [InlineData("WARRose Thorne")]
+    [InlineData("Rose ThorneRose Thornet")]
     public void OtherNamesAreNotYou(string sender)
     {
+        // revert-check: not revert-sensitive (guards against the tag-tolerant match accepting names a letter touches)
         Assert.False(ChatSender.Is(sender, "Rose Thorne"));
     }
 
