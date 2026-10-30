@@ -218,7 +218,7 @@ public class ConfigWindow : Window, IDisposable
         ImGui.TextUnformatted("Listen on these channels:");
 
         using var table = ImRaii.Table("##channels", 1 + Columns.Count,
-            ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingFixedFit);
+            ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.PadOuterX);
         if (!table.Success)
         {
             return;
@@ -233,16 +233,21 @@ public class ConfigWindow : Window, IDisposable
             ImGui.TableSetupColumn(header);
         }
 
-        // Header row drawn by hand so a disabled trigger's header is dimmed with its column
+        // Header row drawn by hand so a disabled trigger's header is dimmed with its column.
+        // TableHeader (not plain text) so the columns fit their headers; its hover and click
+        // colours are cleared because the headers do nothing when clicked
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-        ImGui.TableNextColumn();
-        ImGui.TableHeader("Channel");
-        for (var t = 0; t < Columns.Count; t++)
+        using (ImRaii.PushColor(ImGuiCol.HeaderHovered, 0u).Push(ImGuiCol.HeaderActive, 0u))
         {
             ImGui.TableNextColumn();
-            using (ImRaii.Disabled(!configuration.Triggers[Columns[t]].Enabled))
+            ImGui.TableHeader("Channel");
+            for (var t = 0; t < Columns.Count; t++)
             {
-                ImGui.TableHeader(columnHeaders[t]);
+                ImGui.TableNextColumn();
+                using (ImRaii.Disabled(!configuration.Triggers[Columns[t]].Enabled))
+                {
+                    ImGui.TableHeader(columnHeaders[t]);
+                }
             }
         }
 
