@@ -110,10 +110,10 @@ public class TriggersTests
     }
 
     [Fact]
-    public void OnlyTargetSpeaksIsOffByDefault()
+    public void OnlyEmoteIsOffByDefault()
     {
         Assert.Equal(
-            [TriggerKind.TargetSpeaks],
+            [TriggerKind.Emote],
             Triggers.All.Where(k => !Triggers.Default(k).Enabled));
     }
 

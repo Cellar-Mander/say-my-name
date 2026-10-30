@@ -387,7 +387,7 @@ public sealed partial class TestHarness
 
         // Target Speaks trigger, solo
         var fresh = defaults.Triggers[TriggerKind.TargetSpeaks];
-        Check("Target Speaks: off by default", !fresh.Enabled, $"enabled={fresh.Enabled}");
+        Check("Target Speaks: on by default", fresh.Enabled, $"enabled={fresh.Enabled}");
         Baseline(TriggerKind.TargetSpeaks);
         fakeTarget = friend;
         yield return Sound("Target Speaks: Say sounds", true, Say, friend, "hello");
