@@ -31,6 +31,8 @@ public sealed unsafe partial class TestHarness : IDisposable
 
     // Texts injected but not yet seen; a handful at most, only touched on the framework thread
     private readonly HashSet<string> pending = [];
+    // Texts whose shown sender is replaced when they come back, as a plugin rewriting names would
+    private readonly HashSet<string> rewriteSender = [];
 
     private string? fakeTargeter;
     private string? fakeTarget;
@@ -377,6 +379,10 @@ public sealed unsafe partial class TestHarness : IDisposable
     private void OnChatMessage(IHandleableChatMessage message)
     {
         SelfTestSaw(message, unhandled: false);
+        if (rewriteSender.Remove(message.Message.TextValue))
+        {
+            message.Sender = new SeString(new TextPayload("Random Name"));
+        }
         if (pending.Contains(message.Message.TextValue))
         {
             Plugin.Log.Information($"Test harness: ChatMessage got {message.LogKind} from {message.Sender.TextValue}: {message.Message.TextValue}");
