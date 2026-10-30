@@ -45,7 +45,9 @@ public class ConfigWindow : Window, IDisposable
     // The preview: a sample line run through the chat highlighter, encoded again only when an input changes
     private const string PreviewFallbackName = "Rose";
     private const string PreviewBefore = "Hey ";
-    private const string PreviewAfter = ", thank you!";
+    private const string PreviewMiddle = ", thank ";
+    private const string PreviewYou = "you";
+    private const string PreviewAfter = "!";
     private (string You, ushort Text, ushort Glow)? previewInputs;
     private byte[] previewBytes = [];
     private static readonly PickerIds TextPicker = new("Text", "highlightText");
@@ -460,7 +462,7 @@ public class ConfigWindow : Window, IDisposable
     }
 
     /// <summary>
-    /// A sample chat line with your first name highlighted by the same code as chat, drawn by
+    /// A sample chat line with your first name and "you" highlighted by the same code as chat, drawn by
     /// Dalamud's SeString renderer, which draws colours and glow as the game does.
     /// </summary>
     private void DrawHighlightPreview()
@@ -470,9 +472,11 @@ public class ConfigWindow : Window, IDisposable
         {
             previewInputs = inputs;
             var name = inputs.CharacterName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? PreviewFallbackName;
-            var line = new SeStringBuilder().AddText(PreviewBefore + name + PreviewAfter).Build();
+            var line = new SeStringBuilder().AddText(PreviewBefore + name + PreviewMiddle + PreviewYou + PreviewAfter).Build();
             highlighter.Begin(line);
             highlighter.Matches.Add((PreviewBefore.Length, name.Length));
+            // As chat colours it from a sender targeting you
+            highlighter.Matches.Add((PreviewBefore.Length + name.Length + PreviewMiddle.Length, PreviewYou.Length));
             previewBytes = highlighter.Highlight(line).Encode();
         }
 
