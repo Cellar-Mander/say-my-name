@@ -17,6 +17,7 @@ Alert Triggers:
 
 Each alert can play a sound, colour the matched words and colour inactive chat tabs that show the line. Choose the channels each alert listens on, a quiet time between sounds, and the colours.</Description>
     <RepoUrl>https://github.com/Cellar-Mander/say-my-name</RepoUrl>
+    <IconUrl>https://raw.githubusercontent.com/Cellar-Mander/say-my-name/v$(Version)/SayMyName/images/icon.png</IconUrl>
     <Tags>chat;alert;notification;sound;highlight;social</Tags>
   </PropertyGroup>
 

@@ -27,6 +27,7 @@
     "DownloadLinkTesting": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.0.0/SayMyName.zip",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": 1793321799
+    "LastUpdate": 1793321799,
+    "IconUrl": "https://raw.githubusercontent.com/Cellar-Mander/say-my-name/v0.1.0.0/SayMyName/images/icon.png"
   }
 ]
