@@ -391,9 +391,12 @@ public class ConfigWindow : Window, IDisposable
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Test"))
+        using (ImRaii.Disabled(!alertSound.CanTest))
         {
-            alertSound.Play();
+            if (ImGui.Button("Test"))
+            {
+                alertSound.Test();
+            }
         }
 
         ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);

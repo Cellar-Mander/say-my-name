@@ -40,4 +40,17 @@ public class CooldownTests
         Assert.True(cooldown.TryFire(0, TimeSpan.Zero));
         Assert.True(cooldown.TryFire(0, TimeSpan.Zero));
     }
+
+    [Fact]
+    public void IsReadyReportsWithoutRestartingTheCooldown()
+    {
+        var cooldown = new Cooldown();
+        Assert.True(cooldown.IsReady(0, FiveSeconds));
+        Assert.True(cooldown.IsReady(0, FiveSeconds));
+
+        cooldown.TryFire(1_000, FiveSeconds);
+        Assert.False(cooldown.IsReady(5_999, FiveSeconds));
+        Assert.True(cooldown.IsReady(6_000, FiveSeconds));
+        Assert.True(cooldown.TryFire(6_000, FiveSeconds));
+    }
 }
