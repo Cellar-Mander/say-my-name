@@ -449,7 +449,7 @@ public class ConfigWindow : Window, IDisposable
         using var indent = ImRaii.PushIndent();
         using var disabled = ImRaii.Disabled(!highlightTabs);
         var tabColor = configuration.TabHighlightColor;
-        if (DrawColorPicker(TabPicker, ref tabColor, colors, palette))
+        if (DrawColorPicker(TabPicker, ref tabColor, colors, palette, allowNone: false))
         {
             configuration.TabHighlightColor = tabColor;
             configuration.Save();
@@ -478,8 +478,8 @@ public class ConfigWindow : Window, IDisposable
         ImGuiHelpers.SeStringWrapped(previewBytes, new SeStringDrawParams());
     }
 
-    /// <summary>A swatch that opens a grid of the palette's colours, plus None. True when one is picked.</summary>
-    private static bool DrawColorPicker(PickerIds ids, ref ushort key, Dictionary<ushort, Vector4> colors, List<List<ushort>> palette)
+    /// <summary>A swatch that opens a grid of the palette's colours, plus None if allowed. True when one is picked.</summary>
+    private static bool DrawColorPicker(PickerIds ids, ref ushort key, Dictionary<ushort, Vector4> colors, List<List<ushort>> palette, bool allowNone = true)
     {
         var swatch = new Vector2(ImGui.GetFrameHeight());
         if (key != Configuration.NoColor && colors.TryGetValue(key, out var current))
@@ -504,7 +504,7 @@ public class ConfigWindow : Window, IDisposable
         }
 
         var picked = false;
-        if (ImGui.Selectable("None", key == Configuration.NoColor))
+        if (allowNone && ImGui.Selectable("None", key == Configuration.NoColor))
         {
             key = Configuration.NoColor;
             picked = true;

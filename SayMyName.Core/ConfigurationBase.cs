@@ -65,8 +65,10 @@ public abstract class ConfigurationBase
     /// <summary>Colour the names of inactive chat tabs that show a line which set off an alert, until the tab is opened.</summary>
     public bool HighlightTabs { get; set; } = true;
 
-    /// <summary>UIColor sheet row for a highlighted tab's name (orange), or <see cref="NoColor"/>.</summary>
-    public ushort TabHighlightColor { get; set; } = 500;
+    /// <summary>UIColor sheet row for a highlighted tab's name (orange); never <see cref="NoColor"/>, which would be HighlightTabs off.</summary>
+    public ushort TabHighlightColor { get; set; } = DefaultTabHighlightColor;
+
+    private const ushort DefaultTabHighlightColor = 500;
 
     /// <summary>Settings window sections shown expanded; any other, including ones added later, starts closed.</summary>
     // Null until loaded, for the same reason as Triggers: a pre-filled set would bring back sections
@@ -94,5 +96,11 @@ public abstract class ConfigurationBase
             Nicknames = Nicknames[..MaxNicknamesLength];
         }
         ExpandedSections ??= [SettingsSection.Triggers];
+        // Older versions offered None for the tab colour, which meant no tab highlighting
+        if (TabHighlightColor == NoColor)
+        {
+            HighlightTabs = false;
+            TabHighlightColor = DefaultTabHighlightColor;
+        }
     }
 }
