@@ -129,6 +129,17 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
+    public void FreshConfigHasDefaultSoundAndColours()
+    {
+        var loaded = SaveAndLoad(Fresh());
+
+        Assert.Equal(16, loaded.SoundEffect);
+        Assert.Equal(535, loaded.HighlightTextColor);
+        Assert.Equal(18, loaded.HighlightGlowColor);
+        Assert.Equal(576, loaded.TabHighlightColor);
+    }
+
+    [Fact]
     public void OnlyTriggerSectionStartsExpanded()
     {
         Assert.Equal([SettingsSection.Triggers], SaveAndLoad(Fresh()).ExpandedSections!);

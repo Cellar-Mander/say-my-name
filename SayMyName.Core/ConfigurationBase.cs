@@ -48,7 +48,7 @@ public abstract class ConfigurationBase
     public bool PlaySound { get; set; } = true;
 
     /// <summary>The chat sound effect, as in &lt;se.1&gt; to &lt;se.16&gt;.</summary>
-    public int SoundEffect { get; set; } = MinSoundEffect;
+    public int SoundEffect { get; set; } = 16;
 
     /// <summary>Minimum time between alert sounds.</summary>
     public int CooldownSeconds { get; set; } = 5;
@@ -56,19 +56,19 @@ public abstract class ConfigurationBase
     /// <summary>Colour the words that set off a trigger (your name, custom words, 'you' words) in chat, whether or not a sound plays.</summary>
     public bool Highlight { get; set; } = true;
 
-    /// <summary>UIColor sheet row for highlighted text (pale yellow), or <see cref="NoColor"/>.</summary>
-    public ushort HighlightTextColor { get; set; } = 25;
+    /// <summary>UIColor sheet row for highlighted text, or <see cref="NoColor"/>.</summary>
+    public ushort HighlightTextColor { get; set; } = 535;
 
-    /// <summary>UIColor sheet row for the highlighted text's edge glow (orange), or <see cref="NoColor"/>.</summary>
-    public ushort HighlightGlowColor { get; set; } = 500;
+    /// <summary>UIColor sheet row for the highlighted text's edge glow, or <see cref="NoColor"/>.</summary>
+    public ushort HighlightGlowColor { get; set; } = 18;
 
     /// <summary>Colour the names of inactive chat tabs that show a line which set off an alert, until the tab is opened.</summary>
     public bool HighlightTabs { get; set; } = true;
 
-    /// <summary>UIColor sheet row for a highlighted tab's name (orange); never <see cref="NoColor"/>, which would be HighlightTabs off.</summary>
+    /// <summary>UIColor sheet row for a highlighted tab's name; never <see cref="NoColor"/>, which would be HighlightTabs off.</summary>
     public ushort TabHighlightColor { get; set; } = DefaultTabHighlightColor;
 
-    private const ushort DefaultTabHighlightColor = 500;
+    private const ushort DefaultTabHighlightColor = 576;
 
     /// <summary>Settings window sections shown expanded; any other, including ones added later, starts closed.</summary>
     // Null until loaded, for the same reason as Triggers: a pre-filled set would bring back sections

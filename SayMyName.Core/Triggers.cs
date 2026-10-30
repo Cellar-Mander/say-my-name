@@ -113,8 +113,8 @@ public static class Triggers
 
     public static TriggerSettings Default(TriggerKind kind) => new()
     {
-        // Watching the target is opt-in; the others are what people install the plugin for
-        Enabled = kind != TriggerKind.TargetSpeaks,
+        // Emotes at you are mostly social noise, so alerting on them is opt-in
+        Enabled = kind != TriggerKind.Emote,
         Channels = [.. AllowedChannels(kind).Where(c => !OffByDefault.Contains(c))],
     };
 }

@@ -4,6 +4,10 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ## Unreleased
 
+### Changed
+
+- New defaults: the Target Speaks alert starts on and the Emote alert starts off; the sound is `<se.16>`; the highlight text, glow and tab colours changed. Settings you have already saved are kept.
+
 ### Fixed
 
 - Your own lines no longer set off alerts or get coloured when Party Icons or Player Tags tag or rename the sender.
