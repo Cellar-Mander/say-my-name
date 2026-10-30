@@ -110,6 +110,19 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
+    public void SavedTabColourNoneLoadsAsTabHighlightingOff()
+    {
+        var config = Fresh();
+        config.HighlightTabs = true;
+        config.TabHighlightColor = ConfigurationBase.NoColor;
+
+        var loaded = SaveAndLoad(config);
+
+        Assert.False(loaded.HighlightTabs);
+        Assert.Equal(Fresh().TabHighlightColor, loaded.TabHighlightColor);
+    }
+
+    [Fact]
     public void TargetSpeaksAlertsOnlyWhileTargetingYouByDefault()
     {
         Assert.True(SaveAndLoad(Fresh()).TargetSpeaksOnlyTargetingYou);
