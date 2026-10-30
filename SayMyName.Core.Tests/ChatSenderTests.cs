@@ -32,6 +32,7 @@ public class ChatSenderTests
     [InlineData("Rose ThorneRose Thornet")]
     public void OtherNamesAreNotYou(string sender)
     {
+        // revert-check: not revert-sensitive (guards against the tag-tolerant match accepting names a letter touches)
         Assert.False(ChatSender.Is(sender, "Rose Thorne"));
     }
 
