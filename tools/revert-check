@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copy of ~/Repo/ebd/bin/revert-check at 1bd04e3; update from there.
+# Copy of ~/Repo/ebd/bin/revert-check at 146642f; update from there.
 """revert-check: do the branch's new or changed tests fail when its product changes are reverted?
 
     revert-check [--ci] [--quiet] [--base REF] [--head REV]
@@ -61,6 +61,7 @@ ATTR_NAME = re.compile(r"\bfn\s+(\w+)|\b(\w+)\s*\(")
 BOUNDARY = re.compile(r"^(\s*)(?:def |async def |class |func |fn |pub |\[|#\[|public |private |protected |internal "
                       r"|static |it\(|test\(|describe\()")
 COMMENT = re.compile(r"^\s*(#|//|@|\[)")
+LINE_COMMENT = re.compile(r"^\s*(?:#(?!\[)|//)")  # a whole-line comment, not a #[...] attribute
 
 
 def line_test(line):
@@ -97,13 +98,17 @@ def is_test_path(path, globs):
     return bool(TEST_PATH.search(path))
 
 
-def changed_lines(diff):
-    """Line numbers at HEAD that a -U0 diff adds or changes."""
-    out = set()
-    for m in re.finditer(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", diff, re.MULTILINE):
-        start, count = int(m.group(1)), int(m.group(2) or 1)
-        out.update(range(start, start + count))
-    return out
+def changed_tests(path, old, new):
+    """Tests in a file at HEAD (text `new`) that are new or whose code differs from the base (`old`).
+    Compared by text rather than by diff lines: a test inserted next to one that starts with the
+    same lines (e.g. [Fact]) gives an ambiguous diff that can land in the neighbour's span. Edits
+    to whole-line comments and whitespace don't count, so adding or removing a marker doesn't."""
+    def code(lines, d):
+        return tuple(" ".join(ln.split()) for ln in lines[d.start:d.end] if ln.strip() and not LINE_COMMENT.match(ln))
+
+    old_lines, new_lines = old.splitlines(), new.splitlines()
+    before = {code(old_lines, d) for d in test_defs(path, old)}
+    return [d for d in test_defs(path, new) if code(new_lines, d) not in before]
 
 
 @dataclass
@@ -479,10 +484,8 @@ def main(argv=None):
     for status, f in tests:
         if status == "D":
             continue
-        lines = changed_lines(git("diff", "-U0", "--no-renames", mb, head, "--", f, cwd=root))
-        for d in test_defs(f, git("show", f"{head}:{f}", cwd=root)):
-            if any(d.start < n <= d.end for n in lines):
-                defs.append(d)
+        old = git("show", f"{mb}:{f}", cwd=root) if status != "A" else ""
+        defs += changed_tests(f, old, git("show", f"{head}:{f}", cwd=root))
     if not defs:
         say(f"test files changed since {base}, but no test function in them did. Nothing to prove.")
         return 0
