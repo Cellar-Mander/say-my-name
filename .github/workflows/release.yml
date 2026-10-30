@@ -54,6 +54,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     env:
@@ -120,6 +121,10 @@ jobs:
             gh pr create --head release/repo-json --base main --title "$title" \
               --body "Merge to publish $TAG to /xlsettings installs. Check the version and download links first."
           fi
+          # Pushes and PRs made with github.token start no workflows, so main's required "test"
+          # check would never report; a workflow_dispatch run is the exception, and its check on
+          # the branch head counts for the PR
+          gh workflow run test.yml --ref release/repo-json
         else
           git push --force origin "HEAD:$BRANCH"
         fi
