@@ -4,6 +4,8 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ## Unreleased
 
+## 0.1.1.0 - 2026-10-31
+
 ### Added
 
 - Hovering a highlight colour (Text, Glow, Tab name) in settings shows its colour details, as the colour picker does.
@@ -15,6 +17,8 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 ### Fixed
 
 - Your own lines no longer set off alerts or get coloured when Party Icons or Player Tags tag or rename the sender.
+- The settings preview colours "you" as chat does, not only your name.
+- The plugin installer shows the plugin's icon instead of a question mark.
 
 ## 0.1.0.0 - 2026-10-30
 
