@@ -1,6 +1,0 @@
-# Commands for ~/.claude/hooks/checks.sh and ~/.local/bin/pre-pr (key=value; {file} = edited file).
-# --include ignores absolute paths silently, hence realpath. Whitespace/charset only: analyzer warnings already fail the build (TreatWarningsAsErrors).
-lint=case {file} in *.cs) dotnet format whitespace SayMyName.slnx --verify-no-changes --include "$(realpath --relative-to=. {file})" ;; esac
-stop=dotnet build SayMyName.slnx --nologo -v q && dotnet test SayMyName.Core.Tests --nologo --no-build
-# Core.Tests only, like CI: the plugin project needs a Dalamud install to build.
-revert_test=dotnet build SayMyName.Core.Tests --nologo -v q && dotnet test SayMyName.Core.Tests --nologo --no-build --logger "trx;LogFileName={trx}"

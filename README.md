@@ -9,7 +9,7 @@ Alerts can be configured to trigger on certain criteria and chat message content
 - **Custom**: your own words and phrases
 - **You**: a player targeting you says "you", "your", "thou", "thine" and the like
 - **Emote**: a player uses an emote on you, including motion-only emotes
-- **Target Speaks**: your current target says something (off by default)
+- **Target Speaks**: your current target says something while targeting you
 
 Each alert can play a sound, colour the matched words and colour inactive chat tabs that show the line. Choose the channels each alert listens on, a quiet time between sounds, and the colours.
 

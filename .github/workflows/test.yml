@@ -42,4 +42,7 @@ jobs:
         dotnet-version: 10.0.x
 
     - name: Revert check
-      run: python3 tools/revert-check --ci
+      # Core.Tests only, like the test job: the plugin project needs a Dalamud install to build.
+      run: >-
+        python3 tools/revert-check --ci --test-cmd
+        'dotnet build SayMyName.Core.Tests --nologo -v q && dotnet test SayMyName.Core.Tests --nologo --no-build --logger "trx;LogFileName={trx}"'
