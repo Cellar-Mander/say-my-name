@@ -3,7 +3,7 @@
     "Author": "Cellar Mander",
     "Name": "Say My Name",
     "InternalName": "SayMyName",
-    "AssemblyVersion": "0.1.0.0",
+    "AssemblyVersion": "0.1.1.0",
     "Description": "Alerts you when other players call for you in chat, so you notice even while busy or looking away.\n\nAlert Triggers:\n• Name: your character's name or nicknames, even stretched (Aliiice) or spelled out (A-L-I-C-E)\n• Custom: your own words and phrases\n• You: a player targeting you says \"you\", \"your\", \"thou\", \"thine\" and the like\n• Emote: a player uses an emote on you, including motion-only emotes\n• Target Speaks: your current target says something while targeting you\n\nEach alert can play a sound, colour the matched words and colour inactive chat tabs that show the line. Choose the channels each alert listens on, a quiet time between sounds, and the colours.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/Cellar-Mander/say-my-name",
@@ -20,14 +20,14 @@
     "LoadSync": false,
     "CanUnloadAsync": false,
     "LoadPriority": 0,
+    "IconUrl": "https://raw.githubusercontent.com/Cellar-Mander/say-my-name/v0.1.1.0/SayMyName/images/icon.png",
     "Punchline": "Get a sound and highlighted chat when other players mention you.",
     "AcceptsFeedback": true,
-    "DownloadLinkInstall": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.0.0/SayMyName.zip",
-    "DownloadLinkUpdate": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.0.0/SayMyName.zip",
-    "DownloadLinkTesting": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.0.0/SayMyName.zip",
+    "DownloadLinkInstall": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.1.0/SayMyName.zip",
+    "DownloadLinkUpdate": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.1.0/SayMyName.zip",
+    "DownloadLinkTesting": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.1.0/SayMyName.zip",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": 1793321799,
-    "IconUrl": "https://raw.githubusercontent.com/Cellar-Mander/say-my-name/v0.1.0.0/SayMyName/images/icon.png"
+    "LastUpdate": 1793404327
   }
 ]
