@@ -30,6 +30,16 @@ Updates arrive through the plugin installer like any other plugin.
 
 Type `/saymyname`, or click the plugin's settings button in `/xlplugins`, to choose which alerts are on and how they look and sound.
 
+## Compatibility
+
+Say My Name has been tested with:
+
+- **Chat 2**: alerts and sounds work, and matched words are coloured but without their glow. Inactive tabs aren't coloured, because Chat 2 replaces the game's chat window, which is where that colouring happens.
+- **Party Icons** and **Player Tags**: your own messages are still recognised as yours when these plugins add job, role or sender tags around your name. Player Tags' random-name mode hasn't been tested yet.
+- **The game's speech bubbles**: work as normal with highlighted messages.
+
+Using another chat plugin and something looks wrong? [Open an issue](https://github.com/Cellar-Mander/say-my-name/issues).
+
 ## Good to know
 
 - This is a third-party plugin. The Dalamud team has not reviewed it, which is why Dalamud warns you when you add a custom repository.
