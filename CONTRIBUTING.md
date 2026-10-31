@@ -67,3 +67,36 @@ One-time setup:
 `/saymyname` (or the plugin installer's buttons) opens the settings window. `/xllog` shows the plugin log, which starts with the loaded build's commit, e.g. `Say My Name 0.0.0.1+60d7b0d… loaded`.
 
 [docs/smoke-test.md](docs/smoke-test.md) is the in-game checklist, and describes `/saymyname inject`, which fakes chat lines from other players when loaded as a dev plugin.
+
+## Releasing
+
+A release is the plugin's `<Version>` in `SayMyName/SayMyName.csproj` (four numbers, e.g. `0.1.2.0`), published from the tag `v<Version>`. Installs see it once `repo.json` on `main` points at it. `scripts/release` (Git Bash on Windows) and `.github/workflows/release.yml` do the mechanical steps:
+
+1. Check that `CHANGELOG.md`'s Unreleased section covers every user-facing change. The Changelog check flags PRs that change plugin code without an entry; label a PR `no-changelog` when users won't notice it.
+2. From a clean checkout, with `gh` signed in:
+
+   ```bash
+   scripts/release prepare 0.1.2.0
+   ```
+
+   It makes branch `release-prep/v0.1.2.0` from `origin/main`, sets `<Version>`, dates the Unreleased entries, builds, runs the tests and opens the PR. In the PR, check the list of changes since the last release (⚠ marks plugin code changes with no CHANGELOG entry) and any note that your local Dalamud differs from the one CI builds against (see below). Then merge it.
+3. Merging starts the Release workflow, which waits for you: open the run in Actions and approve the `release` deployment under Review deployments. It then tags the merge commit, builds, creates the GitHub release with the version's CHANGELOG section as its notes, and opens a PR titled "Update repo.json for v0.1.2.0".
+4. Check that PR's version and download links, then merge it. If GitHub holds its checks with "Approve and run workflows", approve them first.
+5. Check what installs get (raw.githubusercontent.com caches `repo.json` for a few minutes, so a just-merged PR can still show the old version):
+
+   ```bash
+   scripts/release verify 0.1.2.0
+   ```
+
+Pushing a tag by hand (`git tag v0.1.2.0 <commit> && git push origin v0.1.2.0`) also publishes, without the approval step. A test tag such as `v0.1.2.0-test1` makes a prerelease and pushes `repo.json` to the `release-test` branch instead of opening a PR; delete both afterwards:
+
+```bash
+gh release delete v0.1.2.0-test1 --cleanup-tag --yes && git push origin --delete release-test
+```
+
+CI builds against a pinned Dalamud (`.github/actions/install-dalamud/action.yml`), while the launcher updates your local one by itself. When `prepare` notes that they differ and you've tested with the newer one, move the pin as that file's comment describes.
+
+One-time repository settings the workflow needs:
+
+- Settings → Actions → General: "Allow GitHub Actions to create and approve pull requests", for the `repo.json` PR.
+- Settings → Environments: a `release` environment with you as required reviewer, limited to `main`. Without it, GitHub creates the environment unprotected on the first run and tags without asking.

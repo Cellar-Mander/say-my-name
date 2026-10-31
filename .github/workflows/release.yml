@@ -1,5 +1,6 @@
 name: Release
 
+# See "Releasing" in CONTRIBUTING.md for the whole process.
 # Merging a change to <Version> into main (scripts/release prepare opens that PR) asks to tag the
 # merge commit v<Version>; approve the "release" deployment in the run to tag and publish it.
 # Pushing a tag named after the plugin's <Version>, e.g. v0.1.0.0, publishes that commit directly.
