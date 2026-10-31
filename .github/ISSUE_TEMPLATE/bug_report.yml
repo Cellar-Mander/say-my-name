@@ -1,0 +1,99 @@
+name: Bug report
+description: Something in Say My Name doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. The more of this form you fill in, the quicker the problem can be found.
+
+        Please remove or blank out other players' names from anything you paste.
+
+  - type: input
+    id: version
+    attributes:
+      label: Plugin version
+      description: Type `/xllog` in game and search for "Say My Name". Copy the line that ends in "loaded", or give the version shown in `/xlplugins`.
+      placeholder: Say My Name 0.1.1.0+803135d loaded
+    validations:
+      required: true
+
+  - type: dropdown
+    id: alert
+    attributes:
+      label: Which alert?
+      multiple: true
+      options:
+        - Name
+        - Custom
+        - You
+        - Emote
+        - Target Speaks
+        - Not sure / not about an alert
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: affected
+    attributes:
+      label: What went wrong?
+      description: Tick all that apply.
+      options:
+        - label: No alert at all when there should have been one
+        - label: An alert when there shouldn't have been one
+        - label: Sound didn't play, or played wrongly
+        - label: Words weren't coloured, or the wrong words were coloured
+        - label: Inactive chat tab wasn't coloured, or stayed coloured
+        - label: Settings window
+        - label: Something else (describe below)
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe what you saw. Screenshots help.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: How can the problem be made to happen again? Include the chat channel (Say, Party, Tell, Free Company, ...) and an example message if it is about chat.
+      placeholder: |
+        1. Turn on the Name alert with the nickname "Ali"
+        2. Have someone say "hey ali" in Party chat
+        3. No sound plays
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Sometimes
+        - Only once so far
+
+  - type: textarea
+    id: other-plugins
+    attributes:
+      label: Other chat or nameplate plugins
+      description: List any plugins that change chat, names or nameplates, such as Chat 2, Party Icons or Player Tags. Write "none" if there are none.
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log lines
+      description: Optional. Any lines from `/xllog` that mention Say My Name around the time of the problem, especially errors.
+      render: text
