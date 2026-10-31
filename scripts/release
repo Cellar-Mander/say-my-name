@@ -9,6 +9,18 @@ csproj=SayMyName/SayMyName.csproj
 # keep SayMyName.Core.Tests out.
 plugin_paths=(SayMyName/ SayMyName.Core/)
 
+# The Dalamud local builds use, as in CONTRIBUTING.md's table, and the one CI builds against
+if [[ -n ${DALAMUD_HOME:-} ]]; then
+    dalamud_dir=$DALAMUD_HOME
+elif [[ -n ${APPDATA:-} ]] && command -v cygpath >/dev/null; then
+    dalamud_dir=$(cygpath -u "$APPDATA")/XIVLauncher/addon/Hooks/dev
+elif [[ $(uname) == Darwin ]]; then
+    dalamud_dir="$HOME/Library/Application Support/XIV on Mac/dalamud/Hooks/dev"
+else
+    dalamud_dir=$HOME/.xlcore/dalamud/Hooks/dev
+fi
+pin_file=.github/actions/install-dalamud/action.yml
+
 usage() {
     cat >&2 <<EOF
 Usage: scripts/release prepare <version>   e.g. 0.1.2.0
@@ -29,6 +41,21 @@ EOF
 die() { echo "$*" >&2; exit 1; }
 
 csproj_version() { sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p'; }
+
+# A note when the launcher has updated the local Dalamud past the one CI is pinned to, so
+# releases still build against an older one than you test with in-game
+dalamud_note() {
+    local pinned local_version
+    pinned=$(sed -n 's/^ *DALAMUD_VERSION: *//p' "$top/$pin_file" 2>/dev/null)
+    [[ -n $pinned ]] || return 0
+    local_version=$(grep -o '"Dalamud/[^"]*"' "$dalamud_dir/Dalamud.deps.json" 2>/dev/null |
+        head -1 | sed 's:"Dalamud/\(.*\)":\1:')
+    if [[ -z $local_version ]]; then
+        echo "⚠ Couldn't read the local Dalamud version from $dalamud_dir/Dalamud.deps.json; CI builds against $pinned."
+    elif [[ $local_version != "$pinned" ]]; then
+        echo "⚠ Local Dalamud is $local_version but CI builds against $pinned. If you've tested with $local_version, move the pin in $pin_file."
+    fi
+}
 
 # One line per change on main since $1: number, title and a flag when it changed plugin code
 # without touching the CHANGELOG
@@ -82,6 +109,10 @@ prepare() {
         "$top/CHANGELOG.md" >"$top/CHANGELOG.md.tmp"
     mv "$top/CHANGELOG.md.tmp" "$top/CHANGELOG.md"
 
+    local note
+    note=$(dalamud_note)
+    [[ -z $note ]] || echo "$note" >&2
+
     # The release workflow refuses a tag that doesn't match the version DalamudPackager writes
     dotnet build "$top/SayMyName.slnx" -c Release --nologo -v q
     local built
@@ -104,7 +135,9 @@ Before merging, check that every user-facing change below has a CHANGELOG entry.
 
 Changes since $last:
 $changes
-
+${note:+
+$note
+}
 After merging, approve the "release" deployment in the Release run to tag the merge commit \`$tag\` and publish it.
 EOF
 )"
