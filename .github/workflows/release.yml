@@ -89,10 +89,27 @@ jobs:
           echo "BRANCH=main" >> "$GITHUB_ENV"
         fi
 
+    # The notes are the tag's CHANGELOG section for the version, so they say what users read in
+    # the changelog. A test tag made before the section was dated falls back to Unreleased.
     - name: Create release
       run: |
+        git fetch -q --depth=1 origin "refs/tags/$TAG:refs/tags/$TAG"
+        section() {
+          git show "$TAG:CHANGELOG.md" |
+            awk -v h="$1" '/^## /{s = index($0 " ", h " ") == 1; next} s' | sed '/./,$!d'
+        }
+        base=${TAG%%-test*}
+        section "## ${base#v}" > notes.md
+        if [[ ! -s notes.md && -n $PRERELEASE ]]; then
+          section "## Unreleased" > notes.md
+          [[ -s notes.md ]] || echo "Test build of $TAG." > notes.md
+        fi
+        if [[ ! -s notes.md ]]; then
+          echo "::error file=CHANGELOG.md::No CHANGELOG section for ${base#v} at $TAG"
+          exit 1
+        fi
         mv release/latest.zip release/SayMyName.zip
-        gh release create "$TAG" release/SayMyName.zip --verify-tag --generate-notes --title "$TAG" $PRERELEASE
+        gh release create "$TAG" release/SayMyName.zip --verify-tag --notes-file notes.md --title "$TAG" $PRERELEASE
 
     # repo.json (pluginmaster format) is what /xlsettings fetches from the raw main URL
     - name: Update repo.json
