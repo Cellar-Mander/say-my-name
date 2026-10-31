@@ -1,0 +1,35 @@
+name: Changelog
+
+# A PR that changes the plugin's code should say what changed for users in CHANGELOG.md.
+# Informs only: keep this job out of required checks. Label a PR no-changelog when the change
+# isn't user-facing; Dependabot's PRs are skipped, as package bumps don't change behaviour users see.
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened, labeled, unlabeled ]
+
+jobs:
+
+  changelog:
+    if: >-
+      ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') &&
+      github.event.pull_request.user.login != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Check CHANGELOG
+      env:
+        BASE: ${{ github.event.pull_request.base.sha }}
+        HEAD: ${{ github.event.pull_request.head.sha }}
+      # The trailing slashes keep SayMyName.Core.Tests out
+      run: |
+        if ! git diff --quiet "$BASE...$HEAD" -- SayMyName/ SayMyName.Core/ &&
+            git diff --quiet "$BASE...$HEAD" -- CHANGELOG.md; then
+          echo "::error file=CHANGELOG.md::This PR changes plugin code but not CHANGELOG.md. Add an entry under Unreleased, or label the PR no-changelog if users won't notice the change."
+          exit 1
+        fi
