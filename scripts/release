@@ -12,11 +12,16 @@ plugin_paths=(SayMyName/ SayMyName.Core/)
 usage() {
     cat >&2 <<EOF
 Usage: scripts/release prepare <version>   e.g. 0.1.2.0
+       scripts/release verify <version>
 
 prepare: from origin/main, make branch release-prep/v<version> that sets <Version> and moves the
 CHANGELOG's Unreleased entries under a dated heading; build, test, push and open the PR. The PR
 lists the changes merged since the last release, flagging plugin code changes that touched no
 CHANGELOG entry.
+
+verify: check that the published release is what installs get: the tag is on main at that
+version, the GitHub release has the zip, the zip's manifest has the version, and the live
+repo.json on main points at it. Exits 1 if any check fails.
 EOF
     exit 2
 }
@@ -105,7 +110,70 @@ EOF
 )"
 }
 
+verify() {
+    [[ $# == 1 ]] || usage
+    local version=$1 tag=v$1 failed=0
+    check() {
+        if [[ $2 == "$3" ]]; then echo "✓ $1"; else echo "✗ $1: expected $3, got ${2:-nothing}"; failed=1; fi
+    }
+    # Fields of the one-entry, one-field-per-line JSON that repo.json and the manifest use
+    field() { sed -n "s/.*\"$1\": *\"\([^\"]*\)\".*/\1/p" <<<"$2"; }
+
+    local repo
+    repo=$(sed -n 's:.*<RepoUrl>https\://github.com/\(.*\)</RepoUrl>.*:\1:p' "$top/$csproj")
+    git -C "$top" fetch -q --tags origin main
+
+    local tagged=
+    if git -C "$top" rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+        git -C "$top" merge-base --is-ancestor "$tag" origin/main && tagged=yes
+        check "$tag is on main" "$tagged" yes
+        check "<Version> at $tag" "$(git -C "$top" show "$tag:$csproj" | csproj_version)" "$version"
+    else
+        check "tag $tag" "" "pushed to origin"
+    fi
+
+    check "GitHub release $tag" \
+        "$(gh release view "$tag" -R "$repo" --json isPrerelease,isDraft,assets \
+            --jq 'if .isDraft then "draft" elif .isPrerelease then "prerelease"
+                  else [.assets[].name] | join(",") end' 2>/dev/null)" "SayMyName.zip"
+
+    local url=https://github.com/$repo/releases/download/$tag/SayMyName.zip
+    local zip
+    zip=$(mktemp)
+    # shellcheck disable=SC2064 # expand now: zip is local and gone when the trap runs
+    trap "rm -f '$zip'" EXIT
+    if curl -sfL -o "$zip" "$url"; then
+        check "version in the zip's manifest" \
+            "$(field AssemblyVersion "$(unzip -p "$zip" SayMyName.json 2>/dev/null)")" "$version"
+    else
+        check "download $url" "" "the zip"
+    fi
+
+    # What /xlsettings fetches. raw.githubusercontent.com caches for a few minutes, so a repo.json
+    # PR merged just now can still show the old version.
+    local json
+    json=$(curl -sfL "https://raw.githubusercontent.com/$repo/main/repo.json" || true)
+    check "repo.json AssemblyVersion" "$(field AssemblyVersion "$json")" "$version"
+    local link
+    for link in DownloadLinkInstall DownloadLinkUpdate DownloadLinkTesting; do
+        check "repo.json $link" "$(field "$link" "$json")" "$url"
+    done
+    local icon
+    icon=$(field IconUrl "$json")
+    check "repo.json IconUrl" "$icon" \
+        "https://raw.githubusercontent.com/$repo/$tag/SayMyName/images/icon.png"
+    check "icon downloads" "$(curl -sfIL -o /dev/null -w '%{http_code}' "$icon" || true)" 200
+
+    if ((failed)); then
+        local pr
+        pr=$(gh pr list -R "$repo" --head release/repo-json --state open --json url --jq '.[].url')
+        [[ -z $pr ]] || echo "The repo.json PR isn't merged yet: $pr"
+        return 1
+    fi
+}
+
 case ${1:-} in
     prepare) shift; prepare "$@" ;;
+    verify) shift; verify "$@" ;;
     *) usage ;;
 esac
