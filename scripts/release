@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Release steps that need no judgement. See .github/workflows/release.yml for what happens once
+# the release-prep PR is merged and the merge commit is tagged.
+set -euo pipefail
+
+top=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
+csproj=SayMyName/SayMyName.csproj
+# The plugin's code; a change here is user-facing unless shown otherwise. The trailing slashes
+# keep SayMyName.Core.Tests out.
+plugin_paths=(SayMyName/ SayMyName.Core/)
+
+usage() {
+    cat >&2 <<EOF
+Usage: scripts/release prepare <version>   e.g. 0.1.2.0
+
+prepare: from origin/main, make branch release-prep/v<version> that sets <Version> and moves the
+CHANGELOG's Unreleased entries under a dated heading; build, test, push and open the PR. The PR
+lists the changes merged since the last release, flagging plugin code changes that touched no
+CHANGELOG entry.
+EOF
+    exit 2
+}
+
+die() { echo "$*" >&2; exit 1; }
+
+csproj_version() { sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p'; }
+
+# One line per change on main since $1: number, title and a flag when it changed plugin code
+# without touching the CHANGELOG
+changes_since() {
+    local c subject num title flag
+    while IFS=$'\t' read -r c subject; do
+        if [[ $subject =~ ^Merge\ pull\ request\ \#([0-9]+) ]]; then
+            num=${BASH_REMATCH[1]}
+            title=$(git -C "$top" log -1 --format=%b "$c" | head -1)
+        elif [[ $subject =~ ^(.*)\ \(\#([0-9]+)\)$ ]]; then
+            title=${BASH_REMATCH[1]} num=${BASH_REMATCH[2]}
+        else
+            title=$subject num=
+        fi
+        flag=
+        if ! git -C "$top" diff --quiet "$c^" "$c" -- "${plugin_paths[@]}" &&
+            git -C "$top" diff --quiet "$c^" "$c" -- CHANGELOG.md; then
+            flag=" ⚠ plugin code changed, no CHANGELOG entry"
+        fi
+        echo "- ${num:+#$num }$title$flag"
+    done < <(git -C "$top" log --first-parent --format=$'%H\t%s' "$1..origin/main")
+}
+
+prepare() {
+    [[ $# == 1 ]] || usage
+    local version=$1
+    [[ $version =~ ^[0-9]+(\.[0-9]+){3}$ ]] || die "Version must be four numbers, e.g. 0.1.2.0"
+    local tag=v$version branch=release-prep/v$version
+
+    [[ -z $(git -C "$top" status --porcelain) ]] || die "Commit or set aside your changes first."
+    git -C "$top" fetch -q --tags origin main
+
+    local current last
+    current=$(git -C "$top" show "origin/main:$csproj" | csproj_version)
+    [[ $version != "$current" &&
+        $(printf '%s\n' "$current" "$version" | sort -V | tail -1) == "$version" ]] ||
+        die "$version isn't above the version on main, $current."
+    ! git -C "$top" rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "Tag $tag already exists."
+    # Test tags (v…-test1) are prereleases, not the last release
+    last=$(git -C "$top" describe --tags --abbrev=0 --match 'v*' --exclude 'v*-*' origin/main)
+
+    # Entries are the non-blank lines between "## Unreleased" and the next version heading
+    git -C "$top" show origin/main:CHANGELOG.md |
+        awk '/^## /{u = ($0 == "## Unreleased"); next} u && NF {found=1} END {exit !found}' ||
+        die "CHANGELOG.md has no Unreleased entries to release."
+
+    git -C "$top" switch -q -c "$branch" origin/main
+    sed -i "s:<Version>$current</Version>:<Version>$version</Version>:" "$top/$csproj"
+    awk -v heading="## $version - $(date +%F)" \
+        '{print} $0 == "## Unreleased" {print ""; print heading}' \
+        "$top/CHANGELOG.md" >"$top/CHANGELOG.md.tmp"
+    mv "$top/CHANGELOG.md.tmp" "$top/CHANGELOG.md"
+
+    # The release workflow refuses a tag that doesn't match the version DalamudPackager writes
+    dotnet build "$top/SayMyName.slnx" -c Release --nologo -v q
+    local built
+    built=$(sed -n 's/.*"AssemblyVersion": *"\([^"]*\)".*/\1/p' \
+        "$top/SayMyName/bin/x64/Release/SayMyName/SayMyName.json")
+    [[ $built == "$version" ]] || die "The built manifest says $built, not $version."
+    dotnet test "$top/SayMyName.Core.Tests" -c Release --nologo -v q
+
+    local changes
+    changes=$(changes_since "$last")
+    echo "Changes since $last:"
+    echo "$changes"
+
+    git -C "$top" commit -q -m "Prepare $version" -- "$csproj" CHANGELOG.md
+    git -C "$top" push -q -u origin "$branch"
+    gh pr create --base main --head "$branch" --title "Prepare $version" --body "$(cat <<EOF
+Sets \`<Version>\` to $version and dates the CHANGELOG section. Made by \`scripts/release prepare\`, which built the plugin and ran the tests.
+
+Before merging, check that every user-facing change below has a CHANGELOG entry. ⚠ marks a change to plugin code that touched no CHANGELOG entry.
+
+Changes since $last:
+$changes
+
+After merging, tag the merge commit \`$tag\` and push the tag to publish.
+EOF
+)"
+}
+
+case ${1:-} in
+    prepare) shift; prepare "$@" ;;
+    *) usage ;;
+esac
