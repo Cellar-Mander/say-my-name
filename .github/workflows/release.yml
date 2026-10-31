@@ -91,8 +91,32 @@ jobs:
     - name: Install Dalamud
       uses: ./.github/actions/install-dalamud
 
+    # The notes are the tag's CHANGELOG section for the version, so they say what users read in
+    # the changelog. A test tag made before the section was dated falls back to Unreleased.
+    # changelog.txt is the same section as plain text for the manifest's Changelog, which the
+    # plugin installer shows under Changelogs without rendering markdown.
+    - name: Changelog
+      shell: bash
+      env:
+        TAG: ${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}
+      run: |
+        section() {
+          awk -v h="$1" '/^## /{s = index($0 " ", h " ") == 1; next} s' CHANGELOG.md | sed '/./,$!d'
+        }
+        base=${TAG%%-test*}
+        section "## ${base#v}" > notes.md
+        if [[ ! -s notes.md && $base != "$TAG" ]]; then
+          section "## Unreleased" > notes.md
+          [[ -s notes.md ]] || echo "Test build of $TAG." > notes.md
+        fi
+        if [[ ! -s notes.md ]]; then
+          echo "::error file=CHANGELOG.md::No CHANGELOG section for ${base#v} at $TAG"
+          exit 1
+        fi
+        sed -E 's/^#+ +(.*)/\1:/; s/^( *)[-*] /\1• /; s/\[([^]]*)\]\(([^)]*)\)/\1 (\2)/g; s/\*\*|__|`//g' notes.md > changelog.txt
+
     - name: Build
-      run: dotnet build -c Release
+      run: dotnet build -c Release -p:ChangelogFile="$PWD\changelog.txt"
 
     # DalamudPackager writes the zip and the manifest the repo.json entry is made from
     - name: Upload plugin
@@ -102,6 +126,15 @@ jobs:
         path: |
           SayMyName/bin/x64/Release/SayMyName/latest.zip
           SayMyName/bin/x64/Release/SayMyName/SayMyName.json
+        if-no-files-found: error
+        retention-days: 1
+
+    # Separate, as one artifact's files are stored relative to their common folder
+    - name: Upload notes
+      uses: actions/upload-artifact@v7
+      with:
+        name: notes
+        path: notes.md
         if-no-files-found: error
         retention-days: 1
 
@@ -129,6 +162,12 @@ jobs:
         name: release
         path: release
 
+    - name: Download notes
+      uses: actions/download-artifact@v7
+      with:
+        name: notes
+        path: release
+
     # A tag that doesn't match <Version> would publish a zip whose version Dalamud reads differently
     - name: Check version
       run: |
@@ -145,27 +184,11 @@ jobs:
           echo "BRANCH=main" >> "$GITHUB_ENV"
         fi
 
-    # The notes are the tag's CHANGELOG section for the version, so they say what users read in
-    # the changelog. A test tag made before the section was dated falls back to Unreleased.
+    # The notes are the CHANGELOG section the build job put in the manifest
     - name: Create release
       run: |
-        git fetch -q --depth=1 origin "refs/tags/$TAG:refs/tags/$TAG"
-        section() {
-          git show "$TAG:CHANGELOG.md" |
-            awk -v h="$1" '/^## /{s = index($0 " ", h " ") == 1; next} s' | sed '/./,$!d'
-        }
-        base=${TAG%%-test*}
-        section "## ${base#v}" > notes.md
-        if [[ ! -s notes.md && -n $PRERELEASE ]]; then
-          section "## Unreleased" > notes.md
-          [[ -s notes.md ]] || echo "Test build of $TAG." > notes.md
-        fi
-        if [[ ! -s notes.md ]]; then
-          echo "::error file=CHANGELOG.md::No CHANGELOG section for ${base#v} at $TAG"
-          exit 1
-        fi
         mv release/latest.zip release/SayMyName.zip
-        gh release create "$TAG" release/SayMyName.zip --verify-tag --notes-file notes.md --title "$TAG" $PRERELEASE
+        gh release create "$TAG" release/SayMyName.zip --verify-tag --notes-file release/notes.md --title "$TAG" $PRERELEASE
 
     # repo.json (pluginmaster format) is what /xlsettings fetches from the raw main URL
     - name: Update repo.json
