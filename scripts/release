@@ -105,7 +105,7 @@ Before merging, check that every user-facing change below has a CHANGELOG entry.
 Changes since $last:
 $changes
 
-After merging, tag the merge commit \`$tag\` and push the tag to publish.
+After merging, approve the "release" deployment in the Release run to tag the merge commit \`$tag\` and publish it.
 EOF
 )"
 }

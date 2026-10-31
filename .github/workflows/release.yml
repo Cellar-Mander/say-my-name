@@ -1,6 +1,10 @@
 name: Release
 
-# Push a tag named after the plugin's <Version>, e.g. v0.1.0.0, to publish that commit.
+# Merging a change to <Version> into main (scripts/release prepare opens that PR) asks to tag the
+# merge commit v<Version>; approve the "release" deployment in the run to tag and publish it.
+# Pushing a tag named after the plugin's <Version>, e.g. v0.1.0.0, publishes that commit directly.
+# The "release" environment must require your review (Settings > Environments): a missing one is
+# created without protection, and the tag would be made unasked.
 # Main only takes PRs, so a release pushes repo.json to the release/repo-json branch and opens a PR
 # (or updates the open one); installs see the release once you merge it. This needs "Allow GitHub
 # Actions to create and approve pull requests" on in Settings > Actions > General.
@@ -10,19 +14,73 @@ name: Release
 on:
   push:
     tags: [ 'v*' ]
+    branches: [ main ]
+    paths: [ SayMyName/SayMyName.csproj ]
 
 # One release at a time, so two tags can't race to update repo.json
 concurrency: release
 
 jobs:
 
+  # A push to main that changed <Version> names the tag to make; other csproj changes name none
+  version:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+      with:
+        fetch-depth: 2
+
+    - name: Compare versions
+      id: version
+      run: |
+        version() { git show "$1:SayMyName/SayMyName.csproj" | sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p'; }
+        new=$(version HEAD)
+        if [[ $new == "$(version HEAD^)" ]]; then
+          echo "<Version> unchanged at $new; nothing to release."
+        elif git ls-remote --exit-code --tags origin "refs/tags/v$new" >/dev/null; then
+          echo "::warning::Tag v$new already exists; not tagging again."
+        else
+          echo "tag=v$new" >> "$GITHUB_OUTPUT"
+        fi
+
+  # Waits for your approval of the "release" deployment. A tag pushed with github.token starts no
+  # workflow, so this run goes on to build and publish it.
+  tag:
+    needs: version
+    if: needs.version.outputs.tag != ''
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Tag
+      run: |
+        git tag "$TAG" "$GITHUB_SHA"
+        git push origin "refs/tags/$TAG"
+
   # The plugin builds against a Dalamud install, so this runs on Windows where the SDK finds it
   build:
+    needs: [ version, tag ]
+    # Runs for a pushed tag, where version and tag are skipped, or once tag has made one
+    if: ${{ !cancelled() && (github.ref_type == 'tag' || needs.tag.result == 'success') }}
     runs-on: windows-2022
 
     steps:
     - name: Checkout
       uses: actions/checkout@v7
+      with:
+        ref: ${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}
 
     - name: Install .NET
       uses: actions/setup-dotnet@v6
@@ -51,7 +109,8 @@ jobs:
         retention-days: 1
 
   publish:
-    needs: build
+    needs: [ version, build ]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -59,7 +118,7 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}
 
     steps:
     - name: Checkout main
