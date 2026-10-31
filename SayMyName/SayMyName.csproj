@@ -19,6 +19,8 @@ Each alert can play a sound, colour the matched words and colour inactive chat t
     <RepoUrl>https://github.com/Cellar-Mander/say-my-name</RepoUrl>
     <IconUrl>https://raw.githubusercontent.com/Cellar-Mander/say-my-name/v$(Version)/SayMyName/images/icon.png</IconUrl>
     <Tags>chat;alert;notification;sound;highlight;social</Tags>
+    <!-- Release builds pass the version's CHANGELOG section as plain text (release.yml); the installer shows it under Changelogs -->
+    <Changelog Condition="'$(ChangelogFile)' != ''">$([System.IO.File]::ReadAllText('$(ChangelogFile)').Trim())</Changelog>
   </PropertyGroup>
 
   <ItemGroup>

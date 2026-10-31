@@ -80,7 +80,7 @@ A release is the plugin's `<Version>` in `SayMyName/SayMyName.csproj` (four numb
    ```
 
    It makes branch `release-prep/v0.1.2.0` from `origin/main`, sets `<Version>`, dates the Unreleased entries, builds, runs the tests and opens the PR. In the PR, check the list of changes since the last release (⚠ marks plugin code changes with no CHANGELOG entry) and any note that your local Dalamud differs from the one CI builds against (see below). Then merge it.
-3. Merging starts the Release workflow, which waits for you: open the run in Actions and approve the `release` deployment under Review deployments. It then tags the merge commit, builds, creates the GitHub release with the version's CHANGELOG section as its notes, and opens a PR titled "Update repo.json for v0.1.2.0".
+3. Merging starts the Release workflow, which waits for you: open the run in Actions and approve the `release` deployment under Review deployments. It then tags the merge commit, builds, creates the GitHub release with the version's CHANGELOG section as its notes (also put as plain text in the manifest, for the plugin installer's Changelogs), and opens a PR titled "Update repo.json for v0.1.2.0".
 4. Check that PR's version and download links, then merge it. If GitHub holds its checks with "Approve and run workflows", approve them first.
 5. Check what installs get (raw.githubusercontent.com caches `repo.json` for a few minutes, so a just-merged PR can still show the old version):
 
