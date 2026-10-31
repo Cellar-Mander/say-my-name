@@ -1,0 +1,23 @@
+name: Install Dalamud
+description: Installs the pinned Dalamud build where Dalamud.NET.Sdk finds it on Windows
+
+# Pinned so a release builds against the Dalamud it was tested with, not whatever latest.zip is
+# when the tag is pushed. To move the pin, take the commit that promoted the new version in
+# https://github.com/goatcorp/dalamud-distrib/commits/main/latest.zip and the SHA-256 of its
+# latest.zip; match the Dalamud you test in-game with.
+runs:
+  using: composite
+  steps:
+  - name: Install Dalamud
+    shell: pwsh
+    env:
+      DALAMUD_VERSION: 15.0.3.9
+      DALAMUD_COMMIT: 261006903b8fd45513910a5d8a072bafe15e7f28
+      DALAMUD_SHA256: 3e11e262426747b939bd8e1164a0f7d18bfda2dcc35b3f3ee7ee9fc7df78d2d9
+    run: |
+      $dev = Join-Path $env:APPDATA 'XIVLauncher\addon\Hooks\dev'
+      Invoke-WebRequest "https://raw.githubusercontent.com/goatcorp/dalamud-distrib/$env:DALAMUD_COMMIT/latest.zip" -OutFile dalamud.zip
+      if ((Get-FileHash dalamud.zip -Algorithm SHA256).Hash -ne $env:DALAMUD_SHA256) {
+        throw "dalamud.zip for Dalamud $env:DALAMUD_VERSION doesn't match the pinned SHA-256"
+      }
+      Expand-Archive dalamud.zip -DestinationPath $dev -Force
