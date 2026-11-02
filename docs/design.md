@@ -22,7 +22,7 @@ These hold for every feature.
 1. **Only chat aimed at you.** Alerts are for things another player says or does to the player. The player's own lines never set off an alert or get coloured, even when another plugin has tagged or renamed the sender.
 2. **Nothing leaves the computer.** The plugin reads chat as it arrives and sends nothing anywhere. It never writes to the server or acts in the game on the player's behalf.
 3. **No hidden information.** An alert should not tell the player something the normal game would not let them see, and should respect other players' choices, such as turning off their emote log messages. See Appendix A on D17 and risk 42888d53.
-4. **Respect other plugins.** A line another plugin has hidden does not alert. The plugin keeps working alongside common chat plugins (see Compatibility).
+4. **Respect other plugins.** A line another plugin has hidden does not alert. The plugin keeps working alongside common chat plugins (see Compatibility). This is best effort: Dalamud's limits and other plugins' own choices, which we don't control, may sometimes rule it out.
 5. **Quiet by default.** Busy channels and social noise start off; one quiet time stops a run of alerts from becoming a run of sounds.
 6. **No cost to the game.** Checking a line must not cause a noticeable frame drop, even in a crowded city with fast chat.
 7. **Settings survive.** Settings persist across reloads and game restarts, and every release keeps the settings players already saved, including when a setting's meaning or default changes.
@@ -37,7 +37,7 @@ These hold for every feature.
 |---|---|---|---|
 | Say | yes | yes | yes |
 | Custom emotes (`/em`) | yes | yes | yes |
-| Party (your world or cross-world, as one) | yes | yes | yes |
+| Party (including in cross-world parties) | yes | yes | yes |
 | Alliance | yes | yes | no |
 | Yell, Shout | yes | no | yes |
 | Free Company, Novice Network | yes | no | no |
@@ -45,13 +45,20 @@ These hold for every feature.
 
 Large groups talk all day, mostly not to the player, so they start off. You is offered only where the sender is likely to be nearby, because it has to check what the sender is targeting. Emote listens only to standard emotes, and Target Speaks to every channel a player writes in; neither has a channel choice.
 
+Not offered as channel choices:
+
+- **Cross-world Party:** the Party row covers party chat wherever the party is formed (96deea68). Players can't tell the two apart, and testing suggests cross-world parties use the regular party channel anyway.
+- **PvP Team:** PvP teams were removed from the game (6f97e412).
+- **Standard emotes:** the game writes these lines, not a player, so only the Emote trigger listens to them (6b78f60).
+- **Tells:** see Non-goals.
+
 ## Triggers
 
 ### Name
 
 Another player says the player's character name or one of their nicknames. **On by default.**
 
-- The first and last names each match on their own. Nicknames are entered one per line, and each matches as a whole: "Big Al" matches "Big Aaal's" but not "Big" alone.
+- The first and last names each match on their own. The player can add any number of nicknames, up to a cap (see Settings). Each is matched on its own, in the same way as the name, and as a whole: "Big Al" matches "Big Aaal's" but not "Big" alone.
 - Matches are whole words. An apostrophe or hyphen between letters joins a word, except a trailing possessive *'s*. Straight and typographic apostrophes are the same.
 - Names also match **stretched** (a letter repeated to 3 or more copies, or the last letter repeated any number of times) and **spelled out** (single letters split all by single hyphens or all by single spaces, in any case).
 - **Match case**, on by default, matches a name only as written, so Rose doesn't fire on "a rose". The extra letters of a stretched name, and spelled-out names, match in any case.
@@ -72,7 +79,7 @@ Further cases: a name like Pol must not match "pool", and Bob must not match "bo
 
 ### Custom
 
-Someone says one of the player's own words or phrases, entered one per line. **On by default, with an empty list.**
+Someone says one of the player's own words or phrases. The player keeps a list of them, up to a cap (see Settings), and each entry is matched on its own. **On by default, with an empty list.**
 
 - Matches are whole words or phrases, only as written: no stretching or spelling out. Runs of spaces inside a phrase count as one.
 - **Match case** is off by default.
@@ -123,7 +130,7 @@ The player's current target writes anything, on any channel a player writes in (
 
 ### Sound
 
-- One sound for every trigger: one of the game's 16 chat sound effects (`<se.1>` to `<se.16>`), `<se.16>` by default. A Test button plays it, at most once a second.
+- One sound for every trigger: one of the game's 16 chat sound effects (`<se.1>` to `<se.16>`), `<se.16>` by default. A Test button plays the selected sound, at most once a second.
 - **Play a sound** turns it off for every trigger. Colouring still works.
 - **Quiet time between sounds**, 0 to 60 seconds and 5 by default, is shared across all triggers. An alert within the quiet time still colours words and tabs, but makes no sound.
 - *Requested, not decided:* volume control (30006a42).
@@ -133,6 +140,7 @@ The player's current target writes anything, on any channel a player writes in (
 - Applies to Name, Custom, You and Emote. **On by default.** It works whether or not a sound plays.
 - Only the words that set off the alert are coloured: names and nicknames (without a possessive *'s*), custom words, and 'you' words from someone targeting the player. The rest of the line, and the sender's name, keep the channel's colour.
 - The player picks a **text colour** and a **glow** from the game's own UI colour palette. Either can be None; None for both leaves lines unchanged. Defaults: pale yellow text with an orange glow.
+- The colour pickers show the palette as a grid sorted HSL-style: greys first, then hue running from red round to magenta, each hue from light to dark.
 - The colours follow the game's UI theme (for example Light), as the game's own coloured text does.
 - Item links, map links and other active parts of a line keep working.
 - The settings show a live preview line, such as "Hey *Alice*, thank *you*!", that matches what chat will show.
@@ -151,7 +159,7 @@ The player's current target writes anything, on any channel a player writes in (
 - Grouped in collapsible sections: triggers, sound, colouring, channels. Only the triggers section starts open, and which sections are open is remembered.
 - Channels are chosen per trigger. A trigger that is off shows its channel choices dimmed.
 - Hovering a colour shows its details, as the game's colour picker does.
-- Nicknames are limited to 500 characters and custom words to 2000. Text typed into these lists is kept even if the window is closed straight after typing.
+- Nicknames and custom words are each a list of entries, managed as one setting. Each list has a cap on how many entries it holds, and each entry has a cap on its length. Both caps are to be decided (see Open questions). Edits to a list are kept even if the window is closed straight after editing.
 - Settings saved by any earlier release load with their meaning kept. New defaults apply only to settings the player never saved.
 
 The window's layout and wording may change. The settings and their defaults are the spec.
@@ -167,8 +175,8 @@ The window's layout and wording may change. The settings and their defaults are 
 
 ## Non-goals and decided limits
 
-- **Tells.** Not listened to by any trigger. *Rationale not recorded (perhaps because the game already marks tells); confirm.*
-- **Custom sound files, or other game UI sounds.** Decided against on 2026-10-31 (3c77dd0a): the alarm sounds are too long, and most other UI sounds mean something in the game, so they would confuse the player.
+- **Tells.** Not listened to by any trigger. A tell is only ever sent to the player, and the game already has its own alert settings for tells.
+- **Custom sound files, or other game UI sounds.** Not part of the core design. Custom sounds may be added later as a feature of their own (3c77dd0a). Note that the game's alarm sounds are too long, and most of its other UI sounds mean something in the game.
 - **Alerts on NPC or system messages.** Only lines that players write, and emotes they use.
 - **Revealing hidden emotes.** See Emote.
 - **Anything that sends data or acts in game.**
@@ -178,6 +186,7 @@ The window's layout and wording may change. The settings and their defaults are 
 - **Hidden information (42888d53):** whether D17 reviewers accept the You and Target Speaks checks of what another player is targeting. If not, the plan is to justify them, then cut them or default them off.
 - **Localisation (85aae762):** which languages the settings should be in, and how matching should work in languages other than English. For example, You needs a 'you' word list per language, and Japanese has none.
 - **Volume control (30006a42).**
+- **List caps:** how many nicknames and custom words a list may hold, and how long each entry may be. The entry count depends on what is practical and on performance; the entry length on the longest name or phrase a player could need.
 - **Lost tab colour (6df20e1a):** the cause needs a reproduction.
 - **Dev testing:** a rebuild needs a way to feed in chat lines from fake players, and pretend targeting, to test triggers alone (ee861e86 moves the self-tests into Dalamud's self-test window). The behaviour is needed; how is open.
 
@@ -189,7 +198,7 @@ Learnt while building the prototype. These describe the game, Dalamud and other 
 
 - The game writes standard emote lines itself ("A Friend pets you."). They are never a player's text. `/em` custom emotes are player text with a sender.
 - A player can turn off the log message for an emote (motion only). Nothing then reaches chat, though the motion is seen.
-- Cross-world party chat arrives as a different chat type from party chat on your own world.
+- The game has a separate cross-world party chat type, but no test has shown it in use. Testing suggests cross-world parties use the regular party chat channel.
 - The sender text of a line carries marks around the name: party slot numbers, friend and cross-world icons (symbols or private-use glyphs). Other plugins add their own tags too (Party Icons' job prefix, Player Tags' tags).
 - Chat text may use the typographic apostrophe (’) where a name has a straight one, or the reverse.
 - Another plugin can hide a line before it is shown.
@@ -197,7 +206,7 @@ Learnt while building the prototype. These describe the game, Dalamud and other 
 
 **Chat tabs**
 
-- Which channels each chat tab shows is not directly readable from the game, as far as the prototype found.
+- The player chooses which channels each chat tab shows in the game's Log Filters settings. As of October 2026, FFXIVClientStructs had no mapping for those stored filters, so a plugin couldn't read them directly (7d98e301). Worth checking again for a rebuild.
 - The game animates an unread tab's name every frame. In the default theme it holds green (#8CFF5A), fades in a straight line to beige (#C2BCA4) over about half a second, then snaps back, about every 0.64 s.
 - Logging out clears the game's chat history and unread colours.
 - Chat 2 replaces the game's chat window entirely, and doesn't draw the edge glow on coloured text.
