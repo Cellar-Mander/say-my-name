@@ -6,19 +6,28 @@ on:
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
-  # Add the "mutation" label to a PR to run it there
+  # PRs only test mutants in code or tests changed against the base branch. The "mutation" label asks
+  # for a full run instead, e.g. when tests were deleted.
   pull_request:
-    types: [ labeled ]
+    types: [ opened, synchronize, reopened, labeled ]
+    paths:
+      - 'SayMyName.Core/**'
+      - 'SayMyName.Core.Tests/**'
+      - '.github/workflows/mutation.yml'
 
 jobs:
 
   mutation:
-    if: github.event_name != 'pull_request' || github.event.label.name == 'mutation'
+    # Other labels shouldn't start a run
+    if: github.event.action != 'labeled' || github.event.label.name == 'mutation'
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout
       uses: actions/checkout@v7
+      with:
+        # --since diffs against the base branch
+        fetch-depth: 0
 
     - name: Install .NET
       uses: actions/setup-dotnet@v6
@@ -31,7 +40,12 @@ jobs:
     # Settings live in SayMyName.Core.Tests/stryker-config.json
     - name: Mutation test
       working-directory: SayMyName.Core.Tests
-      run: dotnet stryker --output "$RUNNER_TEMP/stryker"
+      env:
+        SINCE: >-
+          ${{ github.event_name == 'pull_request'
+          && !contains(github.event.pull_request.labels.*.name, 'mutation')
+          && format('--since:origin/{0}', github.base_ref) || '' }}
+      run: dotnet stryker $SINCE --output "$RUNNER_TEMP/stryker"
 
     - name: Summary
       if: always()
