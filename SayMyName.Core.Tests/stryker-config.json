@@ -1,0 +1,11 @@
+{
+  "stryker-config": {
+    "project": "SayMyName.Core.csproj",
+    "reporters": [ "progress", "html", "markdown" ],
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 0
+    }
+  }
+}
