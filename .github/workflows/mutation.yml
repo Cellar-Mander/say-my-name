@@ -1,0 +1,46 @@
+name: Mutation
+
+# Would the Core tests catch plausible faults? Stryker.NET mutates SayMyName.Core and reruns them.
+# Informs only: no score threshold, and keep this workflow out of required checks.
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  # Add the "mutation" label to a PR to run it there
+  pull_request:
+    types: [ labeled ]
+
+jobs:
+
+  mutation:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'mutation'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v7
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore tools
+      run: dotnet tool restore
+
+    # Settings live in SayMyName.Core.Tests/stryker-config.json
+    - name: Mutation test
+      working-directory: SayMyName.Core.Tests
+      run: dotnet stryker --output "$RUNNER_TEMP/stryker"
+
+    - name: Summary
+      if: always()
+      run: cat "$RUNNER_TEMP/stryker/reports/mutation-report.md" >> "$GITHUB_STEP_SUMMARY" || true
+
+    - name: Upload report
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: mutation-report
+        path: ${{ runner.temp }}/stryker/reports/
+        if-no-files-found: ignore

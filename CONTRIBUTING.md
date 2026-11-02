@@ -36,6 +36,15 @@ dotnet test SayMyName.Core.Tests
 
 CI runs these tests on Linux for pushes and PRs to `main`.
 
+Mutation testing checks whether those tests would catch plausible faults: [Stryker.NET](https://stryker-mutator.io/docs/stryker-net/introduction/) makes small changes to `SayMyName.Core` and reruns the tests against each one. It runs nightly, on demand, and on any PR you label `mutation`. It is advisory only, with no score threshold. To run it locally (about a minute and a half):
+
+```bash
+dotnet tool restore
+cd SayMyName.Core.Tests && dotnet stryker
+```
+
+The HTML report under `StrykerOutput/` lists the surviving mutants, which are the faults the tests missed. In CI it is uploaded as the `mutation-report` artifact.
+
 ## Testing in-game
 
 Dalamud loads the plugin from one dev folder outside every checkout (override with `SAYMYNAME_DEV_DIR`):
