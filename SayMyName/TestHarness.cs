@@ -22,6 +22,9 @@ namespace SayMyName;
 /// </summary>
 public sealed unsafe partial class TestHarness : IDisposable
 {
+    // Chat replies carry it as Dalamud's message tag and log lines start with it the same way, so both read "[Test harness] ..."
+    private const string Tag = "Test harness";
+
     public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
 
     private readonly Configuration configuration;
@@ -101,7 +104,7 @@ public sealed unsafe partial class TestHarness : IDisposable
 
         if (ok == false)
         {
-            Plugin.ChatGui.PrintError($"Usage: /saymyname {Usage}");
+            Plugin.ChatGui.PrintError($"Usage: /saymyname {Usage}", Tag);
         }
         return ok != null;
     }
@@ -145,7 +148,7 @@ public sealed unsafe partial class TestHarness : IDisposable
             Name = sender,
             Message = text,
         });
-        Plugin.Log.Information($"Test harness: injected {type} from {sender.TextValue}: {text}");
+        Plugin.Log.Information($"[{Tag}] injected {type} from {sender.TextValue}: {text}");
     }
 
     // Logs every emote the Emote trigger's hook sees, so other players' emotes in a busy place
@@ -159,7 +162,7 @@ public sealed unsafe partial class TestHarness : IDisposable
 
         watchingEmotes = !watchingEmotes;
         targetedAlert.EmotePlayed = watchingEmotes ? OnEmotePlayed : null;
-        Plugin.ChatGui.Print($"Test harness: emote watch {(watchingEmotes ? "on, see /xllog" : "off")}");
+        Plugin.ChatGui.Print($"emote watch {(watchingEmotes ? "on, see /xllog" : "off")}", Tag);
         return true;
     }
 
@@ -174,8 +177,8 @@ public sealed unsafe partial class TestHarness : IDisposable
 
         fakeTargeter = parts.Length == 2 ? $"{parts[0]} {parts[1]}" : null;
         Plugin.ChatGui.Print(fakeTargeter == null
-            ? "Test harness: nobody is pretending to target you"
-            : $"Test harness: {fakeTargeter} is pretending to target you");
+            ? "nobody is pretending to target you"
+            : $"{fakeTargeter} is pretending to target you", Tag);
         return true;
     }
 
@@ -190,8 +193,8 @@ public sealed unsafe partial class TestHarness : IDisposable
 
         fakeTarget = parts.Length == 2 ? $"{parts[0]} {parts[1]}" : null;
         Plugin.ChatGui.Print(fakeTarget == null
-            ? "Test harness: nobody is pretending to be your target"
-            : $"Test harness: {fakeTarget} is pretending to be your target");
+            ? "nobody is pretending to be your target"
+            : $"{fakeTarget} is pretending to be your target", Tag);
         return true;
     }
 
@@ -203,7 +206,7 @@ public sealed unsafe partial class TestHarness : IDisposable
         if (parts is ["off"])
         {
             ClearTabColour();
-            Plugin.ChatGui.Print("Test harness: tab colour cleared");
+            Plugin.ChatGui.Print("tab colour cleared", Tag);
             return true;
         }
 
@@ -219,7 +222,7 @@ public sealed unsafe partial class TestHarness : IDisposable
         var text = TabTextNode(tab - 1);
         if (text == null)
         {
-            Plugin.ChatGui.PrintError($"Test harness: chat tab {tab} not found");
+            Plugin.ChatGui.PrintError($"chat tab {tab} not found", Tag);
             return true;
         }
 
@@ -231,7 +234,7 @@ public sealed unsafe partial class TestHarness : IDisposable
         tabColourReset = false;
         text->TextColor = tabColour;
         Plugin.Framework.Update += OnFrameworkUpdate;
-        Plugin.Log.Information($"Test harness: tab {tab} text colour {Hex(originalTabColour)} -> {Hex(tabColour)}, keep={keepTabColour}");
+        Plugin.Log.Information($"[{Tag}] tab {tab} text colour {Hex(originalTabColour)} -> {Hex(tabColour)}, keep={keepTabColour}");
         return true;
     }
 
@@ -267,7 +270,7 @@ public sealed unsafe partial class TestHarness : IDisposable
 
         if (!tabColourReset)
         {
-            Plugin.Log.Information($"Test harness: tab {tab + 1} colour changed to {Hex(text->TextColor)} after {framesSinceTabColoured} frames");
+            Plugin.Log.Information($"[{Tag}] tab {tab + 1} colour changed to {Hex(text->TextColor)} after {framesSinceTabColoured} frames");
             tabColourReset = true;
         }
         if (keepTabColour)
@@ -284,7 +287,7 @@ public sealed unsafe partial class TestHarness : IDisposable
 
     private static AtkTextNode* TabTextNode(int tab)
     {
-        var chatLog = (AddonChatLog*)RaptureAtkUnitManager.Instance()->GetAddonByName("ChatLog");
+        var chatLog = Plugin.GameGui.GetAddonByName<AddonChatLog>("ChatLog");
         if (chatLog == null || tab >= chatLog->TabCount)
         {
             return null;
@@ -309,7 +312,7 @@ public sealed unsafe partial class TestHarness : IDisposable
         }
         tabWatchFrames = TabWatchLength;
         Array.Clear(tabStates);
-        Plugin.ChatGui.Print("Test harness: logging chat tabs for 10 s, see /xllog");
+        Plugin.ChatGui.Print("logging chat tabs for 10 s, see /xllog", Tag);
         return true;
     }
 
@@ -320,11 +323,11 @@ public sealed unsafe partial class TestHarness : IDisposable
         if (--tabWatchFrames <= 0)
         {
             Plugin.Framework.Update -= OnTabWatchUpdate;
-            Plugin.Log.Information("Test harness: tab watch ended");
+            Plugin.Log.Information($"[{Tag}] tab watch ended");
             return;
         }
 
-        var chatLog = (AddonChatLog*)RaptureAtkUnitManager.Instance()->GetAddonByName("ChatLog");
+        var chatLog = Plugin.GameGui.GetAddonByName<AddonChatLog>("ChatLog");
         var counts = ChatLogNumberArray.Instance();
         if (chatLog == null || counts == null)
         {
@@ -354,7 +357,7 @@ public sealed unsafe partial class TestHarness : IDisposable
             if (state != tabStates[i])
             {
                 tabStates[i] = state;
-                Plugin.Log.Information($"Test harness: frame {TabWatchLength - tabWatchFrames} tab {i + 1} {state}");
+                Plugin.Log.Information($"[{Tag}] frame {TabWatchLength - tabWatchFrames} tab {i + 1} {state}");
             }
         }
     }
@@ -372,7 +375,7 @@ public sealed unsafe partial class TestHarness : IDisposable
         var target = targetId == Plugin.ObjectTable.LocalPlayer?.GameObjectId
             ? "you"
             : Plugin.ObjectTable.SearchById(targetId)?.Name.TextValue ?? $"0x{targetId:X}";
-        Plugin.Log.Information($"Test harness: emote {emoteId} from {from} at {target}, logged={logged}");
+        Plugin.Log.Information($"[{Tag}] emote {emoteId} from {from} at {target}, logged={logged}");
     }
 
     private void OnChatMessage(IHandleableChatMessage message)
@@ -384,7 +387,7 @@ public sealed unsafe partial class TestHarness : IDisposable
         }
         if (pending.Contains(message.Message.TextValue))
         {
-            Plugin.Log.Information($"Test harness: ChatMessage got {message.LogKind} from {message.Sender.TextValue}: {message.Message.TextValue}");
+            Plugin.Log.Information($"[{Tag}] ChatMessage got {message.LogKind} from {message.Sender.TextValue}: {message.Message.TextValue}");
         }
     }
 
@@ -393,7 +396,7 @@ public sealed unsafe partial class TestHarness : IDisposable
         SelfTestSaw(message, unhandled: true);
         if (pending.Remove(message.Message.TextValue))
         {
-            Plugin.Log.Information($"Test harness: ChatMessageUnhandled got {message.LogKind} (source={message.SourceKind}) from {message.Sender.TextValue}");
+            Plugin.Log.Information($"[{Tag}] ChatMessageUnhandled got {message.LogKind} (source={message.SourceKind}) from {message.Sender.TextValue}");
         }
     }
 }

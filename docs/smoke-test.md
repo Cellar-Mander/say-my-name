@@ -17,9 +17,9 @@ It prints `<message>` to chat as if player `<First> <Last>` (on your current wor
 The log shows each step, so you can tell where a message stopped:
 
 ```
-Test harness: injected Say from Test Player: hello Rose
-Test harness: ChatMessage got Say from Test Player: hello Rose
-Test harness: ChatMessageUnhandled got Say (source=...) from Test Player
+[Test harness] injected Say from Test Player: hello Rose
+[Test harness] ChatMessage got Say from Test Player: hello Rose
+[Test harness] ChatMessageUnhandled got Say (source=...) from Test Player
 ```
 
 For the Emote and You triggers, two more:
@@ -37,7 +37,7 @@ For the Target Speaks trigger:
 /saymyname my-target                     # stop pretending
 ```
 
-`targeting-me` only skips the search for the sender among nearby players; everything else in the trigger runs as normal. With `emotes` on, each emote nearby logs a line like `Test harness: emote 105 from A Friend at Some Player, logged=True`, with `at you` when it is aimed at you.
+`targeting-me` only skips the search for the sender among nearby players; everything else in the trigger runs as normal. With `emotes` on, each emote nearby logs a line like `[Test harness] emote 105 from A Friend at Some Player, logged=True`, with `at you` when it is aimed at you.
 
 To try colouring chat tab names (task 7d98e301):
 
@@ -52,7 +52,7 @@ To run the automatable solo cases below, open Dalamud's self-test window (`/xlde
 
 Close the settings window first and log in; otherwise each step fails. Each step sets up its own settings, injects its line, waits for it to come back through the chat events, and logs `Self-test PASS: <case>` or `Self-test FAIL: <case> (<detail>)`. The settings are changed in memory while steps run, the alert sound is muted while alerts are counted, and the settings are put back without saving after the run, on Stop or Jump, or a second after the last step ran (after a skip, or with the window closed). Settings aren't saved while steps run, so edits made then are lost. Cases marked *(self-test)* need no other check; those marked *(self-test: ...)* are covered only for the part named, so finish them by hand. Unmarked cases stay manual: how things look, settings persistence, and anything needing a second player or real chat. On Linux, after a deploy, `grep 'Self-test' ~/.xlcore/logs/dalamud.log | tail` shows the result.
 
-Malformed arguments print the usage as a chat error. Plugins installed normally (not as a dev plugin) don't have these subcommands.
+Harness replies in chat and its log lines start with `[Test harness]`. Malformed arguments print the usage as a chat error. Plugins installed normally (not as a dev plugin) don't have these subcommands.
 
 Below, *Me* is your character's name and *A Friend* any other name.
 
@@ -139,7 +139,7 @@ Set quiet time to 0 so every alert sounds, and turn on verbose logging (`/xllog`
 Solo:
 
 - [ ] `/xllog` has no `emote function not found` warning after loading.
-- [ ] `/saymyname emotes`, then wait somewhere busy (e.g. a city aetheryte plaza): other players' emotes log `Test harness: emote ...` lines. For each one that also shows in chat (e.g. "X pets Y"), the log names the same emoter and target with `logged=True`. Lines with `logged=False` match emotes you saw but chat didn't show. If no lines appear while players emote, the hook doesn't see network emotes and the emote cases below will fail. `/saymyname emotes` again turns it off.
+- [ ] `/saymyname emotes`, then wait somewhere busy (e.g. a city aetheryte plaza): other players' emotes log `[Test harness] emote ...` lines. For each one that also shows in chat (e.g. "X pets Y"), the log names the same emoter and target with `logged=True`. Lines with `logged=False` match emotes you saw but chat didn't show. If no lines appear while players emote, the hook doesn't see network emotes and the emote cases below will fail. `/saymyname emotes` again turns it off.
 - [ ] `/saymyname targeting-me A Friend`, then `/saymyname inject Say A Friend thank you`: sound. Same with `your`, `yours`, `you're`, `you'll`, `y'all`, `thee`, and on `CustomEmote`. *(self-test)*
 - [ ] Still pretending: `inject Say A Friend hello`: no sound. `inject Say Someone Else thank you`: no sound. `inject Party A Friend thank you`: sound; same on `CrossParty`. `inject Alliance A Friend thank you`: no sound (off by default); tick Alliance for You, same inject: sound; untick it again. `inject Linkshell1 A Friend thank you`: no sound (not a You channel). *(self-test)*
 - [ ] Untick Party for You, `inject Party A Friend thank you`: no sound; `inject Say A Friend thank you`: sound. Tick Party again. *(self-test)*
