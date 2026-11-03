@@ -12,7 +12,7 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 ### Fixed
 
 - Custom words and phrases, and nicknames of more than one word, now match when chat puts extra spaces between their words ("good  morning").
-- A spelled-out name no longer alerts when a single letter sits next to it with the other separator, as in "I A-L-I-C-E".
+- A spelled-out name no longer alerts when a single letter sits right next to it, as in "I A-L-I-C-E" or "I,A-L-I-C-E".
 
 ## 0.1.1.0 - 2026-10-31
 

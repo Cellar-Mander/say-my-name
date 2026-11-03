@@ -250,8 +250,6 @@ public class NameMatcherTests
     [InlineData("R-O-O-O-S-E")]
     [InlineData("R-O-S-E-E")]
     [InlineData("R-O-S-E-E-E")]
-    // Only a space or hyphen joins a letter to the spelling
-    [InlineData("I,R-O-S-E")]
     // A stutter on the first letter before the name as written or stretched
     [InlineData("R-Rose")]
     [InlineData("r-R-Rose!")]
@@ -293,12 +291,14 @@ public class NameMatcherTests
     }
 
     [Theory]
-    // A single letter next to a spelling isn't in the name, whichever separator joins it
+    // A single letter right next to a spelling isn't in the name, whatever is between them
     [InlineData("I R-O-S-E")]
+    [InlineData("I,R-O-S-E")]
     [InlineData("R R-O-S-E")]
     [InlineData("R-O-S-E I")]
+    [InlineData("R-O-S-E/I")]
     [InlineData("R-R O-S-E")]
-    public void LoneLetterBesideASpellingWithEitherSeparatorStopsIt(string text)
+    public void LoneLetterNextToASpellingStopsIt(string text)
     {
         Assert.False(Rose.IsMatch(text));
     }

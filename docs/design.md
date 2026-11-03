@@ -60,7 +60,7 @@ Another player says the player's character name or one of their nicknames. **On 
 
 - The first and last names each match on their own. The player can add any number of nicknames, up to a cap (see Settings). Each is matched on its own, in the same way as the name, and as a whole: "Big Al" matches "Big Aaal's" but not "Big" alone. A run of whitespace in chat text counts as the one space between a nickname's words, so "Big   Al" matches too.
 - Matches are whole words. An apostrophe or hyphen between letters joins a word, except a trailing possessive *'s*. Straight and typographic apostrophes are the same.
-- Names also match **stretched** (a letter repeated to 3 or more copies, or the last letter repeated any number of times), **spelled out** (single letters split all by single hyphens or all by single spaces, in any case) and **stuttered** (the first letter repeated with hyphens before the name, as written or stretched). In a spelling, the first letter may repeat any number of times and the others as when stretched. A single letter next to a spelling, with either separator, means it isn't the name.
+- Names also match **stretched** (a letter repeated to 3 or more copies, or the last letter repeated any number of times), **spelled out** (single letters split all by single hyphens or all by single spaces, in any case) and **stuttered** (the first letter repeated with hyphens before the name, as written or stretched). In a spelling, the first letter may repeat any number of times and the others as when stretched. A single letter right next to a spelling, whatever is between them, means it isn't the name.
 - **Match case**, on by default, matches a name only as written, so Rose doesn't fire on "a rose". The extra letters of a stretched name, and spelled-out names, match in any case.
 
 | Name *Alice*, Match case on | Alerts? | Coloured |
@@ -77,7 +77,7 @@ Another player says the player's character name or one of their nicknames. **On 
 | `Malice`, `Alice-Ann`, `Alice'ka` | no | |
 | `Big  Zed` (nickname *Big Zed*, two spaces) | yes | `Big  Zed`, spaces included |
 | `h a l i c e` style runs, where the letters run on from other single letters | no | |
-| `I A-L-I-C-E` / `A A-L-I-C-E`, a single letter next to the spelling with the other separator | no | |
+| `I A-L-I-C-E` / `I,A-L-I-C-E` / `A A-L-I-C-E`, a single letter right next to the spelling | no | |
 | The player's own line saying their name | no | |
 
 Further cases: a name like Pol must not match "pool", and Bob must not match "boob". For nicknames *Zuzu* and *Big Zed*: `Zuzu`, `Big Zed's?` and `Zuzuuu!` alert, while `Zed` alone does not, and with Match case on neither does `zuzu`.

@@ -271,10 +271,11 @@ public sealed class NameMatcher
         }
         var end = i - 1;
 
-        // The letters must not run on from or into other single letters, by either separator: "h a l o" doesn't
-        // spell "al", and neither do "I A-L" or "A A-L"
-        var before = start >= 2 && text[start - 1] is (' ' or '-') && IsLoneLetter(text, start - 2);
-        var after = end + 1 < text.Length && text[end] is (' ' or '-') && IsLoneLetter(text, end + 1);
+        // A single letter right next to the letters, whatever is between them, isn't part of the name: "h a l o"
+        // doesn't spell "al", and neither do "I A-L", "I,A-L" or "A A-L". After the letters, an apostrophe joins
+        // rather than separates, so the word checks handle it ("A-L's"); before them, StartsWord already does
+        var before = start >= 2 && IsLoneLetter(text, start - 2);
+        var after = end + 1 < text.Length && text[end] != '\'' && IsLoneLetter(text, end + 1);
         return before || after ? -1 : end;
     }
 
