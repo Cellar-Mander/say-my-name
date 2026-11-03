@@ -58,7 +58,7 @@ Not offered as channel choices:
 
 Another player says the player's character name or one of their nicknames. **On by default.**
 
-- The first and last names each match on their own. The player can add any number of nicknames, up to a cap (see Settings). Each is matched on its own, in the same way as the name, and as a whole: "Big Al" matches "Big Aaal's" but not "Big" alone.
+- The first and last names each match on their own. The player can add any number of nicknames, up to a cap (see Settings). Each is matched on its own, in the same way as the name, and as a whole: "Big Al" matches "Big Aaal's" but not "Big" alone. A run of whitespace in chat text counts as the one space between a nickname's words, so "Big   Al" matches too.
 - Matches are whole words. An apostrophe or hyphen between letters joins a word, except a trailing possessive *'s*. Straight and typographic apostrophes are the same.
 - Names also match **stretched** (a letter repeated to 3 or more copies, or the last letter repeated any number of times) and **spelled out** (single letters split all by single hyphens or all by single spaces, in any case).
 - **Match case**, on by default, matches a name only as written, so Rose doesn't fire on "a rose". The extra letters of a stretched name, and spelled-out names, match in any case.
@@ -72,6 +72,7 @@ Another player says the player's character name or one of their nicknames. **On 
 | `Aliice` (a vowel doubled inside) | no | |
 | `alice` | no (yes with Match case off) | |
 | `Malice`, `Alice-Ann`, `Alice'ka` | no | |
+| `Big  Zed` (nickname *Big Zed*, two spaces) | yes | `Big  Zed`, spaces included |
 | `h a l i c e` style runs, where the letters run on from other single letters | no | |
 | The player's own line saying their name | no | |
 
@@ -81,13 +82,14 @@ Further cases: a name like Pol must not match "pool", and Bob must not match "bo
 
 Someone says one of the player's own words or phrases. The player keeps a list of them, up to a cap (see Settings), and each entry is matched on its own. **On by default, with an empty list.**
 
-- Matches are whole words or phrases, only as written: no stretching or spelling out. Runs of spaces inside a phrase count as one.
+- Matches are whole words or phrases, only as written: no stretching or spelling out. Runs of whitespace inside a phrase count as one space, both in the list and in chat text; the colouring covers the whole phrase as written in chat, spaces included.
 - **Match case** is off by default.
 - When a line matches both Name and Custom, it is one alert.
 
 | List `raid`, `good morning` | Alerts? |
 |---|---|
 | `raid tonight?` / `RAID` / `Good morning!` | yes (`RAID` no with Match case on) |
+| `good  morning` (two spaces) | yes, `good  morning` coloured |
 | `afraid` / `raiiid` / `good` / `morning` | no |
 | The player's own line | no |
 

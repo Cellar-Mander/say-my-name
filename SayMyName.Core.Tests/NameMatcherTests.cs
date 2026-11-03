@@ -75,6 +75,7 @@ public class NameMatcherTests
     [InlineData("Ro'ka")]
     [InlineData("Big")]
     [InlineData("Big Rob")]
+    [InlineData("BigRo")]
     public void NicknamesNeedWholeWordsAndCase(string text)
     {
         Assert.False(RoseAndNicknames.IsMatch(text));
@@ -100,6 +101,35 @@ public class NameMatcherTests
 
         Assert.Contains((4, 6), matches);
         Assert.Contains((8, 2), matches);
+    }
+
+    [Theory]
+    [InlineData("Big  Zed", true)]
+    [InlineData("hi Biiig\tZeddd!", true)]
+    [InlineData("Big \u00A0 Zed's", true)]
+    [InlineData("Big  zed", false)]
+    [InlineData("BigZed", false)]
+    [InlineData("Big - Zed", false)]
+    public void MultiWordNicknamesMatchAcrossWhitespaceRuns(string text, bool expected)
+    {
+        Assert.Equal(expected, new NameMatcher("", caseSensitive: true, nicknames: "Big Zed").IsMatch(text));
+    }
+
+    [Theory]
+    [InlineData("A  B", true)]
+    [InlineData("A,B", false)]
+    public void OneLetterNicknameWordsNeedTheWhitespace(string text, bool expected)
+    {
+        Assert.Equal(expected, new NameMatcher("", caseSensitive: true, nicknames: "A B").IsMatch(text));
+    }
+
+    [Fact]
+    public void FindAllReportsNicknamesAcrossAWhitespaceRun()
+    {
+        var matches = new List<(int Start, int Length)>();
+        new NameMatcher("", caseSensitive: true, nicknames: "Big Zed").FindAll("ask Big  Zed's friend", matches);
+
+        Assert.Equal([(4, 8)], matches);
     }
 
     [Fact]
