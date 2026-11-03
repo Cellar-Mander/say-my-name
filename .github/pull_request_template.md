@@ -5,7 +5,8 @@
 <!-- What this changes, and anything it deliberately leaves out. -->
 
 ## Risk
-<!-- What else this could break, and where a reviewer should look first. Say if it touches input handling or permissions. -->
+<!-- What else this could break, and where a reviewer should look first. Say if it touches input handling or permissions.
+     For chat text or settings players type: does matching stay linear in line length (no backtracking regex), and are new lists or text fields capped? -->
 
 ## Verified
 <!-- Commands run and what they showed, or "Not verified:" and why. -->
