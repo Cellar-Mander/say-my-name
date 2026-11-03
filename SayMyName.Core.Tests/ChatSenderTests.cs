@@ -42,6 +42,15 @@ public class ChatSenderTests
         Assert.Equal("A'ra'ka Mary-Jane", ChatSender.Name("A'ra'ka Mary-Jane").ToString());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("★(1)")]
+    public void SenderTextWithoutLettersHasNoName(string sender)
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.Equal("", ChatSender.Name(sender).ToString());
+    }
+
     [Fact]
     public void NoCharacterNameMatchesNoSender()
     {

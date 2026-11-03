@@ -45,7 +45,21 @@ cd SayMyName.Core.Tests && dotnet stryker
 
 `--since:main` limits a local run to your changes like on PRs, but only in a regular clone: in a git worktree Stryker diffs the main checkout instead.
 
-Before merging a Core PR, check the PR run's summary for surviving mutants, which are the faults the tests missed: add a test, or decide the mutant doesn't matter. The full HTML report is under `StrykerOutput/`, or the `mutation-report` artifact in CI.
+Before merging a Core PR, check the PR run's summary for surviving mutants, which are the faults the tests missed, and for "no coverage" ones, whose line no test reaches. The full HTML report is under `StrykerOutput/`, or the `mutation-report` artifact in CI. Triage each one:
+
+1. **Look for an input that tells the mutant apart from the code.** Read the mutant's change and think of an input on which the two give different results. Add it as a plain example test, as a new `InlineData` row where one fits; a throwaway script may try many inputs, but commit only the one that kills the mutant. For a no-coverage mutant, first write a test that reaches its line. Confirm the kill on that file alone: `dotnet stryker --mutate "**/NameMatcher.cs"`.
+2. **No such input means the mutant is probably equivalent.** That can't be proven in general, so say why in a suppression just before the code, naming only the mutator involved: `// Stryker disable once Equality : words are never empty, so space is never 0`. The reviewer confirms each reason.
+3. **Check the behaviour against [the design](docs/design.md):**
+   - stated there: a real gap, so the test stays;
+   - not stated and not important, such as which way an exact rounding boundary falls: suppress it, or, where the mutant shows the code is redundant, simplify it in a follow-up task;
+   - not stated but maybe important: ask in a PR comment.
+
+A suppression covers every mutant of that kind in the code that follows it, so keep it narrow:
+
+- Before a statement, it covers the whole statement, and for an `if`, a loop or a member, everything inside. Before a condition on its own line it covers only that condition (see `NameMatcher.Find`). It also covers the condition's other mutants of that kind, such as `<` turned into `>`; the tests still catch those faults, but Stryker no longer checks that they do.
+- Diff a full run's JSON report (`--reporter json`) against one from before the change: a suppression should turn only the intended survivors, and that condition's other mutants of the same kind, into Ignored.
+
+`stryker-config.json` sets no ignore rules: Core has no logging, exceptions or message text, and its `ToString` calls save channels by name, so they have to be mutated like any other code.
 
 ## Testing in-game
 

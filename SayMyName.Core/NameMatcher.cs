@@ -75,11 +75,13 @@ public sealed class NameMatcher
     {
         // Chat text may use the typographic apostrophe where the name has a straight one, or the
         // reverse; normalising both sides keeps every index the same, so the word checks still hold
+        // Stryker disable once Block : skips the copy when there is nothing to straighten; the copy finds the same
         if (!text.Contains(CurlyApostrophe))
         {
             return Find(text, matches);
         }
 
+        // Stryker disable once Conditional,Equality : the stack and the heap hold the same characters
         Span<char> straight = text.Length <= 512 ? stackalloc char[text.Length] : new char[text.Length];
         text.Replace(straight, CurlyApostrophe, '\'');
         return Find(straight, matches);
@@ -93,11 +95,15 @@ public sealed class NameMatcher
             var part = parts[p];
             // A phrase is found by its first word, since the spaces after it may be longer in the text
             var space = part.IndexOf(' ');
+            // Stryker disable once Equality : no part starts with a space
             var firstWord = part.AsSpan(0, space < 0 ? part.Length : space);
             var offset = 0;
-            while (offset < text.Length)
+            while (
+                // Stryker disable once Equality : at the end of the text, IndexOf finds nothing
+                offset < text.Length)
             {
                 // A stretched or spelled-out word is found by its first letter, in any case for spelled-out words
+                // Stryker disable once Conditional : a phrase found by its first letter alone is still checked whole
                 var found = runs == null
                     ? text[offset..].IndexOf(firstWord, comparison)
                     : text[offset..].IndexOf(part.AsSpan(0, 1), StringComparison.OrdinalIgnoreCase);
@@ -108,7 +114,10 @@ public sealed class NameMatcher
 
                 var start = offset + found;
                 var end = runs == null ? MatchWritten(text, start, part) : MatchElongated(text, start, part, runs[p]);
-                if (end > start && StartsWord(text, start) && EndsWord(text, end))
+                if (
+                    // Stryker disable once Equality : a match is never empty, so end is -1 or past start
+                    end > start
+                    && StartsWord(text, start) && EndsWord(text, end))
                 {
                     if (matches == null)
                     {
@@ -133,6 +142,7 @@ public sealed class NameMatcher
         for (var k = 0; ;)
         {
             var space = part.IndexOf(' ', k);
+            // Stryker disable once Equality : words are never empty, so space is never 0
             var word = part.AsSpan(k, (space < 0 ? part.Length : space) - k);
             if (i + word.Length > text.Length || !text.Slice(i, word.Length).Equals(word, comparison))
             {
@@ -140,12 +150,14 @@ public sealed class NameMatcher
             }
 
             i += word.Length;
+            // Stryker disable once Equality : words are never empty, so space is never 0
             if (space < 0)
             {
                 return i;
             }
 
             i = SkipWhitespace(text, i);
+            // Stryker disable once Equality : after a word, i is never 0
             if (i < 0)
             {
                 return -1;
@@ -169,6 +181,7 @@ public sealed class NameMatcher
     private int MatchElongated(ReadOnlySpan<char> text, int start, string part, (int Start, int Length)[] partRuns)
     {
         var end = MatchStretched(text, start, part, partRuns);
+        // Stryker disable once Equality : end is -1 or past start, never 0
         return end >= 0 ? end : MatchSpelled(text, start, part);
     }
 
@@ -182,6 +195,7 @@ public sealed class NameMatcher
             if (part[runStart] == ' ')
             {
                 i = SkipWhitespace(text, i);
+                // Stryker disable once Equality : after a word, i is never 0
                 if (i < 0)
                 {
                     return -1;

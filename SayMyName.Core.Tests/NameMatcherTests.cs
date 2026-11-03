@@ -24,6 +24,17 @@ public class NameMatcherTests
     }
 
     [Theory]
+    // Quote marks and a trailing hyphen around a name don't join it to anything
+    [InlineData("call me 'Rose'")]
+    [InlineData("hey Rose-")]
+    [InlineData("Rose- wait")]
+    public void QuotedOrCutOffNamesMatch(string text)
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.True(Rose.IsMatch(text));
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("a rose by any other name")]
     [InlineData("ROSE")]
@@ -231,6 +242,10 @@ public class NameMatcherTests
     [InlineData("r o s e")]
     [InlineData("hey r-o-s-e!")]
     [InlineData("I see R O S E")]
+    [InlineData("r o s e is here")]
+    [InlineData("hi r o s e ")]
+    // A lone letter before a different separator doesn't run on into the spelling
+    [InlineData("I R-O-S-E")]
     public void MatchesStretchedOrSpelledOutNames(string text)
     {
         Assert.True(Rose.IsMatch(text));
@@ -265,6 +280,13 @@ public class NameMatcherTests
     public void DoubledLettersAreNotAStretch(string name, string text)
     {
         Assert.False(new NameMatcher(name, caseSensitive: true).IsMatch(text));
+    }
+
+    [Fact]
+    public void DoubledLetterIsNotAStretchAfterAOneLetterWord()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.False(new NameMatcher("", caseSensitive: true, nicknames: "J Bob").IsMatch("J Boob"));
     }
 
     [Theory]

@@ -71,6 +71,15 @@ public class HighlightsTests
     }
 
     [Fact]
+    public void MatchesOnlyTouchingTheSegmentLeaveItPlain()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        // A match starting where the segment ends, or ending where it starts, adds no empty highlighted piece
+        Assert.Equal([(0, 5, false)], Split(0, 5, (5, 3)));
+        Assert.Equal([(0, 4, false)], Split(5, 4, (2, 3)));
+    }
+
+    [Fact]
     public void EmptySegmentHasNoPieces()
     {
         Assert.Empty(Split(3, 0, (0, 10)));
