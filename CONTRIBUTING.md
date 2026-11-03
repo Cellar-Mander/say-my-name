@@ -81,6 +81,12 @@ A suppression covers every mutant of that kind in the code that follows it, so k
 
 `stryker-config.json` sets no ignore rules: Core has no logging, exceptions or message text, and its `ToString` calls save channels by name, so they have to be mutated like any other code.
 
+## Untrusted input
+
+Chat lines come from other players, and settings text is whatever the user types. Matching on either must stay linear in the line's length, so no backtracking regex. New user-configurable lists and text fields need a cap. A PR that touches either says so under Risk in its description and says how those two points hold. The PR template asks the same, but agent-written PR bodies skip it.
+
+CodeQL (`.github/workflows/codeql.yml`) scans each PR for security defects without building the plugin. It is on trial and advisory only, so keep it out of required checks.
+
 ## Testing in-game
 
 Dalamud loads the plugin from one dev folder outside every checkout (override with `SAYMYNAME_DEV_DIR`):
