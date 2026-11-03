@@ -4,7 +4,8 @@ namespace SayMyName.Core;
 /// Finds a character's first or last name or a nickname, or one of a list of custom words and phrases, in chat
 /// text as a whole word. Apostrophes and hyphens between letters join a word (Y'shtola, Mary-Jane), except a trailing
 /// possessive 's, so "Rin's" mentions Rin but "Rin'ka" and "Mary-Rin" do not.
-/// Names and nicknames also match stretched (Riiin, Rinnn) or spelled out (R-I-N, r i n); custom phrases match only as written.
+/// Names and nicknames also match stretched (Riiin, Rinnn), spelled out (R-I-N, r i n, R-R-I-N) or stuttered (R-Rin);
+/// custom phrases match only as written.
 /// A run of whitespace in chat text matches the single space between the words of a nickname or phrase.
 /// </summary>
 public sealed class NameMatcher
@@ -177,12 +178,19 @@ public sealed class NameMatcher
         return end > i ? end : -1;
     }
 
-    // The end of the part at start, as written, stretched or spelled out; -1 if it isn't there
+    // The end of the part at start, as written, stretched, spelled out or stuttered; -1 if it isn't there
     private int MatchElongated(ReadOnlySpan<char> text, int start, string part, (int Start, int Length)[] partRuns)
     {
         var end = MatchStretched(text, start, part, partRuns);
         // Stryker disable once Equality : end is -1 or past start, never 0
-        return end >= 0 ? end : MatchSpelled(text, start, part);
+        if (end >= 0)
+        {
+            return end;
+        }
+
+        end = MatchSpelled(text, start, part, partRuns);
+        // Stryker disable once Equality : end is -1 or past start, never 0
+        return end >= 0 ? end : MatchStuttered(text, start, part, partRuns);
     }
 
     // Each letter may repeat: a run of the same letter in the part matches as written, longer to 3 or more
@@ -229,29 +237,57 @@ public sealed class NameMatcher
         return i;
     }
 
-    // Letters split by single hyphens or spaces, all the same, in any case: A-L-I-C-E, y o u
-    private static int MatchSpelled(ReadOnlySpan<char> text, int start, string part)
+    // Single letters split by single hyphens or spaces, all the same, in any case: A-L-I-C-E, y o u. The first
+    // letter may repeat any number of times (A-A-L-I-C-E), the others as when stretched (A-L-I-I-I-C-E, A-L-I-C-E-E)
+    private static int MatchSpelled(ReadOnlySpan<char> text, int start, string part, (int Start, int Length)[] partRuns)
     {
-        var end = start + (2 * part.Length) - 1;
-        if (part.Length < 2 || end > text.Length || text[start + 1] is not (' ' or '-'))
+        if (part.Length < 2 || start + 1 >= text.Length || text[start + 1] is not (' ' or '-'))
         {
             return -1;
         }
 
         var separator = text[start + 1];
-        for (var k = 0; k < part.Length; k++)
+        // The index of the next letter
+        var i = start;
+        for (var r = 0; r < partRuns.Length; r++)
         {
-            var i = start + (2 * k);
-            if (!char.IsLetter(part[k]) || !SameLetter(text[i], part[k]) || (k > 0 && text[i - 1] != separator))
+            var (runStart, runLength) = partRuns[r];
+            var letter = part[runStart];
+            if (!char.IsLetter(letter))
+            {
+                return -1;
+            }
+
+            var copies = 0;
+            while (i < text.Length && (i == start || text[i - 1] == separator) && IsLoneLetter(text, i) && SameLetter(text[i], letter))
+            {
+                copies++;
+                i += 2;
+            }
+            if (copies < runLength || (copies != runLength && copies < 3 && r > 0 && r < partRuns.Length - 1))
             {
                 return -1;
             }
         }
+        var end = i - 1;
 
-        // The letters must not run on from or into other single letters: "h a l o" doesn't spell "al"
-        var before = start >= 2 && text[start - 1] == separator && IsLoneLetter(text, start - 2);
-        var after = end + 1 < text.Length && text[end] == separator && IsLoneLetter(text, end + 1);
+        // The letters must not run on from or into other single letters, by either separator: "h a l o" doesn't
+        // spell "al", and neither do "I A-L" or "A A-L"
+        var before = start >= 2 && text[start - 1] is (' ' or '-') && IsLoneLetter(text, start - 2);
+        var after = end + 1 < text.Length && text[end] is (' ' or '-') && IsLoneLetter(text, end + 1);
         return before || after ? -1 : end;
+    }
+
+    // The first letter stuttered with hyphens before the name as written or stretched: R-Rose, r-r-Roooose
+    private int MatchStuttered(ReadOnlySpan<char> text, int start, string part, (int Start, int Length)[] partRuns)
+    {
+        var i = start;
+        while (i + 1 < text.Length && text[i + 1] == '-' && IsLoneLetter(text, i) && SameLetter(text[i], part[0]))
+        {
+            i += 2;
+        }
+        // Stryker disable once Conditional,Equality : with no stutter, i is start, where MatchStretched already failed
+        return i > start ? MatchStretched(text, i, part, partRuns) : -1;
     }
 
     private static bool IsLoneLetter(ReadOnlySpan<char> text, int i) =>
