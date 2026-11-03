@@ -1,7 +1,7 @@
 {
   "stryker-config": {
     "project": "SayMyName.Core.csproj",
-    "reporters": [ "progress", "html", "markdown" ],
+    "reporters": [ "progress", "html", "markdown", "json" ],
     "thresholds": {
       "high": 80,
       "low": 60,
