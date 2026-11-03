@@ -6,14 +6,14 @@ public class YouWordsTests
 {
     [Theory]
     [InlineData("you")]
-    [InlineData("Thank you!")]
+    [InlineData("thank you")]
     [InlineData("is this YOUR chocobo?")]
-    [InlineData("it's yours")]
+    [InlineData("is this yours?")]
     [InlineData("you're late")]
     [InlineData("you’re late")]
     [InlineData("Hey, you.")]
     [InlineData("youuu")]
-    [InlineData("thank youu")]
+    [InlineData("thank youuu")]
     [InlineData("yooou")]
     [InlineData("YOURRR turn")]
     [InlineData("y o u")]
@@ -31,7 +31,7 @@ public class YouWordsTests
     [InlineData("you'd know")]
     [InlineData("you’d know")]
     [InlineData("Youd know")]
-    [InlineData("y'all ready?")]
+    [InlineData("y'all")]
     [InlineData("Y’ALL ready?")]
     [InlineData("yall ready?")]
     [InlineData("yaaall ready?")]
@@ -41,7 +41,7 @@ public class YouWordsTests
     [InlineData("YourSelves")]
     [InlineData("thou art")]
     [InlineData("THOU")]
-    [InlineData("I thank thee")]
+    [InlineData("thee")]
     [InlineData("Theee")]
     [InlineData("thy blade")]
     [InlineData("Thy")]
@@ -79,8 +79,8 @@ public class YouWordsTests
     public void FindAllGivesEachYouWord()
     {
         var matches = new List<(int Start, int Length)>();
-        YouWords.FindAll("Thank you, is this yours? You’re kind", matches);
-        Assert.Equal([(6, 3), (19, 5), (26, 6)], matches.Order());
+        YouWords.FindAll("thank youuu, is this yours? You’re y'all? thee", matches);
+        Assert.Equal([(6, 5), (21, 5), (28, 6), (35, 5), (42, 4)], matches.Order());
     }
 
     [Fact]
