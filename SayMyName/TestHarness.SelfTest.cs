@@ -419,11 +419,12 @@ public sealed partial class TestHarness
 
         // You trigger, solo
         void You() { Baseline(TriggerKind.You); fakeTargeter = Friend; }
-        foreach (var text in new[] { "thank you", "is this your bag", "it is yours", "you're welcome" })
+        foreach (var text in new[] { "thank you", "is this yours?", "thank youuu", "y'all", "thee", "you're welcome" })
         {
             yield return Sound($"You: '{text}' from a sender targeting you sounds", true, You, () => Send(Say, Friend, text));
         }
         yield return Sound("You: CustomEmote sounds", true, You, () => Send(CustomEmote, Friend, "waves at you"));
+        yield return Sound("You: CustomEmote without a 'you' word is silent", false, You, () => Send(CustomEmote, Friend, "waves"));
         yield return Sound("You: no 'you' word is silent", false, You, () => Send(Say, Friend, "hello"));
         yield return Sound("You: sender not targeting you is silent", false, You, () => Send(Say, Other, "thank you"));
         foreach (var channel in new Enum[] { Party, XivChatType.CrossParty })
