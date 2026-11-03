@@ -67,12 +67,12 @@ Another player says the player's character name or one of their nicknames. **On 
 |---|---|---|
 | `hi Alice` / `Alice!` / `Alice Smith` | yes | the name |
 | `Alice's sword` | yes | `Alice`, not `'s` |
+| `Alice—` / `Alice—wait` / `Alice- wait` (cut off with a dash) | yes | the name |
 | `Aliiice` / `Alicee` / `Aaalice` | yes | the whole word |
 | `A-L-I-C-E` / `a l i c e` | yes | the whole word |
 | `A-A-L-I-C-E` / `A-L-I-I-I-C-E` / `A-L-I-C-E-E` | yes | the whole word |
 | `A-Alice` / `a-A-Aliiice` (a stutter) | yes | the stutter and the name |
-| `A-L-L-I-C-E` (a letter doubled inside) / `L-Alice` | no | |
-| `Aliice` (a vowel doubled inside) | no | |
+| `Aliice` / `A-L-L-I-C-E` (a letter doubled inside) / `L-Alice` | no | |
 | `alice` | no (yes with Match case off) | |
 | `Malice`, `Alice-Ann`, `Alice'ka` | no | |
 | `Big  Zed` (nickname *Big Zed*, two spaces) | yes | `Big  Zed`, spaces included |

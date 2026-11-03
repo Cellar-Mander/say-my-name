@@ -24,10 +24,16 @@ public class NameMatcherTests
     }
 
     [Theory]
-    // Quote marks and a trailing hyphen around a name don't join it to anything
+    // Quote marks around a name, and a hyphen or dash cutting it off, don't join it to anything
     [InlineData("call me 'Rose'")]
     [InlineData("hey Rose-")]
     [InlineData("Rose- wait")]
+    [InlineData("Rose-- wait")]
+    [InlineData("hey Rose—")]
+    [InlineData("Rose— wait")]
+    [InlineData("Rose—wait")]
+    [InlineData("Rose–wait")]
+    [InlineData("—Rose—")]
     public void QuotedOrCutOffNamesMatch(string text)
     {
         // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
