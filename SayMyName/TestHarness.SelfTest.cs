@@ -5,6 +5,7 @@ using Dalamud.Game.Chat;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Plugin.SelfTest;
 using Dalamud.Plugin.Services;
 using Newtonsoft.Json;
 using SayMyName.Core;
@@ -12,13 +13,20 @@ using static SayMyName.Core.ChatChannel;
 
 namespace SayMyName;
 
-// `/saymyname selftest`: runs the solo cases of docs/smoke-test.md that need no second player and
-// no look at the screen, through injected lines only, and logs PASS/FAIL per case. Settings are
-// changed in memory for the run and put back afterwards, never saved.
+// Dalamud's self-test window (/xldev, Dalamud menu, Open Self-Test; group SayMyName): the solo cases of docs/smoke-test.md
+// that need no second player and no look at the screen, one step per check, through injected lines
+// only. Each case sets up its own settings, so any case passes when run alone. Settings are changed
+// in memory while cases run and put back afterwards, never saved.
 public sealed partial class TestHarness
 {
     // Frames to wait for an injected line to come back through the chat events
     private const int SelfTestTimeout = 120;
+    // Frames with no case run before the settings are put back: Dalamud gives a skipped case no
+    // CleanUp, and runs no case while its window is closed
+    private const int SelfTestIdleFrames = 60;
+
+    private const string Friend = "Selftest Friend";
+    private const string Other = "Someone Else";
 
     private sealed class SelfTestLine(string text)
     {
@@ -30,91 +38,144 @@ public sealed partial class TestHarness
         public bool Glow { get; set; }
         public int Alerts { get; set; }
         public int Frames { get; set; }
-        public Action? Verify { get; set; }
     }
 
-    private IEnumerator<SelfTestLine?>? selfTest;
-    private SelfTestLine? selfTestLine;
-    private string savedConfiguration = "";
-    private int passed;
-    private int failed;
-
-    private bool StartSelfTest(string args)
+    // One check: sets up the settings, sends its lines (yielding each until it is back) and checks them
+    private sealed class SelfTestCase(TestHarness harness, string name, Func<IEnumerable<SelfTestLine>> body) : ISelfTestStep
     {
-        if (args.Length > 0)
+        public string Name => name;
+        public Func<IEnumerable<SelfTestLine>> Body => body;
+        public SelfTestStepResult RunStep() => harness.RunCase(this);
+        // Dalamud may call this twice per case; the second call finds nothing to put back
+        public void CleanUp() => harness.EndSelfTest();
+    }
+
+    private readonly Configuration selfTestDefaults = NewDefaults();
+
+    // The user's settings while cases run, else null
+    private string? savedConfiguration;
+    private SelfTestCase? runningCase;
+    private IEnumerator<SelfTestLine>? caseSteps;
+    private SelfTestLine? selfTestLine;
+    private bool caseFailed;
+    private int caseChecks;
+    private int idleFrames;
+    private string me = "";
+    private string first = "";
+
+    private static Configuration NewDefaults()
+    {
+        var defaults = new Configuration();
+        defaults.Normalize();
+        return defaults;
+    }
+
+    // Called by Dalamud's self-test window once per frame while the case is current
+    private SelfTestStepResult RunCase(SelfTestCase test)
+    {
+        idleFrames = 0;
+        if (runningCase != test && !StartCase(test))
         {
+            return SelfTestStepResult.Fail;
+        }
+        if (selfTestLine is { UnhandledKind: null } waiting && ++waiting.Frames < SelfTestTimeout)
+        {
+            return SelfTestStepResult.Waiting;
+        }
+
+        try
+        {
+            if (caseSteps!.MoveNext())
+            {
+                selfTestLine = caseSteps.Current;
+                return SelfTestStepResult.Waiting;
+            }
+        }
+        catch (Exception e)
+        {
+            caseFailed = true;
+            Plugin.Log.Error(e, $"Self-test FAIL: {test.Name} (exception)");
+        }
+
+        var result = caseFailed || caseChecks == 0 ? SelfTestStepResult.Fail : SelfTestStepResult.Pass;
+        StopCase();
+        return result;
+    }
+
+    private bool StartCase(SelfTestCase test)
+    {
+        // A skipped case gets no CleanUp, so it may still be running
+        StopCase();
+        string? refused = null;
+        // The chat events and settings are touched on the framework thread
+        if (!Plugin.Framework.IsInFrameworkUpdateThread)
+        {
+            refused = "not on the framework thread";
+        }
+        // The settings window shows and edits the test's settings
+        else if (settingsOpen())
+        {
+            refused = "close the settings window first";
+        }
+        else if (Plugin.PlayerState.CharacterName.Split(' ') is not [_, _])
+        {
+            refused = "log in first";
+        }
+        if (refused != null)
+        {
+            Plugin.Log.Warning($"Self-test FAIL: {test.Name} ({refused})");
             return false;
         }
-        if (selfTest != null)
-        {
-            Plugin.ChatGui.PrintError("Test harness: self-test already running");
-            return true;
-        }
-        // Closing the window saves, which would save the test's settings
-        if (settingsOpen())
-        {
-            Plugin.ChatGui.PrintError("Test harness: close the settings window before the self-test");
-            return true;
-        }
-        if (Plugin.PlayerState.CharacterName.Split(' ') is not [_, _])
-        {
-            Plugin.ChatGui.PrintError("Test harness: log in before the self-test");
-            return true;
-        }
 
-        savedConfiguration = JsonConvert.SerializeObject(configuration);
-        passed = failed = 0;
-        selfTestLine = null;
-        selfTest = SelfTestScript();
-        alertSound.Alerted = () => { if (selfTestLine != null) { selfTestLine.Alerts++; } };
-        Plugin.Framework.Update += OnSelfTestUpdate;
-        Plugin.Log.Information("Self-test: started");
-        Plugin.ChatGui.Print("Test harness: self-test running, see /xllog");
+        if (savedConfiguration == null)
+        {
+            savedConfiguration = JsonConvert.SerializeObject(configuration);
+            configuration.SavesBlocked = true;
+            alertSound.Alerted = () => { if (selfTestLine != null) { selfTestLine.Alerts++; } };
+            Plugin.Framework.Update += OnSelfTestUpdate;
+            Plugin.Log.Debug("Self-test: settings held");
+        }
+        me = Plugin.PlayerState.CharacterName;
+        first = me.Split(' ')[0];
+        runningCase = test;
+        caseSteps = test.Body().GetEnumerator();
+        caseFailed = false;
+        caseChecks = 0;
         return true;
     }
 
-    private void StopSelfTest()
+    private void StopCase()
     {
-        if (selfTest == null)
+        caseSteps?.Dispose();
+        caseSteps = null;
+        runningCase = null;
+        selfTestLine = null;
+    }
+
+    // Puts the user's settings back; a case that was running starts again from scratch if resumed
+    private void EndSelfTest()
+    {
+        StopCase();
+        if (savedConfiguration == null)
         {
             return;
         }
 
         Plugin.Framework.Update -= OnSelfTestUpdate;
-        selfTest.Dispose();
-        selfTest = null;
-        selfTestLine = null;
         alertSound.Alerted = null;
         fakeTargeter = fakeTarget = null;
         JsonConvert.PopulateObject(savedConfiguration, configuration, new JsonSerializerSettings { ObjectCreationHandling = ObjectCreationHandling.Replace });
-        var summary = $"Self-test: {passed} passed, {failed} failed";
-        Plugin.Log.Information(summary);
-        Plugin.ChatGui.Print($"Test harness: {summary}");
+        configuration.SavesBlocked = false;
+        savedConfiguration = null;
+        Plugin.Log.Debug("Self-test: settings put back");
     }
 
-    // One step per frame: a step injects a line and waits until it has come back (or timed out)
     private void OnSelfTestUpdate(IFramework framework)
     {
-        if (selfTestLine is { UnhandledKind: null } waiting && ++waiting.Frames < SelfTestTimeout)
+        if (++idleFrames > SelfTestIdleFrames)
         {
-            return;
+            EndSelfTest();
         }
-
-        try
-        {
-            selfTestLine?.Verify?.Invoke();
-            if (selfTest!.MoveNext())
-            {
-                selfTestLine = selfTest.Current;
-                return;
-            }
-        }
-        catch (Exception e)
-        {
-            failed++;
-            Plugin.Log.Error(e, "Self-test FAIL: exception");
-        }
-        StopSelfTest();
     }
 
     // Called by the harness's chat handlers, which run after the triggers' (subscribed earlier)
@@ -147,269 +208,257 @@ public sealed partial class TestHarness
 
     private void Check(string name, bool ok, string detail = "")
     {
+        caseChecks++;
         if (ok)
         {
-            passed++;
             Plugin.Log.Information($"Self-test PASS: {name}");
         }
         else
         {
-            failed++;
+            caseFailed = true;
             Plugin.Log.Warning($"Self-test FAIL: {name}{(detail.Length > 0 ? $" ({detail})" : "")}");
         }
     }
 
-    private IEnumerator<SelfTestLine?> SelfTestScript()
+    // A ChatChannel, or an XivChatType the harness injects that is no channel of its own (cross-world party)
+    private SelfTestLine Send(Enum channel, string sender, string text)
     {
-        var me = Plugin.PlayerState.CharacterName;
-        var first = me.Split(' ')[0];
-        const string friend = "Selftest Friend";
-        const string other = "Someone Else";
-        var defaults = new Configuration();
-        defaults.Normalize();
-        SelfTestLine line = null!;
+        var line = new SelfTestLine(text);
+        if (!Inject($"{channel} {sender} {text}"))
+        {
+            throw new InvalidOperationException($"inject {channel} {sender} {text} refused");
+        }
+        return line;
+    }
 
-        // A ChatChannel, or an XivChatType the harness injects that is no channel of its own (cross-world party)
-        SelfTestLine Send(Enum channel, string sender, string text)
-        {
-            line = new SelfTestLine(text);
-            if (!Inject($"{channel} {sender} {text}"))
-            {
-                throw new InvalidOperationException($"inject {channel} {sender} {text} refused");
-            }
-            return line;
-        }
+    // Your own lines often come with no player link; Party Icons then puts a job tag before your name
+    private SelfTestLine SendTaggedOwn(ChatChannel channel, string text)
+    {
+        var line = new SelfTestLine(text);
+        InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload("WAR"), new TextPayload(" "), new TextPayload(me)), text);
+        return line;
+    }
 
-        string Arrival() => line.UnhandledKind == null ? "line never arrived" : "";
-        // Your own lines often come with no player link; Party Icons then puts a job tag before your name
-        SelfTestLine SendTaggedOwn(ChatChannel channel, string text)
-        {
-            line = new SelfTestLine(text);
-            InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload("WAR"), new TextPayload(" "), new TextPayload(me)), text);
-            return line;
-        }
-        // Your own unlinked line whose shown name another plugin replaces (Player Tags' random names)
-        SelfTestLine SendRenamedOwn(ChatChannel channel, string text)
-        {
-            line = new SelfTestLine(text);
-            rewriteSender.Add(text);
-            InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload(me)), text);
-            return line;
-        }
-        // Send a line and, once it is back, check whether it alerted or which words were coloured
-        SelfTestLine Sound(string name, bool expected, Enum channel, string sender, string text) =>
-            Verified(name, expected, Send(channel, sender, text));
-        SelfTestLine Verified(string name, bool expected, SelfTestLine sent)
-        {
-            sent.Verify = () => Check(name, sent.UnhandledKind != null && sent.Alerts > 0 == expected, Arrival() is { Length: > 0 } a ? a : $"{sent.Alerts} alerts");
-            return sent;
-        }
-        SelfTestLine Coloured(string name, string[] expected, ChatChannel channel, string sender, string text)
-        {
-            var sent = Send(channel, sender, text);
-            sent.Verify = () => Check(name, sent.UnhandledKind != null && sent.Coloured.SequenceEqual(expected), Arrival() is { Length: > 0 } a ? a : $"coloured [{string.Join(", ", sent.Coloured)}]");
-            return sent;
-        }
-        TriggerSettings Trigger(TriggerKind kind) => configuration.Triggers[kind];
+    // Your own unlinked line whose shown name another plugin replaces (Player Tags' random names)
+    private SelfTestLine SendRenamedOwn(ChatChannel channel, string text)
+    {
+        var line = new SelfTestLine(text);
+        rewriteSender.Add(text);
+        InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload(me)), text);
+        return line;
+    }
 
-        // Every trigger off with its default channels, quiet time 0, highlight colours at their defaults
-        void Baseline(params TriggerKind[] enabled)
-        {
-            foreach (var kind in Triggers.All)
-            {
-                configuration.Triggers[kind] = Triggers.Default(kind);
-                configuration.Triggers[kind].Enabled = enabled.Contains(kind);
-            }
-            configuration.NameCaseSensitive = true;
-            configuration.Nicknames = "";
-            configuration.CustomWords = "";
-            configuration.CustomWordsCaseSensitive = false;
-            configuration.TargetSpeaksOnlyTargetingYou = false;
-            configuration.PlaySound = true;
-            configuration.CooldownSeconds = 0;
-            configuration.Highlight = true;
-            configuration.HighlightTextColor = defaults.HighlightTextColor;
-            configuration.HighlightGlowColor = defaults.HighlightGlowColor;
-            // Tab colouring isn't checked here, and would leave tabs coloured after the run
-            configuration.HighlightTabs = false;
-            fakeTargeter = fakeTarget = null;
-        }
+    private static string Arrival(SelfTestLine line) => line.UnhandledKind == null ? "line never arrived" : "";
 
+    private TriggerSettings Trigger(TriggerKind kind) => configuration.Triggers[kind];
+
+    // Every trigger off with its default channels, quiet time 0, highlight colours at their defaults
+    private void Baseline(params TriggerKind[] enabled)
+    {
+        foreach (var kind in Triggers.All)
+        {
+            configuration.Triggers[kind] = Triggers.Default(kind);
+            configuration.Triggers[kind].Enabled = enabled.Contains(kind);
+        }
+        configuration.NameCaseSensitive = true;
+        configuration.Nicknames = "";
+        configuration.CustomWords = "";
+        configuration.CustomWordsCaseSensitive = false;
+        configuration.TargetSpeaksOnlyTargetingYou = false;
+        configuration.PlaySound = true;
+        configuration.CooldownSeconds = 0;
+        configuration.Highlight = true;
+        configuration.HighlightTextColor = selfTestDefaults.HighlightTextColor;
+        configuration.HighlightGlowColor = selfTestDefaults.HighlightGlowColor;
+        // Tab colouring isn't checked here, and would leave tabs coloured after the run
+        configuration.HighlightTabs = false;
+        fakeTargeter = fakeTarget = null;
+        alertSound.ResetQuietTime();
+    }
+
+    private SelfTestCase Case(string name, Func<IEnumerable<SelfTestLine>> body) => new(this, name, body);
+
+    // A case with no line to send
+    private SelfTestCase Now(string name, Func<bool> ok, Func<string>? detail = null) => Case(name, () => NowBody(name, ok, detail));
+
+    private IEnumerable<SelfTestLine> NowBody(string name, Func<bool> ok, Func<string>? detail)
+    {
+        Check(name, ok(), detail?.Invoke() ?? "");
+        yield break;
+    }
+
+    // A case that sets up, sends one line and checks it once it is back (or timed out)
+    private SelfTestCase OneLine(string name, Action setup, Func<SelfTestLine> send, Func<SelfTestLine, (bool Ok, string Detail)> verify) =>
+        Case(name, () => OneLineBody(name, setup, send, verify));
+
+    private IEnumerable<SelfTestLine> OneLineBody(string name, Action setup, Func<SelfTestLine> send, Func<SelfTestLine, (bool Ok, string Detail)> verify)
+    {
+        setup();
+        var sent = send();
+        yield return sent;
+        var (ok, detail) = verify(sent);
+        Check(name, ok, detail);
+    }
+
+    // Whether the line alerted
+    private SelfTestCase Sound(string name, bool expected, Action setup, Func<SelfTestLine> send) =>
+        OneLine(name, setup, send, s => (s.UnhandledKind != null && s.Alerts > 0 == expected, Arrival(s) is { Length: > 0 } a ? a : $"{s.Alerts} alerts"));
+
+    // Which words of the line were coloured
+    private SelfTestCase Coloured(string name, Func<string[]> expected, Action setup, Func<SelfTestLine> send) =>
+        OneLine(name, setup, send, s => (s.UnhandledKind != null && s.Coloured.SequenceEqual(expected()), Arrival(s) is { Length: > 0 } a ? a : $"coloured [{string.Join(", ", s.Coloured)}]"));
+
+    private IEnumerable<SelfTestLine> QuietTimeBody(string name)
+    {
+        Baseline(TriggerKind.Name);
+        configuration.CooldownSeconds = 10;
+        var firstLine = Send(Say, Friend, $"hi {first}");
+        yield return firstLine;
+        var secondLine = Send(Say, Friend, $"hi {first} again");
+        yield return secondLine;
+        Check(name, firstLine.Alerts + secondLine.Alerts == 1, $"{firstLine.Alerts} + {secondLine.Alerts} alerts");
+    }
+
+    /// <summary>The self-test cases, for Dalamud's self-test registry.</summary>
+    public IEnumerable<ISelfTestStep> SelfTestSteps()
+    {
         // Loading
-        Check("Loading: inject with too few arguments is a usage error", !Inject("Say"));
-        Check("Loading: inject on an unknown channel is a usage error", !Inject("Nowhere A Friend hi"));
+        yield return Now("Loading: inject with too few arguments is a usage error", () => !Inject("Say"));
+        yield return Now("Loading: inject on an unknown channel is a usage error", () => !Inject("Nowhere A Friend hi"));
 
         // Harness
-        Baseline();
         foreach (var channel in new[] { Say, Linkshell2, CrossLinkshell1, CrossLinkshell5, CustomEmote })
         {
-            yield return Send(channel, friend, "selftest hello");
             var type = ChatChannels.ToChatType(channel);
-            Check($"Harness: {channel} line reaches ChatMessage and ChatMessageUnhandled as {type}",
-                line.HandledKind == type && line.UnhandledKind == type, $"ChatMessage {line.HandledKind?.ToString() ?? "missing"}, ChatMessageUnhandled {line.UnhandledKind?.ToString() ?? "missing"}");
+            yield return OneLine($"Harness: {channel} line reaches ChatMessage and ChatMessageUnhandled as {type}",
+                () => Baseline(), () => Send(channel, Friend, "selftest hello"),
+                s => (s.HandledKind == type && s.UnhandledKind == type, $"ChatMessage {s.HandledKind?.ToString() ?? "missing"}, ChatMessageUnhandled {s.UnhandledKind?.ToString() ?? "missing"}"));
         }
 
         // Name trigger
-        Baseline(TriggerKind.Name);
-        yield return Sound("Name: first name on Say sounds", true, Say, friend, $"hi {first}");
-        yield return Sound("Name: full name sounds", true, Say, friend, $"hi {me}");
-        yield return Sound("Name: name inside other text sounds", true, Say, friend, $"{first}!");
-        yield return Sound("Name: last letter repeated sounds", true, Say, friend, $"hi {first}{first[^1]}{first[^1]}");
+        void Name() => Baseline(TriggerKind.Name);
+        void NameNoSay() { Name(); Trigger(TriggerKind.Name).Channels.Remove(Say); }
+        void NameNoSayNoParty() { NameNoSay(); Trigger(TriggerKind.Name).Channels.Remove(Party); }
+        void Nicknames() { Name(); configuration.Nicknames = "Zuzu\nBig Zed"; }
+        yield return Sound("Name: first name on Say sounds", true, Name, () => Send(Say, Friend, $"hi {first}"));
+        yield return Sound("Name: full name sounds", true, Name, () => Send(Say, Friend, $"hi {me}"));
+        yield return Sound("Name: name inside other text sounds", true, Name, () => Send(Say, Friend, $"{first}!"));
+        yield return Sound("Name: last letter repeated sounds", true, Name, () => Send(Say, Friend, $"hi {first}{first[^1]}{first[^1]}"));
         // Spelling out joins letters only, so a name with an apostrophe or hyphen is left to the checklist
-        if (first.All(char.IsLetter))
-        {
-            yield return Sound("Name: spelled out with hyphens sounds", true, Say, friend, $"hi {string.Join('-', first.ToUpperInvariant().ToCharArray())}");
-        }
-        Trigger(TriggerKind.Name).Channels.Remove(Say);
-        yield return Sound("Name: Say unticked, Say is silent", false, Say, friend, $"hi {first}");
-        yield return Sound("Name: Say unticked, Party sounds", true, Party, friend, $"hi {first}");
-        yield return Sound("Name: CrossParty sounds through Party", true, XivChatType.CrossParty, friend, $"hi {first}");
-        Trigger(TriggerKind.Name).Channels.Remove(Party);
-        yield return Sound("Name: Party unticked, CrossParty is silent", false, XivChatType.CrossParty, friend, $"hi {first}");
-        Baseline();
-        yield return Sound("Name: trigger unticked, silent", false, Say, friend, $"hi {first}");
-        Baseline(TriggerKind.Name);
-        yield return Sound("Name: Match case on, lower-case name is silent", false, Say, friend, $"hi {first.ToLowerInvariant()}");
-        configuration.NameCaseSensitive = false;
-        yield return Sound("Name: Match case off, lower-case name sounds", true, Say, friend, $"hi {first.ToLowerInvariant()}");
-        configuration.NameCaseSensitive = true;
-        configuration.CooldownSeconds = 10;
-        alertSound.ResetQuietTime();
-        yield return Send(Say, friend, $"hi {first}");
-        var firstAlerts = line.Alerts;
-        yield return Send(Say, friend, $"hi {first} again");
-        Check("Name: quiet time 10 s, two lines sound once", firstAlerts + line.Alerts == 1, $"{firstAlerts} + {line.Alerts} alerts");
-        configuration.CooldownSeconds = 0;
-        configuration.PlaySound = false;
-        yield return Sound("Name: Play a sound unticked, silent", false, Say, friend, $"hi {first}");
-        configuration.PlaySound = true;
-        yield return Sound("Name: your own line is silent", false, Say, me, $"hi {first}");
-        yield return Verified("Name: your own unlinked line with a job tag is silent", false, SendTaggedOwn(Say, $"hey {first}"));
-        yield return Verified("Name: your own unlinked line renamed by a plugin is silent", false, SendRenamedOwn(Say, $"yo {first}"));
-        configuration.Nicknames = "Zuzu\nBig Zed";
-        yield return Sound("Name: nickname sounds", true, Say, friend, "hi Zuzu");
-        yield return Sound("Name: multi-word nickname, possessive sounds", true, Say, friend, "is that Big Zed's?");
-        yield return Sound("Name: nickname stretched sounds", true, Say, friend, "Zuzuuu!");
-        yield return Sound("Name: part of a multi-word nickname is silent", false, Say, friend, "Zed");
-        yield return Sound("Name: Match case on, lower-case nickname is silent", false, Say, friend, "hi zuzu");
-        yield return Coloured("Highlight: nickname coloured without possessive", ["Big Zed"], Say, friend, "Big Zed's turn");
-        configuration.Nicknames = "";
+        yield return Case("Name: spelled out with hyphens sounds", () => first.All(char.IsLetter)
+            ? OneLineBody("Name: spelled out with hyphens sounds", Name, () => Send(Say, Friend, $"hi {string.Join('-', first.ToUpperInvariant().ToCharArray())}"),
+                s => (s.UnhandledKind != null && s.Alerts > 0, Arrival(s) is { Length: > 0 } a ? a : $"{s.Alerts} alerts"))
+            : NowBody("Name: spelled out with hyphens (not applicable: name has non-letters)", () => true, null));
+        yield return Sound("Name: Say unticked, Say is silent", false, NameNoSay, () => Send(Say, Friend, $"hi {first}"));
+        yield return Sound("Name: Say unticked, Party sounds", true, NameNoSay, () => Send(Party, Friend, $"hi {first}"));
+        yield return Sound("Name: CrossParty sounds through Party", true, Name, () => Send(XivChatType.CrossParty, Friend, $"hi {first}"));
+        yield return Sound("Name: Party unticked, CrossParty is silent", false, NameNoSayNoParty, () => Send(XivChatType.CrossParty, Friend, $"hi {first}"));
+        yield return Sound("Name: trigger unticked, silent", false, () => Baseline(), () => Send(Say, Friend, $"hi {first}"));
+        yield return Sound("Name: Match case on, lower-case name is silent", false, Name, () => Send(Say, Friend, $"hi {first.ToLowerInvariant()}"));
+        yield return Sound("Name: Match case off, lower-case name sounds", true, () => { Name(); configuration.NameCaseSensitive = false; },
+            () => Send(Say, Friend, $"hi {first.ToLowerInvariant()}"));
+        yield return Case("Name: quiet time 10 s, two lines sound once", () => QuietTimeBody("Name: quiet time 10 s, two lines sound once"));
+        yield return Sound("Name: Play a sound unticked, silent", false, () => { Name(); configuration.PlaySound = false; }, () => Send(Say, Friend, $"hi {first}"));
+        yield return Sound("Name: your own line is silent", false, Name, () => Send(Say, me, $"hi {first}"));
+        yield return Sound("Name: your own unlinked line with a job tag is silent", false, Name, () => SendTaggedOwn(Say, $"hey {first}"));
+        yield return Sound("Name: your own unlinked line renamed by a plugin is silent", false, Name, () => SendRenamedOwn(Say, $"yo {first}"));
+        yield return Sound("Name: nickname sounds", true, Nicknames, () => Send(Say, Friend, "hi Zuzu"));
+        yield return Sound("Name: multi-word nickname, possessive sounds", true, Nicknames, () => Send(Say, Friend, "is that Big Zed's?"));
+        yield return Sound("Name: nickname stretched sounds", true, Nicknames, () => Send(Say, Friend, "Zuzuuu!"));
+        yield return Sound("Name: part of a multi-word nickname is silent", false, Nicknames, () => Send(Say, Friend, "Zed"));
+        yield return Sound("Name: Match case on, lower-case nickname is silent", false, Nicknames, () => Send(Say, Friend, "hi zuzu"));
+        yield return Coloured("Highlight: nickname coloured without possessive", () => ["Big Zed"], Nicknames, () => Send(Say, Friend, "Big Zed's turn"));
 
         // Custom trigger
-        Baseline(TriggerKind.Custom);
-        configuration.CustomWords = "raid\ngood morning";
+        void Custom() { Baseline(TriggerKind.Custom); configuration.CustomWords = "raid\ngood morning"; }
+        void CustomCase() { Custom(); configuration.CustomWordsCaseSensitive = true; }
+        void CustomNoSay() { Custom(); Trigger(TriggerKind.Custom).Channels.Remove(Say); }
         foreach (var text in new[] { "raid tonight?", "Good morning!", "RAID" })
         {
-            yield return Sound($"Custom: '{text}' sounds", true, Say, friend, text);
+            yield return Sound($"Custom: '{text}' sounds", true, Custom, () => Send(Say, Friend, text));
         }
         foreach (var text in new[] { "afraid", "good", "morning", "raiiid" })
         {
-            yield return Sound($"Custom: '{text}' is silent", false, Say, friend, text);
+            yield return Sound($"Custom: '{text}' is silent", false, Custom, () => Send(Say, Friend, text));
         }
-        configuration.CustomWordsCaseSensitive = true;
-        yield return Sound("Custom: Match case on, 'RAID' is silent", false, Say, friend, "RAID");
-        yield return Sound("Custom: Match case on, 'raid' sounds", true, Say, friend, "raid");
-        configuration.CustomWordsCaseSensitive = false;
-        Trigger(TriggerKind.Custom).Channels.Remove(Say);
-        yield return Sound("Custom: Say unticked, Say is silent", false, Say, friend, "raid");
-        yield return Sound("Custom: Say unticked, Party sounds", true, Party, friend, "raid");
-        Trigger(TriggerKind.Custom).Channels.Add(Say);
-        yield return Sound("Custom: your own line is silent", false, Say, me, "raid");
-        yield return Verified("Custom: your own unlinked line with a job tag is silent", false, SendTaggedOwn(Say, "raid time"));
-        configuration.CustomWords = "";
-        yield return Sound("Custom: empty list is silent", false, Say, friend, "raid");
-        configuration.CustomWords = "raid";
-        Trigger(TriggerKind.Custom).Enabled = false;
-        yield return Sound("Custom: trigger unticked, silent", false, Say, friend, "raid");
+        yield return Sound("Custom: Match case on, 'RAID' is silent", false, CustomCase, () => Send(Say, Friend, "RAID"));
+        yield return Sound("Custom: Match case on, 'raid' sounds", true, CustomCase, () => Send(Say, Friend, "raid"));
+        yield return Sound("Custom: Say unticked, Say is silent", false, CustomNoSay, () => Send(Say, Friend, "raid"));
+        yield return Sound("Custom: Say unticked, Party sounds", true, CustomNoSay, () => Send(Party, Friend, "raid"));
+        yield return Sound("Custom: your own line is silent", false, Custom, () => Send(Say, me, "raid"));
+        yield return Sound("Custom: your own unlinked line with a job tag is silent", false, Custom, () => SendTaggedOwn(Say, "raid time"));
+        yield return Sound("Custom: empty list is silent", false, () => Baseline(TriggerKind.Custom), () => Send(Say, Friend, "raid"));
+        yield return Sound("Custom: trigger unticked, silent", false, () => { Baseline(); configuration.CustomWords = "raid"; }, () => Send(Say, Friend, "raid"));
 
         // Highlight
-        Baseline(TriggerKind.Name, TriggerKind.Custom, TriggerKind.You);
-        configuration.CustomWords = "raid";
-        yield return Coloured("Highlight: name and custom word coloured", [first, "raid"], Say, friend, $"hi {first}, raid?");
-        Check("Highlight: text colour and glow both applied", line.TextColour && line.Glow);
-        yield return Coloured("Highlight: possessive colours the name without 's", [first, "raid"], Say, friend, $"{first}'s raid");
-        yield return Coloured("Highlight: name and word inside other words not coloured", [], Say, friend, $"Prim{first.ToLowerInvariant()} afraid");
-        configuration.HighlightGlowColor = Configuration.NoColor;
-        yield return Send(Say, friend, $"hi {first}");
-        Check("Highlight: glow None, text colour only", line.TextColour && !line.Glow && line.Coloured.SequenceEqual([first]));
-        configuration.HighlightTextColor = Configuration.NoColor;
-        yield return Coloured("Highlight: text and glow None, line unchanged", [], Say, friend, $"hi {first}");
-        configuration.HighlightTextColor = defaults.HighlightTextColor;
-        configuration.HighlightGlowColor = defaults.HighlightGlowColor;
-        configuration.PlaySound = false;
-        yield return Send(Say, friend, $"hi {first}");
-        Check("Highlight: Play a sound unticked, coloured without sound", line.Alerts == 0 && line.Coloured.SequenceEqual([first]));
-        configuration.PlaySound = true;
-        configuration.Highlight = false;
-        yield return Send(Say, friend, $"hi {first}");
-        Check("Highlight: Highlight unticked, sound without colour", line.Alerts > 0 && line.Coloured.Count == 0);
-        configuration.Highlight = true;
-        Trigger(TriggerKind.Name).Channels.Remove(Say);
-        yield return Coloured("Highlight: Say unticked for Name, Say not coloured", [], Say, friend, $"hi {first}");
-        yield return Coloured("Highlight: Say unticked for Name, Party coloured", [first], Party, friend, $"hi {first}");
-        Trigger(TriggerKind.Name).Channels.Add(Say);
-        yield return Coloured("Highlight: your own line not coloured", [], Say, me, $"hi {first}");
-        fakeTargeter = friend;
-        yield return Coloured("Highlight: 'you' words coloured from a sender targeting you", ["youuu", "yours"], Say, friend, "thank youuu, is this yours?");
-        yield return Coloured("Highlight: 'you' words coloured on CustomEmote", ["youuu", "yours"], CustomEmote, friend, "thank youuu, is this yours?");
-        yield return Coloured("Highlight: 'you' words not coloured from a sender not targeting you", [], Say, other, "thank you");
-        configuration.PlaySound = false;
-        yield return Coloured("Highlight: Play a sound unticked, 'you' still coloured", ["you"], Say, friend, "thank you");
+        void Highlight() { Baseline(TriggerKind.Name, TriggerKind.Custom, TriggerKind.You); configuration.CustomWords = "raid"; }
+        void HighlightNoGlow() { Highlight(); configuration.HighlightGlowColor = Configuration.NoColor; }
+        void HighlightTargeted() { Highlight(); fakeTargeter = Friend; }
+        yield return Coloured("Highlight: name and custom word coloured", () => [first, "raid"], Highlight, () => Send(Say, Friend, $"hi {first}, raid?"));
+        yield return OneLine("Highlight: text colour and glow both applied", Highlight, () => Send(Say, Friend, $"hi {first}, raid?"),
+            s => (s.TextColour && s.Glow, Arrival(s)));
+        yield return Coloured("Highlight: possessive colours the name without 's", () => [first, "raid"], Highlight, () => Send(Say, Friend, $"{first}'s raid"));
+        yield return Coloured("Highlight: name and word inside other words not coloured", () => [], Highlight, () => Send(Say, Friend, $"Prim{first.ToLowerInvariant()} afraid"));
+        yield return OneLine("Highlight: glow None, text colour only", HighlightNoGlow, () => Send(Say, Friend, $"hi {first}"),
+            s => (s.TextColour && !s.Glow && s.Coloured.SequenceEqual([first]), Arrival(s)));
+        yield return Coloured("Highlight: text and glow None, line unchanged", () => [], () => { HighlightNoGlow(); configuration.HighlightTextColor = Configuration.NoColor; },
+            () => Send(Say, Friend, $"hi {first}"));
+        yield return OneLine("Highlight: Play a sound unticked, coloured without sound", () => { Highlight(); configuration.PlaySound = false; }, () => Send(Say, Friend, $"hi {first}"),
+            s => (s.Alerts == 0 && s.Coloured.SequenceEqual([first]), Arrival(s)));
+        yield return OneLine("Highlight: Highlight unticked, sound without colour", () => { Highlight(); configuration.Highlight = false; }, () => Send(Say, Friend, $"hi {first}"),
+            s => (s.Alerts > 0 && s.Coloured.Count == 0, Arrival(s)));
+        void HighlightNameNoSay() { Highlight(); Trigger(TriggerKind.Name).Channels.Remove(Say); }
+        yield return Coloured("Highlight: Say unticked for Name, Say not coloured", () => [], HighlightNameNoSay, () => Send(Say, Friend, $"hi {first}"));
+        yield return Coloured("Highlight: Say unticked for Name, Party coloured", () => [first], HighlightNameNoSay, () => Send(Party, Friend, $"hi {first}"));
+        yield return Coloured("Highlight: your own line not coloured", () => [], Highlight, () => Send(Say, me, $"hi {first}"));
+        yield return Coloured("Highlight: 'you' words coloured from a sender targeting you", () => ["youuu", "yours"], HighlightTargeted, () => Send(Say, Friend, "thank youuu, is this yours?"));
+        yield return Coloured("Highlight: 'you' words coloured on CustomEmote", () => ["youuu", "yours"], HighlightTargeted, () => Send(CustomEmote, Friend, "thank youuu, is this yours?"));
+        yield return Coloured("Highlight: 'you' words not coloured from a sender not targeting you", () => [], HighlightTargeted, () => Send(Say, Other, "thank you"));
+        yield return Coloured("Highlight: Play a sound unticked, 'you' still coloured", () => ["you"], () => { HighlightTargeted(); configuration.PlaySound = false; },
+            () => Send(Say, Friend, "thank you"));
 
         // You trigger, solo
-        Baseline(TriggerKind.You);
-        fakeTargeter = friend;
+        void You() { Baseline(TriggerKind.You); fakeTargeter = Friend; }
         foreach (var text in new[] { "thank you", "is this your bag", "it is yours", "you're welcome" })
         {
-            yield return Sound($"You: '{text}' from a sender targeting you sounds", true, Say, friend, text);
+            yield return Sound($"You: '{text}' from a sender targeting you sounds", true, You, () => Send(Say, Friend, text));
         }
-        yield return Sound("You: CustomEmote sounds", true, CustomEmote, friend, "waves at you");
-        yield return Sound("You: no 'you' word is silent", false, Say, friend, "hello");
-        yield return Sound("You: sender not targeting you is silent", false, Say, other, "thank you");
+        yield return Sound("You: CustomEmote sounds", true, You, () => Send(CustomEmote, Friend, "waves at you"));
+        yield return Sound("You: no 'you' word is silent", false, You, () => Send(Say, Friend, "hello"));
+        yield return Sound("You: sender not targeting you is silent", false, You, () => Send(Say, Other, "thank you"));
         foreach (var channel in new Enum[] { Party, XivChatType.CrossParty })
         {
-            yield return Sound($"You: {channel} sounds", true, channel, friend, "thank you");
+            yield return Sound($"You: {channel} sounds", true, You, () => Send(channel, Friend, "thank you"));
         }
-        yield return Sound("You: Alliance is silent by default", false, Alliance, friend, "thank you");
-        Trigger(TriggerKind.You).Channels.Add(Alliance);
-        yield return Sound("You: Alliance ticked, Alliance sounds", true, Alliance, friend, "thank you");
-        Trigger(TriggerKind.You).Channels.Remove(Alliance);
-        yield return Sound("You: Linkshell1 is silent", false, Linkshell1, friend, "thank you");
-        Trigger(TriggerKind.You).Channels.Remove(Party);
-        yield return Sound("You: Party unticked, Party is silent", false, Party, friend, "thank you");
-        yield return Sound("You: Party unticked, Say sounds", true, Say, friend, "thank you");
-        Trigger(TriggerKind.You).Channels.Add(Party);
-        Trigger(TriggerKind.You).Channels.Remove(Say);
-        yield return Sound("You: Say unticked, Say is silent", false, Say, friend, "thank you");
-        Trigger(TriggerKind.You).Channels.Add(Say);
-        fakeTargeter = null;
-        yield return Sound("You: not pretending, silent", false, Say, friend, "thank you");
+        yield return Sound("You: Alliance is silent by default", false, You, () => Send(Alliance, Friend, "thank you"));
+        yield return Sound("You: Alliance ticked, Alliance sounds", true, () => { You(); Trigger(TriggerKind.You).Channels.Add(Alliance); }, () => Send(Alliance, Friend, "thank you"));
+        yield return Sound("You: Linkshell1 is silent", false, You, () => Send(Linkshell1, Friend, "thank you"));
+        void YouNoParty() { You(); Trigger(TriggerKind.You).Channels.Remove(Party); }
+        yield return Sound("You: Party unticked, Party is silent", false, YouNoParty, () => Send(Party, Friend, "thank you"));
+        yield return Sound("You: Party unticked, Say sounds", true, YouNoParty, () => Send(Say, Friend, "thank you"));
+        yield return Sound("You: Say unticked, Say is silent", false, () => { You(); Trigger(TriggerKind.You).Channels.Remove(Say); }, () => Send(Say, Friend, "thank you"));
+        yield return Sound("You: not pretending, silent", false, () => Baseline(TriggerKind.You), () => Send(Say, Friend, "thank you"));
 
         // Target Speaks trigger, solo
-        var fresh = defaults.Triggers[TriggerKind.TargetSpeaks];
-        Check("Target Speaks: on by default", fresh.Enabled, $"enabled={fresh.Enabled}");
-        Baseline(TriggerKind.TargetSpeaks);
-        fakeTarget = friend;
-        yield return Sound("Target Speaks: Say sounds", true, Say, friend, "hello");
-        Check("Target Speaks: line not coloured", line.Coloured.Count == 0);
-        yield return Sound("Target Speaks: CustomEmote sounds", true, CustomEmote, friend, "waves");
-        yield return Sound("Target Speaks: StandardEmote is silent", false, StandardEmote, friend, "waves");
-        yield return Sound("Target Speaks: someone else is silent", false, Say, other, "hello");
-        yield return Sound("Target Speaks: Party sounds", true, Party, friend, "hello");
-        yield return Sound("Target Speaks: Linkshell1 sounds", true, Linkshell1, friend, "hello");
-        configuration.PlaySound = false;
-        yield return Sound("Target Speaks: Play a sound unticked, silent", false, Say, friend, "hello");
-        configuration.PlaySound = true;
-        Check("Target Speaks: only while targeting you by default", defaults.TargetSpeaksOnlyTargetingYou);
-        configuration.TargetSpeaksOnlyTargetingYou = true;
-        yield return Sound("Target Speaks: only while targeting you, not targeting you is silent", false, Say, friend, "hello");
-        fakeTargeter = friend;
-        yield return Sound("Target Speaks: only while targeting you, targeting you sounds", true, Say, friend, "hello");
-        yield return Sound("Target Speaks: only while targeting you, Linkshell1 sounds", true, Linkshell1, friend, "hello");
-        fakeTarget = null;
-        yield return Sound("Target Speaks: only while targeting you, targeting you but not your target is silent", false, Say, friend, "hello");
-        fakeTargeter = null;
-        configuration.TargetSpeaksOnlyTargetingYou = false;
-        yield return Sound("Target Speaks: not pretending, silent", false, Say, friend, "hello");
+        var fresh = selfTestDefaults.Triggers[TriggerKind.TargetSpeaks];
+        yield return Now("Target Speaks: on by default", () => fresh.Enabled, () => $"enabled={fresh.Enabled}");
+        void TargetSpeaks() { Baseline(TriggerKind.TargetSpeaks); fakeTarget = Friend; }
+        void OnlyTargetingYou() { TargetSpeaks(); configuration.TargetSpeaksOnlyTargetingYou = true; }
+        void OnlyTargetingYouTargeted() { OnlyTargetingYou(); fakeTargeter = Friend; }
+        yield return Sound("Target Speaks: Say sounds", true, TargetSpeaks, () => Send(Say, Friend, "hello"));
+        yield return OneLine("Target Speaks: line not coloured", TargetSpeaks, () => Send(Say, Friend, "hello"), s => (s.UnhandledKind != null && s.Coloured.Count == 0, Arrival(s)));
+        yield return Sound("Target Speaks: CustomEmote sounds", true, TargetSpeaks, () => Send(CustomEmote, Friend, "waves"));
+        yield return Sound("Target Speaks: StandardEmote is silent", false, TargetSpeaks, () => Send(StandardEmote, Friend, "waves"));
+        yield return Sound("Target Speaks: someone else is silent", false, TargetSpeaks, () => Send(Say, Other, "hello"));
+        yield return Sound("Target Speaks: Party sounds", true, TargetSpeaks, () => Send(Party, Friend, "hello"));
+        yield return Sound("Target Speaks: Linkshell1 sounds", true, TargetSpeaks, () => Send(Linkshell1, Friend, "hello"));
+        yield return Sound("Target Speaks: Play a sound unticked, silent", false, () => { TargetSpeaks(); configuration.PlaySound = false; }, () => Send(Say, Friend, "hello"));
+        yield return Now("Target Speaks: only while targeting you by default", () => selfTestDefaults.TargetSpeaksOnlyTargetingYou);
+        yield return Sound("Target Speaks: only while targeting you, not targeting you is silent", false, OnlyTargetingYou, () => Send(Say, Friend, "hello"));
+        yield return Sound("Target Speaks: only while targeting you, targeting you sounds", true, OnlyTargetingYouTargeted, () => Send(Say, Friend, "hello"));
+        yield return Sound("Target Speaks: only while targeting you, Linkshell1 sounds", true, OnlyTargetingYouTargeted, () => Send(Linkshell1, Friend, "hello"));
+        yield return Sound("Target Speaks: only while targeting you, targeting you but not your target is silent", false,
+            () => { OnlyTargetingYouTargeted(); fakeTarget = null; }, () => Send(Say, Friend, "hello"));
+        yield return Sound("Target Speaks: not pretending, silent", false, () => Baseline(TriggerKind.TargetSpeaks), () => Send(Say, Friend, "hello"));
     }
 }

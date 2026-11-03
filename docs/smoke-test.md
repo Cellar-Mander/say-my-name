@@ -48,13 +48,9 @@ To try colouring chat tab names (task 7d98e301):
 /saymyname tabwatch                           # for 10 s, log each tab's message count and colours when they change
 ```
 
-To run the automatable solo cases below in one go:
+To run the automatable solo cases below, open Dalamud's self-test window (`/xldev`, Dalamud menu, Open Self-Test), pick the `SayMyName` group and press play. Each check is its own step, so the table shows which passed or failed, and Jump runs any one on its own.
 
-```
-/saymyname selftest
-```
-
-Close the settings window first. It injects each case's line, waits for it to come back through the chat events, and logs `Self-test PASS: <case>` or `Self-test FAIL: <case> (<detail>)`, then `Self-test: <n> passed, <m> failed` (also printed in chat). It changes the settings in memory for the run, mutes the alert sound while counting alerts, and puts the settings back afterwards without saving them. Don't change settings while it runs. Cases marked *(self-test)* need no other check; those marked *(self-test: ...)* are covered only for the part named, so finish them by hand. Unmarked cases stay manual: how things look, settings persistence, and anything needing a second player or real chat. On Linux, after a deploy, `grep 'Self-test' ~/.xlcore/logs/dalamud.log | tail` shows the result.
+Close the settings window first and log in; otherwise each step fails. Each step sets up its own settings, injects its line, waits for it to come back through the chat events, and logs `Self-test PASS: <case>` or `Self-test FAIL: <case> (<detail>)`. The settings are changed in memory while steps run, the alert sound is muted while alerts are counted, and the settings are put back without saving after the run, on Stop or Jump, or a second after the last step ran (after a skip, or with the window closed). Settings aren't saved while steps run, so edits made then are lost. Cases marked *(self-test)* need no other check; those marked *(self-test: ...)* are covered only for the part named, so finish them by hand. Unmarked cases stay manual: how things look, settings persistence, and anything needing a second player or real chat. On Linux, after a deploy, `grep 'Self-test' ~/.xlcore/logs/dalamud.log | tail` shows the result.
 
 Malformed arguments print the usage as a chat error. Plugins installed normally (not as a dev plugin) don't have these subcommands.
 

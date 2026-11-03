@@ -17,12 +17,12 @@ namespace SayMyName;
 /// Dev-plugin helper for the smoke checklist (docs/smoke-test.md): puts fake player messages into
 /// chat and logs when each comes back through the chat events the triggers listen on, logs the
 /// emotes the Emote trigger sees, can pretend an injected sender is targeting you or is your target, and can
-/// recolour a chat tab's name to see whether the game keeps the colour, and can run the automatable
-/// solo checklist cases as a self-test (TestHarness.SelfTest.cs).
+/// recolour a chat tab's name to see whether the game keeps the colour, and gives Dalamud's self-test
+/// window the automatable solo checklist cases (TestHarness.SelfTest.cs).
 /// </summary>
 public sealed unsafe partial class TestHarness : IDisposable
 {
-    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch | selftest";
+    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
 
     private readonly Configuration configuration;
     private readonly AlertSound alertSound;
@@ -65,7 +65,7 @@ public sealed unsafe partial class TestHarness : IDisposable
 
     public void Dispose()
     {
-        StopSelfTest();
+        EndSelfTest();
         ClearTabColour();
         if (tabWatchFrames > 0)
         {
@@ -96,7 +96,6 @@ public sealed unsafe partial class TestHarness : IDisposable
             "my-target" => SetFakeTarget(rest),
             "tabcolor" => SetTabColour(rest),
             "tabwatch" => WatchTabs(rest),
-            "selftest" => StartSelfTest(rest),
             _ => (bool?)null,
         };
 

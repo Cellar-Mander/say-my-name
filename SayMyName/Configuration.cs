@@ -9,5 +9,14 @@ public class Configuration : ConfigurationBase, IPluginConfiguration
 {
     public int Version { get; set; } = 0;
 
-    public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
+    // Dev plugin only: set while the self-test has changed the settings in memory, so they aren't saved
+    internal bool SavesBlocked;
+
+    public void Save()
+    {
+        if (!SavesBlocked)
+        {
+            Plugin.PluginInterface.SavePluginConfig(this);
+        }
+    }
 }
