@@ -8,6 +8,10 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 - `/xlplugins` → Changelogs shows what changed in each release.
 
+### Fixed
+
+- Custom words and phrases, and nicknames of more than one word, now match when chat puts extra spaces between their words ("good  morning").
+
 ## 0.1.1.0 - 2026-10-31
 
 ### Added

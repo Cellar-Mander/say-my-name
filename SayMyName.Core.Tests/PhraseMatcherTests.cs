@@ -13,6 +13,9 @@ public class PhraseMatcherTests
     [InlineData("Good morning!")]
     [InlineData("well, good morning to you")]
     [InlineData("ask Y’shtola")]
+    [InlineData("good  morning")]
+    [InlineData("good\tmorning")]
+    [InlineData("good \u00A0 morning!")]
     public void MatchesAnyPhraseAsAWhole(string text)
     {
         Assert.True(Words.IsMatch(text));
@@ -26,10 +29,43 @@ public class PhraseMatcherTests
     [InlineData("morning")]
     [InlineData("good mornings")]
     [InlineData("goodmorning")]
+    [InlineData("good  mornings")]
+    [InlineData("good - morning")]
+    [InlineData("good  morn")]
     [InlineData("good evening, morning person")]
     public void IgnoresPartsAndOtherWords(string text)
     {
+        // revert-check: not revert-sensitive (guards against over-matching, which the old code never did)
         Assert.False(Words.IsMatch(text));
+    }
+
+    [Fact]
+    public void FindAllCoversTheWhitespaceRun()
+    {
+        var matches = new List<(int Start, int Length)>();
+        Words.FindAll("oh good   morning!", matches);
+
+        Assert.Equal([(3, 14)], matches);
+    }
+
+    [Fact]
+    public void LaterWordsMustStillMatchAfterAWhitespaceRun()
+    {
+        var matcher = NameMatcher.ForPhrases("go go go", caseSensitive: false);
+        Assert.True(matcher.IsMatch("go  go   go"));
+        Assert.False(matcher.IsMatch("go  go"));
+        Assert.False(matcher.IsMatch("go  go  gone"));
+    }
+
+    // A one-letter first word puts a non-letter right after a failed match's first character
+    [Theory]
+    [InlineData("a  b", true)]
+    [InlineData("a  c", false)]
+    [InlineData("a,b", false)]
+    [InlineData("ab", false)]
+    public void OneLetterWordsStillNeedTheWholePhrase(string text, bool expected)
+    {
+        Assert.Equal(expected, NameMatcher.ForPhrases("a b", caseSensitive: false).IsMatch(text));
     }
 
     [Fact]

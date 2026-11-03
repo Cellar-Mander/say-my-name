@@ -5,6 +5,7 @@ namespace SayMyName.Core;
 /// text as a whole word. Apostrophes and hyphens between letters join a word (Y'shtola, Mary-Jane), except a trailing
 /// possessive 's, so "Rin's" mentions Rin but "Rin'ka" and "Mary-Rin" do not.
 /// Names and nicknames also match stretched (Riiin, Rinnn) or spelled out (R-I-N, r i n); custom phrases match only as written.
+/// A run of whitespace in chat text matches the single space between the words of a nickname or phrase.
 /// </summary>
 public sealed class NameMatcher
 {
@@ -48,7 +49,8 @@ public sealed class NameMatcher
 
     /// <summary>
     /// Matches any of the words or phrases, one per line, each as a whole: "good morning" matches
-    /// "Good morning!" but not "good" alone. Runs of spaces inside a phrase count as one; blank lines are skipped.
+    /// "Good morning!" but not "good" alone. Runs of whitespace inside a phrase, in the list or in chat text,
+    /// count as one space; blank lines are skipped.
     /// </summary>
     public static NameMatcher ForPhrases(string lines, bool caseSensitive) =>
         new(lines, "", Lines(lines).Distinct(), caseSensitive, elongated: false);
@@ -89,12 +91,15 @@ public sealed class NameMatcher
         for (var p = 0; p < parts.Length; p++)
         {
             var part = parts[p];
+            // A phrase is found by its first word, since the spaces after it may be longer in the text
+            var space = part.IndexOf(' ');
+            var firstWord = part.AsSpan(0, space < 0 ? part.Length : space);
             var offset = 0;
             while (offset < text.Length)
             {
                 // A stretched or spelled-out word is found by its first letter, in any case for spelled-out words
                 var found = runs == null
-                    ? text[offset..].IndexOf(part, comparison)
+                    ? text[offset..].IndexOf(firstWord, comparison)
                     : text[offset..].IndexOf(part.AsSpan(0, 1), StringComparison.OrdinalIgnoreCase);
                 if (found < 0)
                 {
@@ -102,7 +107,7 @@ public sealed class NameMatcher
                 }
 
                 var start = offset + found;
-                var end = runs == null ? start + part.Length : MatchElongated(text, start, part, runs[p]);
+                var end = runs == null ? MatchWritten(text, start, part) : MatchElongated(text, start, part, runs[p]);
                 if (end > start && StartsWord(text, start) && EndsWord(text, end))
                 {
                     if (matches == null)
@@ -122,6 +127,44 @@ public sealed class NameMatcher
         return any;
     }
 
+    // The end of the part at start as written, each space matching a run of whitespace; -1 if it isn't there
+    private int MatchWritten(ReadOnlySpan<char> text, int i, string part)
+    {
+        for (var k = 0; ;)
+        {
+            var space = part.IndexOf(' ', k);
+            var word = part.AsSpan(k, (space < 0 ? part.Length : space) - k);
+            if (i + word.Length > text.Length || !text.Slice(i, word.Length).Equals(word, comparison))
+            {
+                return -1;
+            }
+
+            i += word.Length;
+            if (space < 0)
+            {
+                return i;
+            }
+
+            i = SkipWhitespace(text, i);
+            if (i < 0)
+            {
+                return -1;
+            }
+            k = space + 1;
+        }
+    }
+
+    // The end of the whitespace run at i; -1 if there is none
+    private static int SkipWhitespace(ReadOnlySpan<char> text, int i)
+    {
+        var end = i;
+        while (end < text.Length && char.IsWhiteSpace(text[end]))
+        {
+            end++;
+        }
+        return end > i ? end : -1;
+    }
+
     // The end of the part at start, as written, stretched or spelled out; -1 if it isn't there
     private int MatchElongated(ReadOnlySpan<char> text, int start, string part, (int Start, int Length)[] partRuns)
     {
@@ -136,6 +179,16 @@ public sealed class NameMatcher
         for (var r = 0; r < partRuns.Length; r++)
         {
             var (runStart, runLength) = partRuns[r];
+            if (part[runStart] == ' ')
+            {
+                i = SkipWhitespace(text, i);
+                if (i < 0)
+                {
+                    return -1;
+                }
+                continue;
+            }
+
             if (i + runLength > text.Length || !text.Slice(i, runLength).Equals(part.AsSpan(runStart, runLength), comparison))
             {
                 return -1;
