@@ -51,9 +51,9 @@ public class PhraseMatcherTests
     public void FindAllCoversTheWhitespaceRun()
     {
         var matches = new List<(int Start, int Length)>();
-        Words.FindAll("oh good   morning!", matches);
+        Words.FindAll("good  morning", matches);
 
-        Assert.Equal([(3, 14)], matches);
+        Assert.Equal([(0, 13)], matches);
     }
 
     [Fact]
@@ -79,9 +79,9 @@ public class PhraseMatcherTests
     [Fact]
     public void CaseSensitiveMatchesOnlyAsWritten()
     {
-        var matcher = NameMatcher.ForPhrases("Raid", caseSensitive: true);
-        Assert.True(matcher.IsMatch("Raid night"));
-        Assert.False(matcher.IsMatch("raid night"));
+        var matcher = NameMatcher.ForPhrases("raid", caseSensitive: true);
+        Assert.True(matcher.IsMatch("raid tonight?"));
+        Assert.False(matcher.IsMatch("RAID"));
     }
 
     [Theory]

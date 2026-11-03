@@ -2,129 +2,131 @@ using SayMyName.Core;
 
 namespace SayMyName.Core.Tests;
 
+// Examples follow the rows of the Name tables in docs/design.md where one fits
 public class NameMatcherTests
 {
-    private static readonly NameMatcher Rose = new("Rose Thorne", caseSensitive: true);
+    private static readonly NameMatcher Alice = new("Alice Smith", caseSensitive: true);
 
     [Theory]
-    [InlineData("Rose")]
-    [InlineData("Thorne")]
-    [InlineData("hey Rose, over here")]
-    [InlineData("Rose Thorne!")]
-    [InlineData("is that Rose?")]
-    [InlineData("(Rose)")]
-    [InlineData("\"Rose\"")]
-    [InlineData("Rose's chocobo")]
-    [InlineData("Rose’s chocobo")]
-    [InlineData("Thorne's")]
-    [InlineData("ask rosemary or Rose")]
+    [InlineData("Alice")]
+    [InlineData("Smith")]
+    [InlineData("hi Alice")]
+    [InlineData("Alice!")]
+    [InlineData("Alice Smith")]
+    [InlineData("is that Alice?")]
+    [InlineData("(Alice)")]
+    [InlineData("\"Alice\"")]
+    [InlineData("Alice's sword")]
+    [InlineData("Alice’s sword")]
+    [InlineData("Smith's")]
+    [InlineData("ask aliceberry or Alice")]
     public void MatchesFirstOrLastNameAsWholeWord(string text)
     {
-        Assert.True(Rose.IsMatch(text));
+        Assert.True(Alice.IsMatch(text));
     }
 
     [Theory]
     // Quote marks around a name, and a hyphen or dash cutting it off, don't join it to anything
-    [InlineData("call me 'Rose'")]
-    [InlineData("hey Rose-")]
-    [InlineData("Rose- wait")]
-    [InlineData("Rose-- wait")]
-    [InlineData("hey Rose—")]
-    [InlineData("Rose— wait")]
-    [InlineData("Rose—wait")]
-    [InlineData("Rose–wait")]
-    [InlineData("—Rose—")]
+    [InlineData("call me 'Alice'")]
+    [InlineData("hey Alice-")]
+    [InlineData("Alice- wait")]
+    [InlineData("Alice-- wait")]
+    [InlineData("Alice—")]
+    [InlineData("Alice— wait")]
+    [InlineData("Alice—wait")]
+    [InlineData("Alice–wait")]
+    [InlineData("—Alice—")]
     public void QuotedOrCutOffNamesMatch(string text)
     {
         // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
-        Assert.True(Rose.IsMatch(text));
+        Assert.True(Alice.IsMatch(text));
     }
 
     [Theory]
     [InlineData("")]
-    [InlineData("a rose by any other name")]
-    [InlineData("ROSE")]
-    [InlineData("Roses are red")]
-    [InlineData("Primrose")]
-    [InlineData("Rosey")]
-    [InlineData("Rose2")]
-    [InlineData("Rose'ka")]
-    [InlineData("Mary-Rose")]
-    [InlineData("Rose-Marie")]
-    [InlineData("O'Rose")]
-    [InlineData("Rose'sa")]
-    [InlineData("Thorn")]
+    [InlineData("alice")]
+    [InlineData("ALICE")]
+    [InlineData("Alices are here")]
+    [InlineData("Malice")]
+    [InlineData("Alicey")]
+    [InlineData("Alice2")]
+    [InlineData("Alice'ka")]
+    [InlineData("Mary-Alice")]
+    [InlineData("Alice-Ann")]
+    [InlineData("O'Alice")]
+    [InlineData("Alice'sa")]
+    [InlineData("Smit")]
     public void IgnoresOtherWordsAndOtherCase(string text)
     {
-        Assert.False(Rose.IsMatch(text));
+        Assert.False(Alice.IsMatch(text));
     }
 
     [Theory]
-    [InlineData("a rose by any other name")]
-    [InlineData("ROSE")]
-    [InlineData("ROSE'S")]
-    [InlineData("thorne")]
+    [InlineData("alice")]
+    [InlineData("ALICE")]
+    [InlineData("ALICE'S")]
+    [InlineData("smith")]
     public void CaseInsensitiveMatchesAnyCase(string text)
     {
-        Assert.True(new NameMatcher("Rose Thorne", caseSensitive: false).IsMatch(text));
+        Assert.True(new NameMatcher("Alice Smith", caseSensitive: false).IsMatch(text));
     }
 
-    private static readonly NameMatcher RoseAndNicknames = new("Rose Thorne", caseSensitive: true, nicknames: "Ro\n\n  Big   Ro \r\nThorne\n");
+    private static readonly NameMatcher AliceAndNicknames = new("Alice Smith", caseSensitive: true, nicknames: "Zuzu\n\n  Big   Zed \r\nSmith\n");
 
     [Theory]
-    [InlineData("Ro")]
-    [InlineData("hey Ro!")]
-    [InlineData("Ro's chocobo")]
-    [InlineData("Ro’s chocobo")]
-    [InlineData("Rooo")]
-    [InlineData("R-O")]
-    [InlineData("Big Ro")]
-    [InlineData("Big Ro's")]
-    [InlineData("Rose")]
+    [InlineData("Zuzu")]
+    [InlineData("hey Zuzu!")]
+    [InlineData("Zuzu's chocobo")]
+    [InlineData("Zuzu’s chocobo")]
+    [InlineData("Zuzuuu!")]
+    [InlineData("Z-U-Z-U")]
+    [InlineData("Big Zed")]
+    [InlineData("Big Zed's?")]
+    [InlineData("Alice")]
     public void NicknamesMatchLikeNames(string text)
     {
-        Assert.True(RoseAndNicknames.IsMatch(text));
+        Assert.True(AliceAndNicknames.IsMatch(text));
     }
 
     [Theory]
-    [InlineData("ro")]
-    [InlineData("Rob")]
-    [InlineData("Ro'ka")]
+    [InlineData("zuzu")]
+    [InlineData("Zuzus")]
+    [InlineData("Zuzu'ka")]
     [InlineData("Big")]
-    [InlineData("Big Rob")]
-    [InlineData("BigRo")]
+    [InlineData("Zed")]
+    [InlineData("Big Zedo")]
+    [InlineData("BigZed")]
     public void NicknamesNeedWholeWordsAndCase(string text)
     {
         // revert-check: not revert-sensitive (guards against over-matching, which the old code never did)
-        Assert.False(RoseAndNicknames.IsMatch(text));
+        Assert.False(AliceAndNicknames.IsMatch(text));
     }
 
     [Fact]
     public void NicknamesFollowCaseSetting()
     {
-        Assert.True(new NameMatcher("Rose Thorne", caseSensitive: false, nicknames: "Ro").IsMatch("hey ro"));
+        Assert.True(new NameMatcher("Alice Smith", caseSensitive: false, nicknames: "Zuzu").IsMatch("hey zuzu"));
     }
 
     [Fact]
     public void NicknamesWorkWithoutACharacterName()
     {
-        Assert.True(new NameMatcher("", caseSensitive: true, nicknames: "Ro").IsMatch("hey Ro"));
+        Assert.True(new NameMatcher("", caseSensitive: true, nicknames: "Zuzu").IsMatch("hey Zuzu"));
     }
 
     [Fact]
     public void FindAllReportsNicknamesWithoutPossessive()
     {
         var matches = new List<(int Start, int Length)>();
-        RoseAndNicknames.FindAll("ask Big Ro's friend", matches);
+        AliceAndNicknames.FindAll("ask Big Zed's friend", matches);
 
-        Assert.Contains((4, 6), matches);
-        Assert.Contains((8, 2), matches);
+        Assert.Equal([(4, 7)], matches);
     }
 
     [Theory]
     [InlineData("Big  Zed", true)]
     [InlineData("hi Biiig\tZeddd!", true)]
-    [InlineData("Big \u00A0 Zed's", true)]
+    [InlineData("Big   Zed's", true)]
     [InlineData("Big  zed", false)]
     [InlineData("BigZed", false)]
     [InlineData("Big - Zed", false)]
@@ -153,7 +155,7 @@ public class NameMatcherTests
     [Fact]
     public void CaseInsensitiveStillNeedsWholeWords()
     {
-        Assert.False(new NameMatcher("Rose Thorne", caseSensitive: false).IsMatch("primroses"));
+        Assert.False(new NameMatcher("Alice Smith", caseSensitive: false).IsMatch("malices"));
     }
 
     [Theory]
@@ -208,8 +210,8 @@ public class NameMatcherTests
     [Fact]
     public void LongTextWithACurlyApostropheStillMatches()
     {
-        var text = new string('x', 600) + " Rose’s";
-        Assert.True(Rose.IsMatch(text));
+        var text = new string('x', 600) + " Alice’s";
+        Assert.True(Alice.IsMatch(text));
     }
 
     [Theory]
@@ -223,7 +225,7 @@ public class NameMatcherTests
     [Fact]
     public void LaterOccurrenceMatchesAfterAnEarlierNonWordOne()
     {
-        Assert.True(Rose.IsMatch("Roses for Rose"));
+        Assert.True(Alice.IsMatch("Alices for Alice"));
     }
 
     [Theory]
@@ -237,52 +239,54 @@ public class NameMatcherTests
     }
 
     [Theory]
-    [InlineData("Roseee")]
-    [InlineData("Rosee!")]
-    [InlineData("Rooose")]
-    [InlineData("Rooooseeee")]
-    [InlineData("Rrrose")]
-    [InlineData("Roseee's chocobo")]
-    [InlineData("Thoooorne")]
-    [InlineData("R-O-S-E")]
-    [InlineData("r o s e")]
-    [InlineData("hey r-o-s-e!")]
-    [InlineData("I see R O S E")]
-    [InlineData("r o s e is here")]
-    [InlineData("hi r o s e ")]
+    [InlineData("Aliceee")]
+    [InlineData("Alicee")]
+    [InlineData("Alicee!")]
+    [InlineData("Aliiice")]
+    [InlineData("Aliiiiceeee")]
+    [InlineData("Aaalice")]
+    [InlineData("Aliceee's sword")]
+    [InlineData("Smiiiith")]
+    [InlineData("A-L-I-C-E")]
+    [InlineData("a l i c e")]
+    [InlineData("hey a-l-i-c-e!")]
+    [InlineData("I see A L I C E")]
+    [InlineData("a l i c e is here")]
+    [InlineData("hi a l i c e ")]
     // Spelled out, the first letter may repeat any number of times, the others as when stretched
-    [InlineData("R-R-O-S-E")]
-    [InlineData("r r r o s e")]
-    [InlineData("R-O-O-O-S-E")]
-    [InlineData("R-O-S-E-E")]
-    [InlineData("R-O-S-E-E-E")]
+    [InlineData("A-A-L-I-C-E")]
+    [InlineData("a a a l i c e")]
+    [InlineData("A-L-I-I-I-C-E")]
+    [InlineData("A-L-I-C-E-E")]
+    [InlineData("A-L-I-C-E-E-E")]
     // A stutter on the first letter before the name as written or stretched
-    [InlineData("R-Rose")]
-    [InlineData("r-R-Rose!")]
-    [InlineData("R-Roooseee")]
+    [InlineData("A-Alice")]
+    [InlineData("a-A-Alice!")]
+    [InlineData("a-A-Aliiice")]
+    [InlineData("A-Aliiiceee")]
     public void MatchesStretchedOrSpelledOutNames(string text)
     {
-        Assert.True(Rose.IsMatch(text));
+        Assert.True(Alice.IsMatch(text));
     }
 
     // revert-check: not revert-sensitive (near misses the old matcher also rejected; guards against over-matching)
     [Theory]
-    [InlineData("Roose")]
-    [InlineData("Rosse")]
-    [InlineData("ROOOSE")]
-    [InlineData("Roseees")]
-    [InlineData("Roseee'ka")]
-    [InlineData("Rose-y")]
-    [InlineData("R-O-S-E-S")]
-    [InlineData("R O S E S")]
-    [InlineData("a R O S E")]
-    [InlineData("R-O S-E")]
-    [InlineData("R  O  S  E")]
-    [InlineData("R-O-S")]
-    [InlineData("RO-SE")]
+    [InlineData("Aliice")]
+    [InlineData("Alicce")]
+    [InlineData("ALIIICE")]
+    [InlineData("Aliceees")]
+    [InlineData("Aliceee'ka")]
+    [InlineData("Alice-y")]
+    [InlineData("A-L-I-C-E-S")]
+    [InlineData("A L I C E S")]
+    [InlineData("h a l i c e")]
+    [InlineData("A-L I-C-E")]
+    [InlineData("A  L  I  C  E")]
+    [InlineData("A-L-I")]
+    [InlineData("AL-ICE")]
     public void IgnoresStretchesInsideWordsAndPartSpellings(string text)
     {
-        Assert.False(Rose.IsMatch(text));
+        Assert.False(Alice.IsMatch(text));
     }
 
     // revert-check: not revert-sensitive (near misses the old matcher also rejected; guards against over-matching)
@@ -298,41 +302,41 @@ public class NameMatcherTests
 
     [Theory]
     // A single letter right next to a spelling isn't in the name, whatever is between them
-    [InlineData("I R-O-S-E")]
-    [InlineData("I,R-O-S-E")]
-    [InlineData("R R-O-S-E")]
-    [InlineData("R-O-S-E I")]
-    [InlineData("R-O-S-E/I")]
-    [InlineData("R-R O-S-E")]
+    [InlineData("I A-L-I-C-E")]
+    [InlineData("I,A-L-I-C-E")]
+    [InlineData("A A-L-I-C-E")]
+    [InlineData("A-L-I-C-E I")]
+    [InlineData("A-L-I-C-E/I")]
+    [InlineData("A-A L-I-C-E")]
     public void LoneLetterNextToASpellingStopsIt(string text)
     {
-        Assert.False(Rose.IsMatch(text));
+        Assert.False(Alice.IsMatch(text));
     }
 
     [Theory]
     // Past the first letter, a doubled letter is no more a stretch spelled out than written
-    [InlineData("R-O-O-S-E")]
-    [InlineData("r o s s e")]
+    [InlineData("A-L-L-I-C-E")]
+    [InlineData("a l i c c e")]
     // The stutter needs the first letter, and the name after it still follows Match case
-    [InlineData("O-Rose")]
-    [InlineData("R-rose")]
-    [InlineData("R-Roose")]
+    [InlineData("L-Alice")]
+    [InlineData("A-alice")]
+    [InlineData("A-Aliice")]
     public void IgnoresDoubledSpelledLettersAndOtherStutters(string text)
     {
-        Assert.False(Rose.IsMatch(text));
+        Assert.False(Alice.IsMatch(text));
     }
 
     [Fact]
     public void FindAllGivesTheWholeStutter()
     {
         var matches = new List<(int Start, int Length)>();
-        Rose.FindAll("hi R-R-Rose!", matches);
-        Assert.Equal([(3, 8)], matches);
+        Alice.FindAll("hi a-A-Aliiice!", matches);
+        Assert.Equal([(3, 11)], matches);
 
         // A stutter needs hyphens: with a space, only the name is coloured
         matches.Clear();
-        Rose.FindAll("R Rose", matches);
-        Assert.Equal([(2, 4)], matches);
+        Alice.FindAll("A Alice", matches);
+        Assert.Equal([(2, 5)], matches);
     }
 
     [Fact]
@@ -358,7 +362,7 @@ public class NameMatcherTests
     [Fact]
     public void CaseInsensitiveMatchesStretchesInAnyCase()
     {
-        Assert.True(new NameMatcher("Rose Thorne", caseSensitive: false).IsMatch("ROOOSEEE"));
+        Assert.True(new NameMatcher("Alice Smith", caseSensitive: false).IsMatch("ALIIICEEE"));
     }
 
     // revert-check: not revert-sensitive (phrases never matched stretches; guards against stretching leaking into phrases)
@@ -381,13 +385,13 @@ public class NameMatcherTests
     [Fact]
     public void FindAllFindsEveryWholeWordMatch()
     {
-        Assert.Equal([(0, 4), (5, 6), (16, 4)], FindAll(Rose, "Rose Thorne and Rose"));
+        Assert.Equal([(0, 5), (6, 5), (16, 5)], FindAll(Alice, "Alice Smith and Alice"));
     }
 
     [Fact]
     public void FindAllSkipsPartWordsAndLeavesOffThePossessive()
     {
-        Assert.Equal([(14, 4)], FindAll(Rose, "Primrose, ask Rose's Roses"));
+        Assert.Equal([(12, 5)], FindAll(Alice, "Malice, ask Alice's Alices"));
     }
 
     [Fact]
@@ -406,13 +410,27 @@ public class NameMatcherTests
     [Fact]
     public void FindAllGivesTheWholeStretchedOrSpelledWord()
     {
-        Assert.Equal([(3, 9), (14, 7), (26, 7)], FindAll(Rose, "hi Rooooseee, R-O-S-E and R O S E's"));
+        Assert.Equal([(3, 7), (12, 9), (26, 9)], FindAll(Alice, "hi Aliiice, A-L-I-C-E and A L I C E's"));
+    }
+
+    [Theory]
+    // A dash cutting the name off isn't coloured
+    [InlineData("Alice—", 5)]
+    [InlineData("Alice—wait", 5)]
+    [InlineData("Alice- wait", 5)]
+    // A spelling with repeated letters is coloured whole
+    [InlineData("A-A-L-I-C-E", 11)]
+    [InlineData("A-L-I-I-I-C-E", 13)]
+    [InlineData("A-L-I-C-E-E", 11)]
+    public void FindAllColoursCutOffNamesAndRepeatedSpellings(string text, int length)
+    {
+        Assert.Equal([(0, length)], FindAll(Alice, text));
     }
 
     [Fact]
     public void FindAllOnNoMatchAddsNothing()
     {
-        Assert.Empty(FindAll(Rose, "a rose by any other name"));
-        Assert.Empty(FindAll(new NameMatcher("", caseSensitive: true), "Rose"));
+        Assert.Empty(FindAll(Alice, "alice in wonderland"));
+        Assert.Empty(FindAll(new NameMatcher("", caseSensitive: true), "Alice"));
     }
 }
