@@ -26,6 +26,17 @@ public class TabPulseTests
         Assert.Equal(0, TabPulse.Fraction(game));
     }
 
+    [Theory]
+    // Up to 6 off in every channel still counts as on the fade, for the game's rounding
+    [InlineData(0xC4BDA5u, 1.0)]
+    [InlineData(0xC8C2AAu, 1.0)]
+    [InlineData(0xC9C3ABu, 0.0)]
+    public void ColoursJustOffTheFadeStillCount(uint game, double expected)
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.Equal(expected, TabPulse.Fraction(game));
+    }
+
     [Fact]
     public void FadesOurColourAsFarTowardsTheFadedColour()
     {

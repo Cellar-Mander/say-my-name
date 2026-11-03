@@ -62,6 +62,45 @@ public class ColorPaletteTests
     }
 
     [Fact]
+    public void HuesRunFromRedRoundToMagenta()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        // Equally light, so one hue order; full and muted colours in each sixth of the circle, given out of order
+        var inHueOrder = new uint[]
+        {
+            0xFF8000FF, 0xA08C5FFF, 0x8CA05FFF, 0x80FF00FF, 0x00FF80FF, 0x5FA08CFF,
+            0x5F8CA0FF, 0x0080FFFF, 0x8000FFFF, 0x8C5FA0FF, 0xA05F8CFF, 0xFF0080FF,
+        };
+        var colors = inHueOrder.Select((rgba, i) => ((ushort)(i + 1), rgba)).Reverse();
+
+        var columns = ColorPalette.Arrange(colors);
+
+        Assert.Equal(Enumerable.Range(1, inHueOrder.Length).Select(i => (ushort)i), columns.SelectMany(c => c));
+    }
+
+    [Fact]
+    public void NearWhiteReadsAsGrey()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.Equal([[2], [1]], ColorPalette.Arrange([(1, Red), (2, 0xFFF0F0FF)]));
+    }
+
+    [Fact]
+    public void MutedDarkColourIsNotGrey()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.Equal([[1], [2]], ColorPalette.Arrange([(1, Grey), (2, 0x402626FF)]));
+    }
+
+    [Fact]
+    public void PureGreyHasAHueLikeAnyGrey()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        // Equally light, both hue 0, so the lower key comes first
+        Assert.Equal([[1, 2]], ColorPalette.Arrange([(1, 0x817F7FFF), (2, Grey)]));
+    }
+
+    [Fact]
     public void DuplicatesKeepTheLowestKey()
     {
         Assert.Equal([[3]], ColorPalette.Arrange([(9, Red), (3, Red)]));

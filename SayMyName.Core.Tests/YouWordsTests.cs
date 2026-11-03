@@ -18,6 +18,8 @@ public class YouWordsTests
     [InlineData("YOURRR turn")]
     [InlineData("y o u")]
     [InlineData("Y-O-U-R-S")]
+    [InlineData("y-you")]
+    [InlineData("t-thank y-y-you")]
     [InlineData("youuu're late")]
     [InlineData("youre late")]
     [InlineData("you'll see")]

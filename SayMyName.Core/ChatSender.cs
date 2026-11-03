@@ -35,7 +35,9 @@ public static class ChatSender
             return false;
         }
 
-        for (var from = 0; from <= senderText.Length - characterName.Length;)
+        for (var from = 0;
+            // Stryker disable once Arithmetic : the bound only stops early; past it, IndexOf finds nothing
+            from <= senderText.Length - characterName.Length;)
         {
             var at = senderText[from..].IndexOf(characterName, StringComparison.Ordinal);
             if (at < 0)

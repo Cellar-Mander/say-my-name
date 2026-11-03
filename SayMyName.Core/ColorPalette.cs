@@ -33,6 +33,7 @@ public static class ColorPalette
             }
 
             var (hue, saturation, lightness) = ToHsl(rgba);
+            // Stryker disable once Equality : no 8-bit colour is exactly 0.06 or 0.94 light, and which side of 0.12 saturation the few exact ones fall is arbitrary
             var grey = saturation < GreySaturation
                 || lightness < GreyLightnessMargin || lightness > 1 - GreyLightnessMargin;
             (grey ? greys : hues).Add((key, hue, lightness));
@@ -56,9 +57,9 @@ public static class ColorPalette
     // Hue in degrees [0, 360), saturation and lightness 0 to 1
     private static (double Hue, double Saturation, double Lightness) ToHsl(uint rgba)
     {
-        var r = (rgba >> 24) / 255.0;
-        var g = ((rgba >> 16) & 0xFF) / 255.0;
-        var b = ((rgba >> 8) & 0xFF) / 255.0;
+        var r = Channel(rgba, 24) / 255.0;
+        var g = Channel(rgba, 16) / 255.0;
+        var b = Channel(rgba, 8) / 255.0;
 
         var max = Math.Max(r, Math.Max(g, b));
         var min = Math.Min(r, Math.Min(g, b));
@@ -85,4 +86,7 @@ public static class ColorPalette
         }
         return ((hue + 360) % 360, saturation, lightness);
     }
+
+    // Stryker disable once Bitwise : >>> is >> on a uint
+    private static uint Channel(uint rgba, int shift) => rgba >> shift & 0xFF;
 }

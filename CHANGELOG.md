@@ -7,10 +7,12 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 ### Added
 
 - `/xlplugins` → Changelogs shows what changed in each release.
+- Names, nicknames and 'you' words also match when stuttered ("A-Alice", "y-you"), and when spelled out with the first letter repeated ("A-A-L-I-C-E") or stretched ("A-L-I-C-E-E").
 
 ### Fixed
 
 - Custom words and phrases, and nicknames of more than one word, now match when chat puts extra spaces between their words ("good  morning").
+- A spelled-out name no longer alerts when a single letter sits right next to it, as in "I A-L-I-C-E" or "I,A-L-I-C-E".
 
 ## 0.1.1.0 - 2026-10-31
 

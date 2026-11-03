@@ -140,6 +140,35 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
+    public void FreshConfigHasDefaultSwitchesAndEmptyLists()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        var loaded = SaveAndLoad(Fresh());
+
+        Assert.True(loaded.NameCaseSensitive);
+        Assert.False(loaded.CustomWordsCaseSensitive);
+        Assert.True(loaded.PlaySound);
+        Assert.True(loaded.Highlight);
+        Assert.True(loaded.HighlightTabs);
+        Assert.Equal("", loaded.Nicknames);
+        Assert.Equal("", loaded.CustomWords);
+    }
+
+    [Fact]
+    public void SavedNullListsLoadEmpty()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        var config = Fresh();
+        config.Nicknames = null!;
+        config.CustomWords = null!;
+
+        var loaded = SaveAndLoad(config);
+
+        Assert.Equal("", loaded.Nicknames);
+        Assert.Equal("", loaded.CustomWords);
+    }
+
+    [Fact]
     public void OnlyTriggerSectionStartsExpanded()
     {
         Assert.Equal([SettingsSection.Triggers], SaveAndLoad(Fresh()).ExpandedSections!);
@@ -222,6 +251,30 @@ public class ConfigurationRoundTripTests
         loaded.Normalize();
 
         Assert.Equal([ChatChannel.Say, ChatChannel.Party], loaded.Triggers[TriggerKind.Name].Channels.Order());
+    }
+
+    [Theory]
+    // Anything else saved as a trigger's channels is dropped whole, and the settings after it still load
+    [InlineData("\"Say\"")]
+    [InlineData("{\"Channels\":[\"Say\"],\"Enabled\":false}")]
+    [InlineData("[[\"Yell\"],{\"Channel\":\"Shout\"},\"Party\"]")]
+    public void MalformedSavedChannelsAreDropped(string channels)
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        var config = Fresh();
+        config.Triggers[TriggerKind.Name].Enabled = true;
+        var json = JsonConvert.SerializeObject(config, DalamudSettings);
+        var nameChannels = JsonConvert.SerializeObject(Triggers.Default(TriggerKind.Name).Channels.Select(c => c.ToString()));
+        var edited = json.Replace($"\"Channels\":{nameChannels}", $"\"Channels\":{channels}", StringComparison.Ordinal);
+        Assert.NotEqual(json, edited);
+
+        var loaded = JsonConvert.DeserializeObject<ConfigurationBase>(edited, DalamudSettings)!;
+        loaded.Normalize();
+
+        HashSet<ChatChannel> expected = channels.StartsWith('[') ? [ChatChannel.Party] : [];
+        Assert.Equal(expected, loaded.Triggers[TriggerKind.Name].Channels);
+        Assert.True(loaded.Triggers[TriggerKind.Name].Enabled);
+        Assert.Equal(config.Triggers[TriggerKind.You].Channels.Order(), loaded.Triggers[TriggerKind.You].Channels.Order());
     }
 
     [Fact]

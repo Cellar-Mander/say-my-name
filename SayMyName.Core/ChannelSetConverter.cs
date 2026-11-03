@@ -16,6 +16,7 @@ public sealed class ChannelSetConverter : JsonConverter<HashSet<ChatChannel>>
     public override void WriteJson(JsonWriter writer, HashSet<ChatChannel>? value, JsonSerializer serializer)
     {
         writer.WriteStartArray();
+        // Stryker disable once NullCoalescing : Json.NET writes a null set itself, without calling this
         foreach (var channel in value ?? [])
         {
             writer.WriteValue(channel.ToString());

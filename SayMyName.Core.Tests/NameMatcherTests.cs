@@ -24,6 +24,23 @@ public class NameMatcherTests
     }
 
     [Theory]
+    // Quote marks around a name, and a hyphen or dash cutting it off, don't join it to anything
+    [InlineData("call me 'Rose'")]
+    [InlineData("hey Rose-")]
+    [InlineData("Rose- wait")]
+    [InlineData("Rose-- wait")]
+    [InlineData("hey Rose—")]
+    [InlineData("Rose— wait")]
+    [InlineData("Rose—wait")]
+    [InlineData("Rose–wait")]
+    [InlineData("—Rose—")]
+    public void QuotedOrCutOffNamesMatch(string text)
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.True(Rose.IsMatch(text));
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("a rose by any other name")]
     [InlineData("ROSE")]
@@ -231,6 +248,18 @@ public class NameMatcherTests
     [InlineData("r o s e")]
     [InlineData("hey r-o-s-e!")]
     [InlineData("I see R O S E")]
+    [InlineData("r o s e is here")]
+    [InlineData("hi r o s e ")]
+    // Spelled out, the first letter may repeat any number of times, the others as when stretched
+    [InlineData("R-R-O-S-E")]
+    [InlineData("r r r o s e")]
+    [InlineData("R-O-O-O-S-E")]
+    [InlineData("R-O-S-E-E")]
+    [InlineData("R-O-S-E-E-E")]
+    // A stutter on the first letter before the name as written or stretched
+    [InlineData("R-Rose")]
+    [InlineData("r-R-Rose!")]
+    [InlineData("R-Roooseee")]
     public void MatchesStretchedOrSpelledOutNames(string text)
     {
         Assert.True(Rose.IsMatch(text));
@@ -265,6 +294,52 @@ public class NameMatcherTests
     public void DoubledLettersAreNotAStretch(string name, string text)
     {
         Assert.False(new NameMatcher(name, caseSensitive: true).IsMatch(text));
+    }
+
+    [Theory]
+    // A single letter right next to a spelling isn't in the name, whatever is between them
+    [InlineData("I R-O-S-E")]
+    [InlineData("I,R-O-S-E")]
+    [InlineData("R R-O-S-E")]
+    [InlineData("R-O-S-E I")]
+    [InlineData("R-O-S-E/I")]
+    [InlineData("R-R O-S-E")]
+    public void LoneLetterNextToASpellingStopsIt(string text)
+    {
+        Assert.False(Rose.IsMatch(text));
+    }
+
+    [Theory]
+    // Past the first letter, a doubled letter is no more a stretch spelled out than written
+    [InlineData("R-O-O-S-E")]
+    [InlineData("r o s s e")]
+    // The stutter needs the first letter, and the name after it still follows Match case
+    [InlineData("O-Rose")]
+    [InlineData("R-rose")]
+    [InlineData("R-Roose")]
+    public void IgnoresDoubledSpelledLettersAndOtherStutters(string text)
+    {
+        Assert.False(Rose.IsMatch(text));
+    }
+
+    [Fact]
+    public void FindAllGivesTheWholeStutter()
+    {
+        var matches = new List<(int Start, int Length)>();
+        Rose.FindAll("hi R-R-Rose!", matches);
+        Assert.Equal([(3, 8)], matches);
+
+        // A stutter needs hyphens: with a space, only the name is coloured
+        matches.Clear();
+        Rose.FindAll("R Rose", matches);
+        Assert.Equal([(2, 4)], matches);
+    }
+
+    [Fact]
+    public void DoubledLetterIsNotAStretchAfterAOneLetterWord()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        Assert.False(new NameMatcher("", caseSensitive: true, nicknames: "J Bob").IsMatch("J Boob"));
     }
 
     [Theory]

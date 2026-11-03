@@ -21,6 +21,14 @@ public class PhraseMatcherTests
         Assert.True(Words.IsMatch(text));
     }
 
+    [Fact]
+    public void HasNoNicknames()
+    {
+        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
+        // A new matcher, not the shared one, which is built before a mutation run switches a mutant on
+        Assert.Equal("", NameMatcher.ForPhrases("raid", caseSensitive: false).Nicknames);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("raiders")]

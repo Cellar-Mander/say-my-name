@@ -34,14 +34,19 @@ public static class TabPulse
     /// <summary>Our colour <paramref name="fraction"/> of the way along its fade.</summary>
     public static uint Apply(uint color, double fraction)
     {
+        // Stryker disable once Bitwise : >>> is >> on a uint
         var r = Lerp(color >> 16, Faded >> 16, fraction);
+        // Stryker disable once Bitwise : >>> is >> on a uint
         var g = Lerp(color >> 8, Faded >> 8, fraction);
         var b = Lerp(color, Faded, fraction);
         return r << 16 | g << 8 | b;
     }
 
     private static (int R, int G, int B) Diff(uint a, uint b) =>
-        ((int)(a >> 16 & 0xFF) - (int)(b >> 16 & 0xFF), (int)(a >> 8 & 0xFF) - (int)(b >> 8 & 0xFF), (int)(a & 0xFF) - (int)(b & 0xFF));
+        (Channel(a, 16) - Channel(b, 16), Channel(a, 8) - Channel(b, 8), Channel(a, 0) - Channel(b, 0));
+
+    // Stryker disable once Bitwise : >>> is >> on a uint
+    private static int Channel(uint color, int shift) => (int)(color >> shift & 0xFF);
 
     private static uint Lerp(uint from, uint to, double t)
     {
