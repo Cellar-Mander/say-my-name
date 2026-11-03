@@ -5,6 +5,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Config;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.ImGuiSeStringRenderer;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
@@ -34,6 +35,8 @@ public class ConfigWindow : Window, IDisposable
     private static readonly string[] SoundLabels =
         [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
     private readonly string?[,] channelCheckboxIds = new string?[Columns.Count, Channels.Count];
+    private static readonly string EmoteHint =
+        $"Motion-only emotes at you are written to chat, ending \"{TargetedAlert.InsertedTag.Trim()}\"; they alert only if a chat tab shows standard or custom emotes";
 
     // The UIColor sheet (about 200 rows), with a colour per game theme: Dark, Light, Classic FF, Clear Blue.
     // Chat draws both text and glow in the theme set in the game's options, so the swatches use it too.
@@ -193,6 +196,13 @@ public class ConfigWindow : Window, IDisposable
                 configuration.Save();
             }
 
+            if (Triggers.All[t] == TriggerKind.Emote)
+            {
+                // The plugin writes these lines itself, so say so before someone wonders why emotes show with logging off
+                ImGui.SameLine();
+                ImGuiComponents.HelpMarker(EmoteHint);
+            }
+
             if (Triggers.All[t] == TriggerKind.Name)
             {
                 DrawNameOptions(settings.Enabled);
@@ -200,13 +210,6 @@ public class ConfigWindow : Window, IDisposable
             else if (Triggers.All[t] == TriggerKind.Custom)
             {
                 DrawCustomOptions(settings.Enabled);
-            }
-            else if (Triggers.All[t] == TriggerKind.Emote)
-            {
-                using var indent = ImRaii.PushIndent();
-                // The plugin writes these lines itself, so say so before someone wonders why emotes show with logging off
-                ImGui.TextDisabled($"Motion-only emotes at you are written to chat, ending \"{TargetedAlert.InsertedTag.Trim()}\";");
-                ImGui.TextDisabled("they alert only if a chat tab shows standard or custom emotes");
             }
             else if (Triggers.All[t] == TriggerKind.TargetSpeaks)
             {
@@ -419,6 +422,8 @@ public class ConfigWindow : Window, IDisposable
             configuration.Highlight = highlight;
             configuration.Save();
         }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("Your name and nicknames, custom words, and 'you' words from someone targeting you");
 
         UpdatePalette();
         using (ImRaii.PushIndent())
@@ -441,7 +446,6 @@ public class ConfigWindow : Window, IDisposable
 
             ImGui.SameLine(0, ImGui.GetStyle().ItemSpacing.X * 3);
             DrawHighlightPreview();
-            ImGui.TextDisabled("Your name and nicknames, custom words, and 'you' words from someone targeting you");
         }
 
         var highlightTabs = configuration.HighlightTabs;
