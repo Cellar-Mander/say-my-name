@@ -58,7 +58,7 @@ public sealed class NameMatcher
 
     // One entry per non-blank line, with runs of spaces inside it made one
     private static IEnumerable<string> Lines(string lines) =>
-        lines.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        lines.Split('\n')
             .Select(line => string.Join(' ', line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)))
             .Where(phrase => phrase.Length > 0);
 
@@ -71,7 +71,7 @@ public sealed class NameMatcher
     /// </summary>
     public void FindAll(ReadOnlySpan<char> text, List<(int Start, int Length)> matches) => Scan(text, matches);
 
-    // With no list, stops at the first match
+    // With no list, stops at the first match and returns whether there was one; with a list, returns false
     private bool Scan(ReadOnlySpan<char> text, List<(int Start, int Length)>? matches)
     {
         // Chat text may use the typographic apostrophe where the name has a straight one, or the
@@ -90,7 +90,6 @@ public sealed class NameMatcher
 
     private bool Find(ReadOnlySpan<char> text, List<(int Start, int Length)>? matches)
     {
-        var any = false;
         for (var p = 0; p < parts.Length; p++)
         {
             var part = parts[p];
@@ -125,7 +124,6 @@ public sealed class NameMatcher
                         return true;
                     }
                     matches.Add((start, end - start));
-                    any = true;
                     offset = end;
                 }
                 else
@@ -134,7 +132,7 @@ public sealed class NameMatcher
                 }
             }
         }
-        return any;
+        return false;
     }
 
     // The end of the part at start as written, each space matching a run of whitespace; -1 if it isn't there
@@ -326,9 +324,9 @@ public sealed class NameMatcher
             return true;
         }
 
-        // Possessive: Alice's, ALICE'S
+        // Possessive: Alice's, ALICE'S. An apostrophe only gets here joined on, so a letter follows it
         return text[i] == '\''
-            && i + 1 < text.Length && (text[i + 1] is 's' or 'S')
+            && (text[i + 1] is 's' or 'S')
             && (i + 2 == text.Length || !IsWordChar(text[i + 2]));
     }
 
