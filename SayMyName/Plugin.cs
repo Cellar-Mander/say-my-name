@@ -23,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
+    [PluginService] internal static ISelfTestRegistry SelfTestRegistry { get; private set; } = null!;
 
     private const string CommandName = "/saymyname";
 
@@ -54,6 +55,8 @@ public sealed class Plugin : IDalamudPlugin
         if (PluginInterface.IsDev)
         {
             TestHarness = new TestHarness(Configuration, AlertSound, TargetedAlert, () => ConfigWindow?.IsOpen == true);
+            // Dalamud drops them when the plugin unloads
+            SelfTestRegistry.RegisterTestSteps([.. TestHarness.SelfTestSteps()]);
         }
 
         ConfigWindow = new ConfigWindow(this);

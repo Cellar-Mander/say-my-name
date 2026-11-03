@@ -188,7 +188,7 @@ The window's layout and wording may change. The settings and their defaults are 
 - **Volume control (30006a42).**
 - **List caps:** how many nicknames and custom words a list may hold, and how long each entry may be. The entry count depends on what is practical and on performance; the entry length on the longest name or phrase a player could need.
 - **Lost tab colour (6df20e1a):** the cause needs a reproduction.
-- **Dev testing:** a rebuild needs a way to feed in chat lines from fake players, and pretend targeting, to test triggers alone (ee861e86 moves the self-tests into Dalamud's self-test window). The behaviour is needed; how is open.
+- **Dev testing:** a rebuild needs a way to feed in chat lines from fake players, and pretend targeting, to test triggers alone, and the solo cases run in Dalamud's self-test window. The behaviour is needed; how is open.
 
 ## Appendix A: facts about the environment
 
