@@ -35,6 +35,7 @@ public class PhraseMatcherTests
     [InlineData("good evening, morning person")]
     public void IgnoresPartsAndOtherWords(string text)
     {
+        // revert-check: not revert-sensitive (guards against over-matching, which the old code never did)
         Assert.False(Words.IsMatch(text));
     }
 

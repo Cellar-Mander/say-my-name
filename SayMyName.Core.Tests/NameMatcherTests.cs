@@ -78,6 +78,7 @@ public class NameMatcherTests
     [InlineData("BigRo")]
     public void NicknamesNeedWholeWordsAndCase(string text)
     {
+        // revert-check: not revert-sensitive (guards against over-matching, which the old code never did)
         Assert.False(RoseAndNicknames.IsMatch(text));
     }
 
