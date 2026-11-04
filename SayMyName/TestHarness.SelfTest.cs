@@ -223,29 +223,24 @@ public sealed partial class TestHarness
     // A ChatChannel, or an XivChatType the harness injects that is no channel of its own (cross-world party)
     private SelfTestLine Send(Enum channel, string sender, string text)
     {
-        var line = new SelfTestLine(text);
-        if (!Inject($"{channel} {sender} {text}"))
+        if (!Inject($"{channel} {sender} {text}", out var shown))
         {
             throw new InvalidOperationException($"inject {channel} {sender} {text} refused");
         }
-        return line;
+        return new SelfTestLine(shown);
     }
 
     // Your own lines often come with no player link; Party Icons then puts a job tag before your name
     private SelfTestLine SendTaggedOwn(ChatChannel channel, string text)
     {
-        var line = new SelfTestLine(text);
-        InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload("WAR"), new TextPayload(" "), new TextPayload(me)), text);
-        return line;
+        return new SelfTestLine(InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload("WAR"), new TextPayload(" "), new TextPayload(me)), text));
     }
 
     // Your own unlinked line whose shown name another plugin replaces (Player Tags' random names)
     private SelfTestLine SendRenamedOwn(ChatChannel channel, string text)
     {
-        var line = new SelfTestLine(text);
         rewriteSender.Add(text);
-        InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload(me)), text);
-        return line;
+        return new SelfTestLine(InjectLine(ChatChannels.ToChatType(channel), new SeString(new TextPayload(me)), text));
     }
 
     private static string Arrival(SelfTestLine line) => line.UnhandledKind == null ? "line never arrived" : "";
@@ -323,8 +318,8 @@ public sealed partial class TestHarness
     public IEnumerable<ISelfTestStep> SelfTestSteps()
     {
         // Loading
-        yield return Now("Loading: inject with too few arguments is a usage error", () => !Inject("Say"));
-        yield return Now("Loading: inject on an unknown channel is a usage error", () => !Inject("Nowhere A Friend hi"));
+        yield return Now("Loading: inject with too few arguments is a usage error", () => !Inject("Say", out _));
+        yield return Now("Loading: inject on an unknown channel is a usage error", () => !Inject("Nowhere A Friend hi", out _));
 
         // Harness
         foreach (var channel in new[] { Say, Linkshell2, CrossLinkshell1, CrossLinkshell5, CustomEmote })
