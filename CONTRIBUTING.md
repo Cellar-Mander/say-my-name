@@ -162,9 +162,16 @@ A testing build is offered only to installs that opt in: in `/xlsettings` → Ex
 scripts/release publish 0.1.2.0 --testing
 ```
 
-The workflow (channel `testing`) tags `main` with the next `v0.1.2.0-rc<n>`, which the run's summary names, creates a prerelease and opens the `repo.json` PR. That PR sets only the testing fields (`TestingAssemblyVersion`, `TestingDalamudApiLevel`, `DownloadLinkTesting`, `TestingChangelog`); check that the stable fields are unchanged, then merge it and check it with `scripts/release verify 0.1.2.0-rc1`. Its notes are the version's CHANGELOG section with any Unreleased entries above it.
+The workflow (channel `testing`) tags `main` `v0.1.2.0-rc1`, creates a prerelease and opens the `repo.json` PR. That PR sets only the testing fields (`TestingAssemblyVersion`, `TestingDalamudApiLevel`, `DownloadLinkTesting`, `TestingChangelog`); check that the stable fields are unchanged, then merge it and check it with `scripts/release verify 0.1.2.0-rc1`. Its notes are the version's CHANGELOG section with any Unreleased entries above it.
 
-To fix something found in testing, merge the fix to `main` as usual (its CHANGELOG entry goes under Unreleased) and publish again: it becomes `-rc2`. The stable release (step 4) removes the testing fields, so opted-in installs move to it too. A testing build is refused while an unmerged stable `repo.json` PR is open, since it would replace it.
+Dalamud updates an install only to a higher version than it has, so each testing build needs its own `<Version>`: one already out for testing is refused. To fix something found in testing, merge the fix to `main` as usual (its CHANGELOG entry goes under Unreleased), then bump the fourth number and publish that:
+
+```bash
+scripts/release prepare 0.1.2.1
+scripts/release publish 0.1.2.1 --testing
+```
+
+As `0.1.2.0` was never released as stable, `prepare` renames its CHANGELOG section to `## 0.1.2.1` with today's date and moves the Unreleased entries into it, so the one section lists everything since the last stable release. Release the last testing build's version as stable (`scripts/release publish 0.1.2.1`); `0.1.2.0` itself is never released as stable. The stable release (step 4) removes the testing fields, so opted-in installs move to it too. A testing build is refused while an unmerged stable `repo.json` PR is open, since it would replace it.
 
 ### Other ways to publish
 

@@ -3,8 +3,8 @@ name: Release
 # See "Releasing" in CONTRIBUTING.md for the whole process.
 # Run this workflow on main (Actions > Release > Run workflow, or scripts/release publish) to
 # publish main's <Version>. The stable channel tags v<Version>; the testing channel tags
-# v<Version>-rc1, -rc2 and so on, a prerelease offered only to installs that receive testing
-# versions.
+# v<Version>-rc1, a prerelease offered only to installs that receive testing versions. Each
+# testing build needs its own <Version>, since Dalamud only updates to a higher one.
 # Pushing a tag by hand publishes that commit directly: v0.1.0.0 as stable, v0.1.0.0-rc1 as testing.
 # Main only takes PRs, so a release pushes repo.json to the release/repo-json branch and opens a PR
 # (or updates the open one); installs see the release once you merge it. This needs "Allow GitHub
@@ -81,8 +81,14 @@ jobs:
             echo "::error::Merge or close the PR \"$open\" first, or this testing build would replace it"
             exit 1
           fi
-          last=$(grep -oP "^v\Q$version\E-rc\K[0-9]+$" <<<"$tags" | sort -n | tail -1 || true)
-          tag=v$version-rc$((${last:-0} + 1))
+          # Dalamud offers an update only above the installed version, so a second testing build
+          # at the same <Version> would never reach installs that have the first
+          last=$(grep -E "^v${version//./\\.}-rc[0-9]+$" <<<"$tags" | sort -V | tail -1 || true)
+          if [[ -n $last ]]; then
+            echo "::error::$last is already out for testing, and installs that have it won't update to another build of $version; bump <Version> (scripts/release prepare ${version%.*}.$((${version##*.} + 1))) first"
+            exit 1
+          fi
+          tag=v$version-rc1
         fi
         git tag "$tag" HEAD
         git push origin "refs/tags/$tag"
