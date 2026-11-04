@@ -1,11 +1,11 @@
 name: Release
 
 # See "Releasing" in CONTRIBUTING.md for the whole process.
-# Merging a change to <Version> into main (scripts/release prepare opens that PR) asks to tag the
-# merge commit v<Version>; approve the "release" deployment in the run to tag and publish it.
-# Pushing a tag named after the plugin's <Version>, e.g. v0.1.0.0, publishes that commit directly.
-# The "release" environment must require your review (Settings > Environments): a missing one is
-# created without protection, and the tag would be made unasked.
+# Run this workflow on main (Actions > Release > Run workflow, or scripts/release publish) to
+# publish main's <Version>. The stable channel tags v<Version>; the testing channel tags
+# v<Version>-rc1, -rc2 and so on, a prerelease offered only to installs that receive testing
+# versions.
+# Pushing a tag by hand publishes that commit directly: v0.1.0.0 as stable, v0.1.0.0-rc1 as testing.
 # Main only takes PRs, so a release pushes repo.json to the release/repo-json branch and opens a PR
 # (or updates the open one); installs see the release once you merge it. This needs "Allow GitHub
 # Actions to create and approve pull requests" on in Settings > Actions > General.
@@ -15,65 +15,79 @@ name: Release
 on:
   push:
     tags: [ 'v*' ]
-    branches: [ main ]
-    paths: [ SayMyName/SayMyName.csproj ]
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Channel to publish main's <Version> to
+        type: choice
+        options: [ testing, stable ]
+        default: testing
 
-# One release at a time, so two tags can't race to update repo.json
+# One release at a time, so two runs can't race to update repo.json
 concurrency: release
 
 jobs:
 
-  # A push to main that changed <Version> names the tag to make; other csproj changes name none
-  version:
-    if: github.ref_type == 'branch'
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.version.outputs.tag }}
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        fetch-depth: 2
-
-    - name: Compare versions
-      id: version
-      run: |
-        version() { git show "$1:SayMyName/SayMyName.csproj" | sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p'; }
-        new=$(version HEAD)
-        if [[ $new == "$(version HEAD^)" ]]; then
-          echo "<Version> unchanged at $new; nothing to release."
-        elif git ls-remote --exit-code --tags origin "refs/tags/v$new" >/dev/null; then
-          echo "::warning::Tag v$new already exists; not tagging again."
-        else
-          echo "tag=v$new" >> "$GITHUB_OUTPUT"
-        fi
-
-  # Waits for your approval of the "release" deployment. A tag pushed with github.token starts no
+  # Names the tag for main's <Version> and pushes it. A tag pushed with github.token starts no
   # workflow, so this run goes on to build and publish it.
   tag:
-    needs: version
-    if: needs.version.outputs.tag != ''
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: write
+      pull-requests: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     env:
-      TAG: ${{ needs.version.outputs.tag }}
+      CHANNEL: ${{ inputs.channel }}
+      GH_TOKEN: ${{ github.token }}
 
     steps:
-    - name: Checkout
+    - name: Checkout main
       uses: actions/checkout@v7
+      with:
+        ref: main
 
     - name: Tag
+      id: tag
       run: |
-        git tag "$TAG" "$GITHUB_SHA"
-        git push origin "refs/tags/$TAG"
+        # Another branch's copy of this workflow could publish differently
+        if [[ $GITHUB_REF != refs/heads/main ]]; then
+          echo "::error::Run this workflow on main, not $GITHUB_REF_NAME"
+          exit 1
+        fi
+        version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' SayMyName/SayMyName.csproj)
+        tags=$(git ls-remote --tags --refs origin "refs/tags/v$version*" | sed 's:.*refs/tags/::')
+        if grep -qxF "v$version" <<<"$tags"; then
+          echo "::error::v$version is already released; merge a <Version> bump (scripts/release prepare) first"
+          exit 1
+        fi
+        if [[ $CHANNEL == stable ]]; then
+          # Entries merged since <Version> was bumped would be left out of the release notes
+          if awk '/^## /{u = ($0 == "## Unreleased"); next} u && NF {found=1} END {exit !found}' CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::Move the Unreleased entries under ## $version first"
+            exit 1
+          fi
+          tag=v$version
+        else
+          # Overwriting an unmerged stable repo.json PR would drop that release from installs
+          open=$(gh pr list --head release/repo-json --base main --state open --json title --jq '.[].title')
+          if [[ -n $open && $open != *-rc* ]]; then
+            echo "::error::Merge or close the PR \"$open\" first, or this testing build would replace it"
+            exit 1
+          fi
+          last=$(grep -oP "^v\Q$version\E-rc\K[0-9]+$" <<<"$tags" | sort -n | tail -1 || true)
+          tag=v$version-rc$((${last:-0} + 1))
+        fi
+        git tag "$tag" HEAD
+        git push origin "refs/tags/$tag"
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
+        echo "Tagged $tag at $(git rev-parse --short HEAD)" >> "$GITHUB_STEP_SUMMARY"
 
   # The plugin builds against a Dalamud install, so this runs on Windows where the SDK finds it
   build:
-    needs: [ version, tag ]
-    # Runs for a pushed tag, where version and tag are skipped, or once tag has made one
+    needs: tag
+    # Runs for a pushed tag, where tag is skipped, or once tag has made one
     if: ${{ !cancelled() && (github.ref_type == 'tag' || needs.tag.result == 'success') }}
     runs-on: windows-2022
 
@@ -81,7 +95,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v7
       with:
-        ref: ${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}
+        ref: ${{ github.ref_type == 'tag' && github.ref_name || needs.tag.outputs.tag }}
 
     - name: Install .NET
       uses: actions/setup-dotnet@v6
@@ -92,27 +106,31 @@ jobs:
       uses: ./.github/actions/install-dalamud
 
     # The notes are the tag's CHANGELOG section for the version, so they say what users read in
-    # the changelog. A test tag made before the section was dated falls back to Unreleased.
-    # changelog.txt is the same section as plain text for the manifest's Changelog, which the
-    # plugin installer shows under Changelogs without rendering markdown.
+    # the changelog. A testing build also has the Unreleased entries merged since <Version> was
+    # bumped, ahead of the section; a test tag made before the section was dated falls back to
+    # Unreleased. changelog.txt is the same text as plain text for the manifest's Changelog, which
+    # the plugin installer shows under Changelogs without rendering markdown.
     - name: Changelog
       shell: bash
       env:
-        TAG: ${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}
+        TAG: ${{ github.ref_type == 'tag' && github.ref_name || needs.tag.outputs.tag }}
       run: |
         section() {
           awk -v h="$1" '/^## /{s = index($0 " ", h " ") == 1; next} s' CHANGELOG.md | sed '/./,$!d'
         }
-        base=${TAG%%-test*}
-        section "## ${base#v}" > notes.md
-        if [[ ! -s notes.md && $base != "$TAG" ]]; then
-          section "## Unreleased" > notes.md
-          [[ -s notes.md ]] || echo "Test build of $TAG." > notes.md
+        base=${TAG%%-*}
+        notes=$(section "## ${base#v}")
+        if [[ $TAG == *-rc* ]]; then
+          notes=$(printf '%s\n\n%s\n' "$(section "## Unreleased")" "$notes" | sed '/./,$!d')
+        elif [[ -z $notes && $TAG == *-test* ]]; then
+          notes=$(section "## Unreleased")
+          notes=${notes:-Test build of $TAG.}
         fi
-        if [[ ! -s notes.md ]]; then
+        if [[ -z $notes ]]; then
           echo "::error file=CHANGELOG.md::No CHANGELOG section for ${base#v} at $TAG"
           exit 1
         fi
+        printf '%s\n' "$notes" > notes.md
         sed -E 's/^#+ +(.*)/\1:/; s/^( *)[-*] /\1• /; s/\[([^]]*)\]\(([^)]*)\)/\1 (\2)/g; s/\*\*|__|`//g' notes.md > changelog.txt
 
     - name: Build
@@ -139,7 +157,7 @@ jobs:
         retention-days: 1
 
   publish:
-    needs: [ version, build ]
+    needs: [ tag, build ]
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
@@ -148,7 +166,7 @@ jobs:
       pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}
+      TAG: ${{ github.ref_type == 'tag' && github.ref_name || needs.tag.outputs.tag }}
 
     steps:
     - name: Checkout main
@@ -172,16 +190,20 @@ jobs:
     - name: Check version
       run: |
         version=$(jq -r .AssemblyVersion release/SayMyName.json)
-        base=${TAG%%-test*}
+        base=${TAG%%-*}
         if [[ "v$version" != "$base" ]]; then
           echo "::error::Tag $TAG doesn't match the plugin version $version; set <Version> in SayMyName.csproj or retag"
           exit 1
         fi
-        if [[ "$base" != "$TAG" ]]; then
-          echo "PRERELEASE=--prerelease" >> "$GITHUB_ENV"
-          echo "BRANCH=release-test" >> "$GITHUB_ENV"
-        else
+        if [[ $TAG == "$base" ]]; then
           echo "BRANCH=main" >> "$GITHUB_ENV"
+        elif [[ $TAG =~ ^$base-rc[0-9]+$ ]]; then
+          { echo "PRERELEASE=--prerelease"; echo "BRANCH=main"; echo "CHANNEL=testing"; } >> "$GITHUB_ENV"
+        elif [[ $TAG =~ ^$base-test[0-9]+$ ]]; then
+          { echo "PRERELEASE=--prerelease"; echo "BRANCH=release-test"; } >> "$GITHUB_ENV"
+        else
+          echo "::error::Tag $TAG is none of $base, $base-rc<n> or $base-test<n>"
+          exit 1
         fi
 
     # The notes are the CHANGELOG section the build job put in the manifest
@@ -190,18 +212,35 @@ jobs:
         mv release/latest.zip release/SayMyName.zip
         gh release create "$TAG" release/SayMyName.zip --verify-tag --notes-file release/notes.md --title "$TAG" $PRERELEASE
 
-    # repo.json (pluginmaster format) is what /xlsettings fetches from the raw main URL
+    # repo.json (pluginmaster format) is what /xlsettings fetches from the raw main URL. Dalamud
+    # offers the Testing* fields only to installs that receive testing versions, and only while
+    # TestingAssemblyVersion is above AssemblyVersion and TestingDalamudApiLevel is the game's.
+    # A testing build sets just those on main's entry; a stable release rebuilds the entry from
+    # its manifest, which has none, so it also ends any testing build.
     - name: Update repo.json
       run: |
         url="https://github.com/${{ github.repository }}/releases/download/$TAG/SayMyName.zip"
-        jq --arg url "$url" --argjson now "$(date +%s)" '[. + {
-            DownloadLinkInstall: $url,
-            DownloadLinkUpdate: $url,
-            DownloadLinkTesting: $url,
-            IsHide: false,
-            IsTestingExclusive: false,
-            LastUpdate: $now
-          }]' release/SayMyName.json > repo.json
+        if [[ $CHANNEL == testing ]]; then
+          jq --arg url "$url" --argjson now "$(date +%s)" --slurpfile m release/SayMyName.json '.[0] += {
+              TestingAssemblyVersion: $m[0].AssemblyVersion,
+              TestingDalamudApiLevel: $m[0].DalamudApiLevel,
+              TestingChangelog: ($m[0].Changelog // ""),
+              DownloadLinkTesting: $url,
+              LastUpdate: $now
+            }' repo.json > repo.json.new
+          mv repo.json.new repo.json
+          body="Merge to offer $TAG to /xlsettings installs that receive testing versions. Check TestingAssemblyVersion and DownloadLinkTesting first; the stable fields should be unchanged."
+        else
+          jq --arg url "$url" --argjson now "$(date +%s)" '[. + {
+              DownloadLinkInstall: $url,
+              DownloadLinkUpdate: $url,
+              DownloadLinkTesting: $url,
+              IsHide: false,
+              IsTestingExclusive: false,
+              LastUpdate: $now
+            }]' release/SayMyName.json > repo.json
+          body="Merge to publish $TAG to /xlsettings installs. Check the version and download links first."
+        fi
         git config user.name 'github-actions[bot]'
         git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
         git add repo.json
@@ -214,8 +253,7 @@ jobs:
           if [[ -n $(gh pr list --head release/repo-json --base main --state open --json number --jq '.[].number') ]]; then
             gh pr edit release/repo-json --title "$title"
           else
-            gh pr create --head release/repo-json --base main --title "$title" \
-              --body "Merge to publish $TAG to /xlsettings installs. Check the version and download links first."
+            gh pr create --head release/repo-json --base main --title "$title" --body "$body"
           fi
           # Pushes and PRs made with github.token start no workflows, so main's required "test"
           # check would never report; a workflow_dispatch run is the exception, and its check on
