@@ -18,8 +18,10 @@ public abstract class ConfigurationBase
     public const int MinSoundEffect = 1;
     public const int MaxSoundEffect = 16;
     public const int MaxCooldownSeconds = 60;
-    public const int MaxCustomWordsLength = 2000;
-    public const int MaxNicknamesLength = 500;
+    /// <summary>How many entries the settings window lets the nicknames list, or the custom words list, hold.</summary>
+    public const int MaxListEntries = 12;
+    /// <summary>The longest nickname or custom word, in characters, the settings window takes.</summary>
+    public const int MaxEntryLength = 64;
     /// <summary>UIColor sheet row meaning no colour change.</summary>
     public const ushort NoColor = 0;
 
@@ -85,16 +87,10 @@ public abstract class ConfigurationBase
 
         SoundEffect = Math.Clamp(SoundEffect, MinSoundEffect, MaxSoundEffect);
         CooldownSeconds = Math.Clamp(CooldownSeconds, 0, MaxCooldownSeconds);
+        // Not cut to MaxListEntries or MaxEntryLength: earlier releases capped only the total length,
+        // so a list saved then may hold more or longer entries, and keeps them
         CustomWords ??= "";
-        if (CustomWords.Length > MaxCustomWordsLength)
-        {
-            CustomWords = CustomWords[..MaxCustomWordsLength];
-        }
         Nicknames ??= "";
-        if (Nicknames.Length > MaxNicknamesLength)
-        {
-            Nicknames = Nicknames[..MaxNicknamesLength];
-        }
         ExpandedSections ??= [SettingsSection.Triggers];
         // Older versions offered None for the tab colour, which meant no tab highlighting
         if (TabHighlightColor == NoColor)

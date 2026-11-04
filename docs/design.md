@@ -165,7 +165,8 @@ The player's current target writes anything, on any channel a player writes in (
 - Grouped in collapsible sections: triggers, sound, colouring, channels. Only the triggers section starts open, and which sections are open is remembered.
 - Channels are chosen per trigger. A trigger that is off shows its channel choices dimmed.
 - Hovering a colour shows its details, as the game's colour picker does.
-- Nicknames and custom words are each a list of entries, managed as one setting. Each list has a cap on how many entries it holds, and each entry has a cap on its length. Both caps are to be decided (see Open questions). Edits to a list are kept even if the window is closed straight after editing.
+- Nicknames and custom words are each a list of entries, managed as one setting, shown a row per entry with a button to remove it and one to add an entry. Each list holds at most **12 entries**, each at most **64 characters**: Add is unavailable on a full list or while the last entry is empty, and an entry can't be typed or pasted longer. Empty entries, new or emptied, are removed when the window closes. Edits to a list are kept even if the window is closed straight after editing.
+- Earlier releases capped each list only by total length (500 characters of nicknames, 2000 of custom words), so a saved list may hold more or longer entries. Such a list loads unchanged and every entry still matches; the player can't add to it until it is under 12 entries, and an overlong entry is cut to 64 characters only if the player edits it.
 - Settings saved by any earlier release load with their meaning kept. New defaults apply only to settings the player never saved.
 
 The window's layout and wording may change. The settings and their defaults are the spec.
@@ -192,7 +193,6 @@ The window's layout and wording may change. The settings and their defaults are 
 - **Hidden information (42888d53):** whether D17 reviewers accept the You and Target Speaks checks of what another player is targeting. If not, the plan is to justify them, then cut them or default them off.
 - **Localisation (85aae762):** which languages the settings should be in, and how matching should work in languages other than English. For example, You needs a 'you' word list per language, and Japanese has none.
 - **Volume control (30006a42).**
-- **List caps:** how many nicknames and custom words a list may hold, and how long each entry may be. The entry count depends on what is practical and on performance; the entry length on the longest name or phrase a player could need.
 - **Lost tab colour (6df20e1a):** the cause needs a reproduction.
 - **Dev testing:** a rebuild needs a way to feed in chat lines from fake players, and pretend targeting, to test triggers alone, and the solo cases run in Dalamud's self-test window. The behaviour is needed; how is open.
 
