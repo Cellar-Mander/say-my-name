@@ -35,8 +35,8 @@ public class ConfigWindow : Window, IDisposable
     private static readonly string[] SoundLabels =
         [.. Enumerable.Range(Configuration.MinSoundEffect, Configuration.MaxSoundEffect - Configuration.MinSoundEffect + 1).Select(n => $"<se.{n}>")];
     private readonly string?[,] channelCheckboxIds = new string?[Columns.Count, Channels.Count];
-    private static readonly string EmoteHint =
-        $"Motion-only emotes at you are written to chat, ending \"{TargetedAlert.InsertedTag.Trim()}\"; they alert only if a chat tab shows standard or custom emotes";
+    private const string EmoteHint =
+        "Only works when a chat tab shows standard emotes; emotes used without a log message (motion only) never alert";
 
     // The UIColor sheet (about 200 rows), with a colour per game theme: Dark, Light, Classic FF, Clear Blue.
     // Chat draws both text and glow in the theme set in the game's options, so the swatches use it too.
@@ -198,7 +198,7 @@ public class ConfigWindow : Window, IDisposable
 
             if (Triggers.All[t] == TriggerKind.Emote)
             {
-                // The plugin writes these lines itself, so say so before someone wonders why emotes show with logging off
+                // Alerts come from chat, so say so before someone wonders why an emote they saw stayed silent
                 ImGui.SameLine();
                 ImGuiComponents.HelpMarker(EmoteHint);
             }

@@ -15,8 +15,8 @@ namespace SayMyName;
 
 /// <summary>
 /// Dev-plugin helper for the smoke checklist (docs/smoke-test.md): puts fake player messages into
-/// chat and logs when each comes back through the chat events the triggers listen on, logs the
-/// emotes the Emote trigger sees, can pretend an injected sender is targeting you or is your target, and can
+/// chat and logs when each comes back through the chat events the triggers listen on, can pretend an
+/// injected sender is targeting you or is your target, can
 /// recolour a chat tab's name to see whether the game keeps the colour, and gives Dalamud's self-test
 /// window the automatable solo checklist cases (TestHarness.SelfTest.cs).
 /// </summary>
@@ -25,7 +25,7 @@ public sealed unsafe partial class TestHarness : IDisposable
     // Chat replies carry it as Dalamud's message tag and log lines start with it the same way, so both read "[Test harness] ..."
     private const string Tag = "Test harness";
 
-    public const string Usage = "inject <channel> <First> <Last> <message> | emotes | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
+    public const string Usage = "inject <channel> <First> <Last> <message> | targeting-me [<First> <Last>] | my-target [<First> <Last>] | tabcolor <tab 1-5> <RRGGBB> [keep] | tabcolor off | tabwatch";
 
     private readonly Configuration configuration;
     private readonly AlertSound alertSound;
@@ -39,7 +39,6 @@ public sealed unsafe partial class TestHarness : IDisposable
 
     private string? fakeTargeter;
     private string? fakeTarget;
-    private bool watchingEmotes;
 
     // The recoloured tab (0-based), its colour and the colour it had before; only touched on the framework thread
     private int? colouredTab;
@@ -78,7 +77,6 @@ public sealed unsafe partial class TestHarness : IDisposable
         Plugin.ChatGui.ChatMessageUnhandled -= OnChatMessageUnhandled;
         targetedAlert.FakeTargetingYou = null;
         targetedAlert.FakeYourTarget = null;
-        targetedAlert.EmotePlayed = null;
     }
 
     /// <summary>Runs a harness subcommand; false if <paramref name="args"/> isn't one, so it can mean something else.</summary>
@@ -94,7 +92,6 @@ public sealed unsafe partial class TestHarness : IDisposable
         var ok = command.ToLowerInvariant() switch
         {
             "inject" => Inject(rest),
-            "emotes" => ToggleEmoteWatch(rest),
             "targeting-me" => SetFakeTargeter(rest),
             "my-target" => SetFakeTarget(rest),
             "tabcolor" => SetTabColour(rest),
@@ -149,21 +146,6 @@ public sealed unsafe partial class TestHarness : IDisposable
             Message = text,
         });
         Plugin.Log.Information($"[{Tag}] injected {type} from {sender.TextValue}: {text}");
-    }
-
-    // Logs every emote the Emote trigger's hook sees, so other players' emotes in a busy place
-    // show whether the hook fires for them, aimed at whom, and whether they were logged
-    private bool ToggleEmoteWatch(string args)
-    {
-        if (args.Length > 0)
-        {
-            return false;
-        }
-
-        watchingEmotes = !watchingEmotes;
-        targetedAlert.EmotePlayed = watchingEmotes ? OnEmotePlayed : null;
-        Plugin.ChatGui.Print($"emote watch {(watchingEmotes ? "on, see /xllog" : "off")}", Tag);
-        return true;
     }
 
     // Lines from this name pass the You trigger's "sender is targeting you" check
@@ -368,15 +350,6 @@ public sealed unsafe partial class TestHarness : IDisposable
         : $"{Hex(node->Color)}*{node->MultiplyRed},{node->MultiplyGreen},{node->MultiplyBlue}+{node->AddRed},{node->AddGreen},{node->AddBlue}{(node->IsVisible() ? "" : " hidden")}";
 
     private static string Hex(ByteColor c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}{c.A:X2}";
-
-    private static void OnEmotePlayed(nint owner, uint emoteId, ulong targetId, bool logged)
-    {
-        var from = Plugin.ObjectTable.CreateObjectReference(owner)?.Name.TextValue ?? $"0x{owner:X}";
-        var target = targetId == Plugin.ObjectTable.LocalPlayer?.GameObjectId
-            ? "you"
-            : Plugin.ObjectTable.SearchById(targetId)?.Name.TextValue ?? $"0x{targetId:X}";
-        Plugin.Log.Information($"[{Tag}] emote {emoteId} from {from} at {target}, logged={logged}");
-    }
 
     private void OnChatMessage(IHandleableChatMessage message)
     {

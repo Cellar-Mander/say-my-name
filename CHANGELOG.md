@@ -12,6 +12,7 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 ### Changed
 
 - In settings, the notes on the Emote alert and on chat colouring moved into (?) markers beside those settings; hover one to read it.
+- The Emote alert now only goes off for emotes that show in one of your chat tabs. Emotes used without a log message (motion only) no longer alert, and are no longer written to chat ending "[Say My Name]". The word "you" in an emote at you is coloured.
 
 ### Fixed
 

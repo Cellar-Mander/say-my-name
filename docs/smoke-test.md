@@ -27,7 +27,6 @@ For the Emote and You triggers, two more:
 ```
 /saymyname targeting-me <First> <Last>   # injected lines from this name count as targeting you
 /saymyname targeting-me                  # stop pretending
-/saymyname emotes                        # toggle logging every emote the Emote trigger sees
 ```
 
 For the Target Speaks trigger:
@@ -37,7 +36,7 @@ For the Target Speaks trigger:
 /saymyname my-target                     # stop pretending
 ```
 
-`targeting-me` only skips the search for the sender among nearby players; everything else in the trigger runs as normal. With `emotes` on, each emote nearby logs a line like `[Test harness] emote 105 from A Friend at Some Player, logged=True`, with `at you` when it is aimed at you.
+`targeting-me` only skips the search for the sender among nearby players; everything else in the trigger runs as normal.
 
 To try colouring chat tab names (task 7d98e301):
 
@@ -138,8 +137,6 @@ Set quiet time to 0 so every alert sounds, and turn on verbose logging (`/xllog`
 
 Solo:
 
-- [ ] `/xllog` has no `emote function not found` warning after loading.
-- [ ] `/saymyname emotes`, then wait somewhere busy (e.g. a city aetheryte plaza): other players' emotes log `[Test harness] emote ...` lines. For each one that also shows in chat (e.g. "X pets Y"), the log names the same emoter and target with `logged=True`. Lines with `logged=False` match emotes you saw but chat didn't show. If no lines appear while players emote, the hook doesn't see network emotes and the emote cases below will fail. `/saymyname emotes` again turns it off.
 - [ ] `/saymyname targeting-me A Friend`, then `/saymyname inject Say A Friend thank you`: sound. Same with `your`, `yours`, `you're`, `you'll`, `y'all`, `thee`, and on `CustomEmote`. *(self-test)*
 - [ ] Still pretending: `inject Say A Friend hello`: no sound. `inject Say Someone Else thank you`: no sound. `inject Party A Friend thank you`: sound; same on `CrossParty`. `inject Alliance A Friend thank you`: no sound (off by default); tick Alliance for You, same inject: sound; untick it again. `inject Linkshell1 A Friend thank you`: no sound (not a You channel). *(self-test)*
 - [ ] Untick Party for You, `inject Party A Friend thank you`: no sound; `inject Say A Friend thank you`: sound. Tick Party again. *(self-test)*
@@ -147,11 +144,10 @@ Solo:
 
 With a second player (*A Friend*, e.g. an alt on another client) near you:
 
-- [ ] A Friend targets you and uses `/pet`: one sound, and the log shows `emote ... at you, logged=True`.
-- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): one sound, `logged=False`, and chat shows the game's line ("A Friend pets you.") ending `[Say My Name]`, with `you` coloured if Highlight is on. Verbose log: `inserted standard emote line shown=True`. Same with their emote log messages turned off in their settings.
-- [ ] Turn off standard emotes in every chat tab (Log Filters), keep custom emotes on in one: `/pet motion` from A Friend shows the marked line in that tab, as a custom emote with no sender, and sounds once; verbose log shows `shown=False` then `inserted custom emote line shown=True`. No other trigger (You, Target Speaks, Name, Custom) sounds or colours it.
-- [ ] Also turn off custom emotes in every tab: `/pet motion` shows nothing and makes no sound (`shown=False` twice). Turn both back on.
-- [ ] Settings: under the Emote trigger, a dimmed note says motion-only emotes are written to chat.
+- [ ] A Friend targets you and uses `/pet`: one sound, chat shows "A Friend pets you." with only `you` coloured if Highlight is on, and the verbose log shows `Emote trigger: line shown=True`. Untick Highlight: same line, nothing coloured. Tick it again.
+- [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): no sound, nothing written to chat, no tab coloured. Same with their emote log messages turned off in their settings.
+- [ ] Turn off standard emotes in every chat tab (Log Filters): `/pet` from A Friend makes no sound and colours no tab; verbose log shows `shown=False`. Turn them back on.
+- [ ] Settings: the (?) beside the Emote trigger says it only works when a chat tab shows standard emotes.
 - [ ] A Friend targets someone else (or nobody) and emotes: no sound.
 - [ ] Untick the Emote trigger, A Friend emotes at you: no sound; `/say thank you` from them still sounds.
 - [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, `you'll`, `y'all`, `thee`, and `/em waves at you` (a custom emote, handled by You, not Emote). `/em waves` without a 'you' word: no sound. Untick Custom emotes for You: `/em waves at you` no longer sounds, while standard emotes still do.

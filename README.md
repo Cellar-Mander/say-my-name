@@ -8,7 +8,7 @@ Alerts can be configured to trigger on certain criteria and chat message content
 - **Name**: your character's name or nicknames, even stretched (Aliiice) or spelled out (A-L-I-C-E)
 - **Custom**: your own words and phrases
 - **You**: a player targeting you says "you", "your", "thou", "thine" and the like
-- **Emote**: a player uses an emote on you, including motion-only emotes
+- **Emote**: a player uses an emote on you, when a chat tab shows it; "you" in the line is coloured
 - **Target Speaks**: your current target says something while targeting you
 
 Each alert can play a sound, colour the matched words and colour inactive chat tabs that show the line. Choose the channels each alert listens on, a quiet time between sounds, and the colours.
