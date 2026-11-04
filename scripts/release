@@ -29,13 +29,16 @@ Usage: scripts/release prepare <version>   e.g. 0.1.2.0
        scripts/release verify <version>|<version>-rc<n>
 
 prepare: from origin/main, make branch release-prep/v<version> that sets <Version> and moves the
-CHANGELOG's Unreleased entries under a dated heading; build, test, push and open the PR. The PR
-lists the changes merged since the last release, flagging plugin code changes that touched no
-CHANGELOG entry.
+CHANGELOG's Unreleased entries under a dated heading; build, test, push and open the PR. When
+main's <Version> was never released as stable (it went out only as a testing build, which
+Dalamud won't update to another build of), its dated section moves to <version> instead, taking
+any Unreleased entries with it. The PR lists the changes merged since the last release, flagging
+plugin code changes that touched no CHANGELOG entry.
 
 publish: run the Release workflow on main, which tags and publishes main's <Version> (it must be
-<version>): v<version> as a stable release, or with --testing the next v<version>-rc<n> as a
-testing build, offered only to installs that receive testing versions.
+<version>): v<version> as a stable release, or with --testing v<version>-rc1 as a
+testing build, offered only to installs that receive testing versions. A testing build is
+refused when <version> already has one: prepare the next version first.
 
 verify: check that the published release is what installs get: the tag is on main at that
 version, the GitHub release has the zip, the zip's manifest has the version, and the live
@@ -87,6 +90,46 @@ changes_since() {
     done < <(git -C "$top" log --first-parent --format=$'%H\t%s' "$1..origin/main")
 }
 
+# CHANGELOG.md on stdin with the section after Unreleased, unreleased version $1's, renamed to
+# heading $2 and the Unreleased entries merged into it, each under its ### heading
+reversion_changelog() {
+    awk -v old="## $1 - " -v heading="$2" '
+        function add(text, line) { return text == "" ? line : line == "" ? text : text "\n" line }
+        # Its entries, then the ones merged since it was dated
+        function block(key,   text) {
+            text = add(rel[key], new[key])
+            if (key != "") printf "\n%s\n", key
+            if (text != "") printf "\n%s\n", text
+        }
+        function merged(   i, key, kinds, done) {
+            print heading
+            block("")
+            # Keep a Changelog order first, then any other headings as they came
+            split("Added Changed Deprecated Removed Fixed Security", kinds, " ")
+            for (i = 1; i <= 6; i++) {
+                key = "### " kinds[i]
+                if (key in seen) { block(key); done[key] = 1 }
+            }
+            for (i = 1; i <= n; i++) if (!(order[i] in done)) block(order[i])
+        }
+        /^## / {
+            if (state == "old") { merged(); print ""; state = "after" }
+            else if (state == "unreleased" && index($0, old) == 1) { state = "old"; key = ""; next }
+            else if ($0 == "## Unreleased") { print; print ""; state = "unreleased"; key = ""; next }
+        }
+        state == "unreleased" || state == "old" {
+            if (/^### /) key = $0
+            else if (NF) {
+                if (key != "" && !(key in seen)) { seen[key] = 1; order[++n] = key }
+                if (state == "old") rel[key] = add(rel[key], $0); else new[key] = add(new[key], $0)
+            }
+            next
+        }
+        { print }
+        END { if (state == "old") merged() }
+    '
+}
+
 prepare() {
     [[ $# == 1 ]] || usage
     local version=$1
@@ -105,16 +148,31 @@ prepare() {
     # Test tags (v…-test1) are prereleases, not the last release
     last=$(git -C "$top" describe --tags --abbrev=0 --match 'v*' --exclude 'v*-*' origin/main)
 
-    # Entries are the non-blank lines between "## Unreleased" and the next version heading
-    git -C "$top" show origin/main:CHANGELOG.md |
-        awk '/^## /{u = ($0 == "## Unreleased"); next} u && NF {found=1} END {exit !found}' ||
-        die "CHANGELOG.md has no Unreleased entries to release."
+    # A dated section for a <Version> never released as stable (only as testing builds, or not
+    # at all) moves to the new version, as each testing build needs a higher version than the last
+    local reversion='' heading
+    heading="## $version - $(date +%F)"
+    if ! git -C "$top" rev-parse -q --verify "refs/tags/v$current" >/dev/null &&
+        git -C "$top" show origin/main:CHANGELOG.md |
+        awk -v h="## $current - " \
+            '/^## /{if (u && !seen) {found = index($0, h) == 1; seen = 1} u = ($0 == "## Unreleased")} END {exit !found}'; then
+        reversion=yes
+    else
+        # Entries are the non-blank lines between "## Unreleased" and the next version heading
+        git -C "$top" show origin/main:CHANGELOG.md |
+            awk '/^## /{u = ($0 == "## Unreleased"); next} u && NF {found=1} END {exit !found}' ||
+            die "CHANGELOG.md has no Unreleased entries to release."
+    fi
 
     git -C "$top" switch -q -c "$branch" origin/main
     sed -i "s:<Version>$current</Version>:<Version>$version</Version>:" "$top/$csproj"
-    awk -v heading="## $version - $(date +%F)" \
-        '{print} $0 == "## Unreleased" {print ""; print heading}' \
-        "$top/CHANGELOG.md" >"$top/CHANGELOG.md.tmp"
+    if [[ -n $reversion ]]; then
+        reversion_changelog "$current" "$heading" <"$top/CHANGELOG.md" >"$top/CHANGELOG.md.tmp"
+    else
+        awk -v heading="$heading" \
+            '{print} $0 == "## Unreleased" {print ""; print heading}' \
+            "$top/CHANGELOG.md" >"$top/CHANGELOG.md.tmp"
+    fi
     mv "$top/CHANGELOG.md.tmp" "$top/CHANGELOG.md"
 
     local note
@@ -134,10 +192,13 @@ prepare() {
     echo "Changes since $last:"
     echo "$changes"
 
+    local dated="dates the CHANGELOG section"
+    [[ -z $reversion ]] ||
+        dated="moves the CHANGELOG section of $current, never released as stable, to $version with the Unreleased entries"
     git -C "$top" commit -q -m "Prepare $version" -- "$csproj" CHANGELOG.md
     git -C "$top" push -q -u origin "$branch"
     gh pr create --base main --head "$branch" --title "Prepare $version" --body "$(cat <<EOF
-Sets \`<Version>\` to $version and dates the CHANGELOG section. Made by \`scripts/release prepare\`, which built the plugin and ran the tests.
+Sets \`<Version>\` to $version and $dated. Made by \`scripts/release prepare\`, which built the plugin and ran the tests.
 
 Before merging, check that every user-facing change below has a CHANGELOG entry. ⚠ marks a change to plugin code that touched no CHANGELOG entry.
 
@@ -162,6 +223,14 @@ publish() {
     current=$(git -C "$top" show "origin/main:$csproj" | csproj_version)
     [[ $current == "$version" ]] ||
         die "<Version> on main is $current, not $version. Run prepare $version and merge its PR first."
+    # As the workflow's tag job: installs that have a testing build only update to a higher version
+    if [[ $channel == testing ]]; then
+        local rc
+        rc=$(git -C "$top" ls-remote --tags --refs origin "refs/tags/v$version-rc*" |
+            sed 's:.*refs/tags/::' | sort -V | tail -1)
+        [[ -z $rc ]] ||
+            die "$rc is already out for testing, and installs that have it won't update to another build of $version. Run prepare ${version%.*}.$((${version##*.} + 1)) and merge its PR first."
+    fi
 
     gh workflow run release.yml -R "$repo" --ref main -f channel="$channel"
     echo "Started the Release workflow for the $channel channel. Its summary names the tag; follow it with:"
