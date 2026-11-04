@@ -118,8 +118,8 @@ A player who is **targeting the player** uses a word that addresses them. **On b
 
 Another player uses a standard emote (such as `/pet`) with the player as its target. **Off by default**, since emotes are mostly social noise.
 
-- Only emotes that the game writes to a chat tab the player can see count. An emote whose log message the emoter turned off (motion only) never alerts, is never written to chat and is never coloured. *Pending a09d9196: the prototype writes such emotes to chat itself, ending them with "[Say My Name]", and alerts on them.*
-- The emote's line is coloured: the 'you' words, or the player's name in languages whose emote lines have no 'you' word (such as Japanese).
+- Only emotes that the game writes to a chat tab the player can see count. An emote whose log message the emoter turned off (motion only) never alerts, is never written to chat and is never coloured.
+- The emote's 'you' words are coloured, if its line has any. Nothing else in it is, so in languages whose emote lines have no 'you' word (such as Japanese) nothing is coloured.
 - The sound plays only if the line shows in a chat tab, so the player can always see who set it off.
 - The settings say that this trigger needs a chat tab that shows standard emotes.
 - An emote at someone else, or at nobody, does nothing. So do the player's own emotes.

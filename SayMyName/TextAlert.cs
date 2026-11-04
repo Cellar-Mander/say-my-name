@@ -87,7 +87,7 @@ public sealed class TextAlert : IDisposable
     {
         name = custom = fromYou = false;
         you = "";
-        if (ChatChannels.FromChatType(message.LogKind) is not { } c || TargetedAlert.IsInsertedCustomEmote(message))
+        if (ChatChannels.FromChatType(message.LogKind) is not { } c)
         {
             channel = default;
             return false;

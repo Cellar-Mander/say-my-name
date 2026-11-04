@@ -417,6 +417,13 @@ public sealed partial class TestHarness
         yield return Coloured("Highlight: Play a sound unticked, 'you' still coloured", () => ["you"], () => { HighlightTargeted(); configuration.PlaySound = false; },
             () => Send(Say, Friend, "thank you"));
 
+        // Emote trigger, solo: only colouring, as the sound waits for the line to reach a tab
+        void Emote() { Baseline(TriggerKind.Emote); fakeTargeter = Friend; }
+        yield return Coloured("Emote: only 'you' coloured from an emoter targeting you", () => ["you"], Emote, () => Send(StandardEmote, Friend, "pets you."));
+        yield return Coloured("Emote: emoter not targeting you not coloured", () => [], Emote, () => Send(StandardEmote, Other, "pets you."));
+        yield return Coloured("Emote: line without a 'you' word not coloured", () => [], Emote, () => Send(StandardEmote, Friend, $"pets {me}."));
+        yield return Coloured("Emote: trigger unticked, not coloured", () => [], () => { Emote(); Trigger(TriggerKind.Emote).Enabled = false; }, () => Send(StandardEmote, Friend, "pets you."));
+
         // You trigger, solo
         void You() { Baseline(TriggerKind.You); fakeTargeter = Friend; }
         foreach (var text in new[] { "thank you", "is this yours?", "thank youuu", "y'all", "thee", "you're welcome" })
