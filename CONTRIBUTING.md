@@ -81,6 +81,16 @@ A suppression covers every mutant of that kind in the code that follows it, so k
 
 `stryker-config.json` sets no ignore rules: Core has no logging, exceptions or message text, and its `ToString` calls save channels by name, so they have to be mutated like any other code.
 
+## Checking workflows
+
+A PR that changes `.github/` runs the Workflow lint workflow: [actionlint](https://github.com/rhysd/actionlint) (with shellcheck on `run:` scripts) and [zizmor](https://docs.zizmor.sh) for security issues. To run them locally, install both (and shellcheck), then from the repo root:
+
+```bash
+actionlint && zizmor .
+```
+
+Pin each action to a full commit SHA with its version in a comment, as Dependabot updates them that way. Give each workflow a `permissions:` block, and a job that needs more its own. Check out with `persist-credentials: false` unless a later step pushes with git. A zizmor finding you accept goes in `.github/zizmor.yml` with the reason.
+
 ## Untrusted input
 
 Chat lines come from other players, and settings text is whatever the user types. Matching on either must stay linear in the line's length, so no backtracking regex. New user-configurable lists and text fields need a cap. A PR that touches either says so under Risk in its description and says how those two points hold. The PR template asks the same, but agent-written PR bodies skip it.

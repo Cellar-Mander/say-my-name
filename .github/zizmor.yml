@@ -1,0 +1,7 @@
+# zizmor findings accepted on purpose, each with its reason. See .github/workflows/workflow-lint.yml.
+rules:
+  # The $/ self-repository syntax is newer than actionlint 1.7.12, which would then fail on it.
+  # Our ./ actions come from the commit checkout just fetched; no step writes .github/actions first.
+  # Revisit when actionlint supports $/.
+  self-repository:
+    disable: true
