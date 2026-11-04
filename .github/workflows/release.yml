@@ -26,6 +26,9 @@ on:
 # One release at a time, so two runs can't race to update repo.json
 concurrency: release
 
+# Each job names the permissions it needs
+permissions: {}
+
 jobs:
 
   # Names the tag for main's <Version> and pushes it. A tag pushed with github.token starts no
@@ -44,9 +47,11 @@ jobs:
 
     steps:
     - name: Checkout main
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: main
+        # git push uses the token checkout stores; no job uploads the workspace
+        persist-credentials: true
 
     - name: Tag
       id: tag
@@ -90,15 +95,18 @@ jobs:
     # Runs for a pushed tag, where tag is skipped, or once tag has made one
     if: ${{ !cancelled() && (github.ref_type == 'tag' || needs.tag.result == 'success') }}
     runs-on: windows-2022
+    permissions:
+      contents: read
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
+        persist-credentials: false
         ref: ${{ github.ref_type == 'tag' && github.ref_name || needs.tag.outputs.tag }}
 
     - name: Install .NET
-      uses: actions/setup-dotnet@v6
+      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
       with:
         dotnet-version: 10.0.x
 
@@ -138,7 +146,7 @@ jobs:
 
     # DalamudPackager writes the zip and the manifest the repo.json entry is made from
     - name: Upload plugin
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: release
         path: |
@@ -149,7 +157,7 @@ jobs:
 
     # Separate, as one artifact's files are stored relative to their common folder
     - name: Upload notes
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: notes
         path: notes.md
@@ -170,18 +178,20 @@ jobs:
 
     steps:
     - name: Checkout main
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: main
+        # git push uses the token checkout stores; no job uploads the workspace
+        persist-credentials: true
 
     - name: Download plugin
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       with:
         name: release
         path: release
 
     - name: Download notes
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       with:
         name: notes
         path: release
@@ -210,7 +220,7 @@ jobs:
     - name: Create release
       run: |
         mv release/latest.zip release/SayMyName.zip
-        gh release create "$TAG" release/SayMyName.zip --verify-tag --notes-file release/notes.md --title "$TAG" $PRERELEASE
+        gh release create "$TAG" release/SayMyName.zip --verify-tag --notes-file release/notes.md --title "$TAG" ${PRERELEASE:+"$PRERELEASE"}
 
     # repo.json (pluginmaster format) is what /xlsettings fetches from the raw main URL. Dalamud
     # offers the Testing* fields only to installs that receive testing versions, and only while
@@ -255,10 +265,11 @@ jobs:
           else
             gh pr create --head release/repo-json --base main --title "$title" --body "$body"
           fi
-          # Pushes and PRs made with github.token start no workflows, so main's required "test"
-          # check would never report; a workflow_dispatch run is the exception, and its check on
-          # the branch head counts for the PR
+          # Pushes and PRs made with github.token start no workflows, so main's required checks
+          # would never report; a workflow_dispatch run is the exception, and its checks on the
+          # branch head count for the PR
           gh workflow run test.yml --ref release/repo-json
+          gh workflow run workflow-lint.yml --ref release/repo-json
         else
           git push --force origin "HEAD:$BRANCH"
         fi
