@@ -128,16 +128,37 @@ A release is the plugin's `<Version>` in `SayMyName/SayMyName.csproj` (four numb
    scripts/release prepare 0.1.2.0
    ```
 
-   It makes branch `release-prep/v0.1.2.0` from `origin/main`, sets `<Version>`, dates the Unreleased entries, builds, runs the tests and opens the PR. In the PR, check the list of changes since the last release (⚠ marks plugin code changes with no CHANGELOG entry) and any note that your local Dalamud differs from the one CI builds against (see below). Then merge it.
-3. Merging starts the Release workflow, which waits for you: open the run in Actions and approve the `release` deployment under Review deployments. It then tags the merge commit, builds, creates the GitHub release with the version's CHANGELOG section as its notes (also put as plain text in the manifest, for the plugin installer's Changelogs), and opens a PR titled "Update repo.json for v0.1.2.0".
-4. Check that PR's version and download links, then merge it. If GitHub holds its checks with "Approve and run workflows", approve them first.
-5. Check what installs get (raw.githubusercontent.com caches `repo.json` for a few minutes, so a just-merged PR can still show the old version):
+   It makes branch `release-prep/v0.1.2.0` from `origin/main`, sets `<Version>`, dates the Unreleased entries, builds, runs the tests and opens the PR. In the PR, check the list of changes since the last release (⚠ marks plugin code changes with no CHANGELOG entry) and any note that your local Dalamud differs from the one CI builds against (see below). Then merge it. Merging publishes nothing.
+3. Optionally, put it out for testing first (see [Testing builds](#testing-builds)).
+4. Publish it:
+
+   ```bash
+   scripts/release publish 0.1.2.0
+   ```
+
+   This runs the Release workflow on `main` (also under Actions → Release → Run workflow, channel `stable`). It tags `main` `v0.1.2.0`, builds, creates the GitHub release with the version's CHANGELOG section as its notes (also put as plain text in the manifest, for the plugin installer's Changelogs), and opens a PR titled "Update repo.json for v0.1.2.0". It refuses if `v0.1.2.0` exists or if Unreleased has entries, which would be left out of the notes: move them under the `## 0.1.2.0` heading in a PR first.
+5. Check that PR's version and download links, then merge it. If GitHub holds its checks with "Approve and run workflows", approve them first.
+6. Check what installs get (raw.githubusercontent.com caches `repo.json` for a few minutes, so a just-merged PR can still show the old version):
 
    ```bash
    scripts/release verify 0.1.2.0
    ```
 
-Pushing a tag by hand (`git tag v0.1.2.0 <commit> && git push origin v0.1.2.0`) also publishes, without the approval step. A test tag such as `v0.1.2.0-test1` makes a prerelease and pushes `repo.json` to the `release-test` branch instead of opening a PR; delete both afterwards:
+### Testing builds
+
+A testing build is offered only to installs that opt in: in `/xlsettings` → Experimental, turn on plugin testing builds, then in `/xlplugins` right-click Say My Name and tick "Receive plugin testing versions". Other installs stay on the stable release. Once `main`'s `<Version>` is above the last release (step 2):
+
+```bash
+scripts/release publish 0.1.2.0 --testing
+```
+
+The workflow (channel `testing`) tags `main` with the next `v0.1.2.0-rc<n>`, which the run's summary names, creates a prerelease and opens the `repo.json` PR. That PR sets only the testing fields (`TestingAssemblyVersion`, `TestingDalamudApiLevel`, `DownloadLinkTesting`, `TestingChangelog`); check that the stable fields are unchanged, then merge it and check it with `scripts/release verify 0.1.2.0-rc1`. Its notes are the version's CHANGELOG section with any Unreleased entries above it.
+
+To fix something found in testing, merge the fix to `main` as usual (its CHANGELOG entry goes under Unreleased) and publish again: it becomes `-rc2`. The stable release (step 4) removes the testing fields, so opted-in installs move to it too. A testing build is refused while an unmerged stable `repo.json` PR is open, since it would replace it.
+
+### Other ways to publish
+
+Pushing a tag by hand (`git tag v0.1.2.0 <commit> && git push origin v0.1.2.0`, or `v0.1.2.0-rc1` for a testing build) also publishes that commit, skipping the workflow's checks. A test tag such as `v0.1.2.0-test1` makes a prerelease and pushes `repo.json` to the `release-test` branch instead of opening a PR; delete both afterwards:
 
 ```bash
 gh release delete v0.1.2.0-test1 --cleanup-tag --yes && git push origin --delete release-test
@@ -148,4 +169,3 @@ CI builds against a pinned Dalamud (`.github/actions/install-dalamud/action.yml`
 One-time repository settings the workflow needs:
 
 - Settings → Actions → General: "Allow GitHub Actions to create and approve pull requests", for the `repo.json` PR.
-- Settings → Environments: a `release` environment with you as required reviewer, limited to `main`. Without it, GitHub creates the environment unprotected on the first run and tags without asking.
