@@ -4,6 +4,10 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ## Unreleased
 
+### Added
+
+- A volume slider under the sound choice sets how loud the alert plays, from 5% to 100% of the game's own volume. It starts at 100%, as loud as before.
+
 ## 1.0.0.0 - 2026-11-04
 
 ### Added

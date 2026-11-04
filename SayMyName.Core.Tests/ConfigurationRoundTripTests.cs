@@ -81,6 +81,7 @@ public class ConfigurationRoundTripTests
         config.NameCaseSensitive = nameCaseSensitive;
         config.PlaySound = playSound;
         config.SoundEffect = 7;
+        config.SoundVolume = 40;
         config.CooldownSeconds = 0;
         config.Nicknames = "Ro\nBig Ro";
         config.CustomWords = "raid\ngood morning";
@@ -97,6 +98,7 @@ public class ConfigurationRoundTripTests
         Assert.Equal(nameCaseSensitive, loaded.NameCaseSensitive);
         Assert.Equal(playSound, loaded.PlaySound);
         Assert.Equal(7, loaded.SoundEffect);
+        Assert.Equal(40, loaded.SoundVolume);
         Assert.Equal(0, loaded.CooldownSeconds);
         Assert.Equal("Ro\nBig Ro", loaded.Nicknames);
         Assert.Equal("raid\ngood morning", loaded.CustomWords);
@@ -134,6 +136,7 @@ public class ConfigurationRoundTripTests
         var loaded = SaveAndLoad(Fresh());
 
         Assert.Equal(16, loaded.SoundEffect);
+        Assert.Equal(100, loaded.SoundVolume);
         Assert.Equal(535, loaded.HighlightTextColor);
         Assert.Equal(18, loaded.HighlightGlowColor);
         Assert.Equal(576, loaded.TabHighlightColor);
@@ -225,6 +228,34 @@ public class ConfigurationRoundTripTests
 
         Assert.Equal(manyNicknames, loaded.Nicknames);
         Assert.Equal($"raid\n{longWord}", loaded.CustomWords);
+    }
+
+    [Fact]
+    public void SettingsSavedBeforeVolumeLoadAtFullVolume()
+    {
+        var json = JsonConvert.SerializeObject(Fresh(), DalamudSettings);
+        var edited = json.Replace("\"SoundVolume\":100,", "", StringComparison.Ordinal);
+        Assert.NotEqual(json, edited);
+
+        var loaded = JsonConvert.DeserializeObject<ConfigurationBase>(edited, DalamudSettings)!;
+        loaded.Normalize();
+
+        Assert.Equal(100, loaded.SoundVolume);
+    }
+
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(4, 5)]
+    [InlineData(5, 5)]
+    [InlineData(100, 100)]
+    [InlineData(101, 100)]
+    [InlineData(-20, 5)]
+    public void SavedVolumeIsPulledIntoRange(int saved, int expected)
+    {
+        var config = Fresh();
+        config.SoundVolume = saved;
+
+        Assert.Equal(expected, SaveAndLoad(config).SoundVolume);
     }
 
     [Fact]

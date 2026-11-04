@@ -545,6 +545,17 @@ public class ConfigWindow : Window, IDisposable
         }
 
         ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);
+        var volume = configuration.SoundVolume;
+        if (ImGui.SliderInt("Volume##volume", ref volume, Configuration.MinSoundVolume, Configuration.MaxSoundVolume, "%d%%",
+                ImGuiSliderFlags.AlwaysClamp))
+        {
+            configuration.SoundVolume = volume;
+            configuration.Save();
+        }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("Plays on the game's System Sounds channel: 100% is your System Sounds volume");
+
+        ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);
         var cooldown = configuration.CooldownSeconds;
         if (ImGui.SliderInt("Quiet time between sounds##cooldown", ref cooldown, 0, Configuration.MaxCooldownSeconds, "%d s",
                 ImGuiSliderFlags.AlwaysClamp))
