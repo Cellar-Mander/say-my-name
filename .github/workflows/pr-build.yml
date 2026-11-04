@@ -3,6 +3,8 @@ name: PR build
 on:
   pull_request:
     branches: [ main ]
+  # The release workflow dispatches this for its repo.json PR, which can't trigger it otherwise
+  workflow_dispatch:
 
 # Jobs read the repository only; a job that needs more says so
 permissions:

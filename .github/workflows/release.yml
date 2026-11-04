@@ -270,6 +270,7 @@ jobs:
           # branch head count for the PR
           gh workflow run test.yml --ref release/repo-json
           gh workflow run workflow-lint.yml --ref release/repo-json
+          gh workflow run pr-build.yml --ref release/repo-json
         else
           git push --force origin "HEAD:$BRANCH"
         fi
