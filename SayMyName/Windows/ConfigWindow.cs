@@ -552,6 +552,8 @@ public class ConfigWindow : Window, IDisposable
             configuration.SoundVolume = volume;
             configuration.Save();
         }
+        ImGui.SameLine();
+        ImGuiComponents.HelpMarker("Plays on the game's System Sounds channel: 100% is your System Sounds volume");
 
         ImGui.SetNextItemWidth(ImGuiHelpers.GlobalScale * 160f);
         var cooldown = configuration.CooldownSeconds;
