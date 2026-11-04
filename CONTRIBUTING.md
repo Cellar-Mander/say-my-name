@@ -146,7 +146,7 @@ A release is the plugin's `<Version>` in `SayMyName/SayMyName.csproj` (four numb
 
 ### Testing builds
 
-A testing build is offered only to installs that opt in: in `/xlsettings` → Experimental, turn on plugin testing builds, then in `/xlplugins` right-click Say My Name and tick "Receive plugin testing versions". Other installs stay on the stable release. Once `main`'s `<Version>` is above the last release (step 2):
+A testing build is offered only to installs that opt in: in `/xlsettings` → Experimental, tick "Get plugin testing builds", then in the plugin installer's Installed Plugins tab (`/xlplugins`) right-click Say My Name and select "Receive plugin testing versions". Other installs stay on the stable release. Once `main`'s `<Version>` is above the last release (step 2):
 
 ```bash
 scripts/release publish 0.1.2.0 --testing
