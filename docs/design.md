@@ -139,7 +139,7 @@ The player's current target writes anything, on any channel a player writes in (
 - One sound for every trigger: one of the game's 16 chat sound effects (`<se.1>` to `<se.16>`), `<se.16>` by default. A Test button plays the selected sound, at most once a second.
 - **Play a sound** turns it off for every trigger. Colouring still works.
 - **Quiet time between sounds**, 0 to 60 seconds and 5 by default, is shared across all triggers. An alert within the quiet time still colours words and tabs, but makes no sound.
-- *Requested, not decided:* volume control (30006a42).
+- **Volume**, 5% to 100% and 100% by default, scales the alert sound within the game's own volume (master and system sounds), so 100% sounds as the game plays it and muting the game silences the alert too. The Test button plays at the chosen volume. 0% would only repeat **Play a sound** off.
 
 ### Colouring the words
 
@@ -192,7 +192,6 @@ The window's layout and wording may change. The settings and their defaults are 
 
 - **Hidden information (42888d53):** whether D17 reviewers accept the You and Target Speaks checks of what another player is targeting. If not, the plan is to justify them, then cut them or default them off.
 - **Localisation (85aae762):** which languages the settings should be in, and how matching should work in languages other than English. For example, You needs a 'you' word list per language, and Japanese has none.
-- **Volume control (30006a42).**
 - **Lost tab colour (6df20e1a):** the cause needs a reproduction.
 - **Dev testing:** a rebuild needs a way to feed in chat lines from fake players, and pretend targeting, to test triggers alone, and the solo cases run in Dalamud's self-test window. The behaviour is needed; how is open.
 
