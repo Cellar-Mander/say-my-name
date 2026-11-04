@@ -211,21 +211,20 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
-    public void OverlongCustomWordsAreCutToTheLimit()
+    public void ListsOverTheCapsFromEarlierReleasesLoadUnchanged()
     {
+        // Earlier releases capped only the total length (500 nicknames, 2000 custom words), so a saved
+        // list may hold more entries, or longer ones, than the settings window now takes
         var config = Fresh();
-        config.CustomWords = new string('a', ConfigurationBase.MaxCustomWordsLength + 10);
+        var manyNicknames = string.Join('\n', Enumerable.Range(1, ConfigurationBase.MaxListEntries + 8).Select(n => $"Nick{n}"));
+        var longWord = new string('a', ConfigurationBase.MaxEntryLength + 100);
+        config.Nicknames = manyNicknames;
+        config.CustomWords = $"raid\n{longWord}";
 
-        Assert.Equal(ConfigurationBase.MaxCustomWordsLength, SaveAndLoad(config).CustomWords.Length);
-    }
+        var loaded = SaveAndLoad(config);
 
-    [Fact]
-    public void OverlongNicknamesAreCutToTheLimit()
-    {
-        var config = Fresh();
-        config.Nicknames = new string('a', ConfigurationBase.MaxNicknamesLength + 10);
-
-        Assert.Equal(ConfigurationBase.MaxNicknamesLength, SaveAndLoad(config).Nicknames.Length);
+        Assert.Equal(manyNicknames, loaded.Nicknames);
+        Assert.Equal($"raid\n{longWord}", loaded.CustomWords);
     }
 
     [Fact]

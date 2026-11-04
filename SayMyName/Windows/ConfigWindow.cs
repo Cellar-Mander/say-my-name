@@ -5,6 +5,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Config;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.ImGuiSeStringRenderer;
 using Dalamud.Interface.Utility;
@@ -27,6 +28,8 @@ public class ConfigWindow : Window, IDisposable
     private readonly Configuration configuration;
     private readonly AlertSound alertSound;
     private readonly ChatHighlighter highlighter;
+    private readonly EntryListEditor nicknameEditor;
+    private readonly EntryListEditor customWordEditor;
 
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
@@ -77,6 +80,8 @@ public class ConfigWindow : Window, IDisposable
         configuration = plugin.Configuration;
         alertSound = plugin.AlertSound;
         highlighter = plugin.Highlighter;
+        nicknameEditor = new EntryListEditor("nicknames", configuration.Save);
+        customWordEditor = new EntryListEditor("customWords", configuration.Save);
 
         for (var t = 0; t < Triggers.All.Count; t++)
         {
@@ -136,7 +141,18 @@ public class ConfigWindow : Window, IDisposable
     public void Dispose() { }
 
     // Nicknames and custom words save when their box loses focus, which closing the window mid-edit skips
-    public override void OnClose() => configuration.Save();
+    public override void OnClose()
+    {
+        if (nicknameEditor.DropBlanks(configuration.Nicknames) is { } nicknames)
+        {
+            configuration.Nicknames = nicknames;
+        }
+        if (customWordEditor.DropBlanks(configuration.CustomWords) is { } words)
+        {
+            configuration.CustomWords = words;
+        }
+        configuration.Save();
+    }
 
     public override void Draw()
     {
@@ -304,21 +320,11 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        ImGui.TextUnformatted("Nicknames, one per line, matched like your name:");
-        var nicknames = configuration.Nicknames;
-        if (ImGui.InputTextMultiline("##nicknames", ref nicknames, Configuration.MaxNicknamesLength, ListBoxSize()))
+        if (nicknameEditor.Draw("Nicknames, matched like your name", configuration.Nicknames) is { } nicknames)
         {
             configuration.Nicknames = nicknames;
         }
-        // Saved once editing ends rather than on every keystroke
-        if (ImGui.IsItemDeactivatedAfterEdit())
-        {
-            configuration.Save();
-        }
     }
-
-    // The nicknames and custom words boxes, the same size
-    private static Vector2 ListBoxSize() => new(-1, ImGui.GetTextLineHeight() * 4 + ImGui.GetStyle().FramePadding.Y * 2);
 
     private static readonly string[] TargetSpeaksLabels = ["Every message they send", "Only messages sent while targeting you"];
 
@@ -354,16 +360,150 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        ImGui.TextUnformatted("Custom words and phrases, one per line:");
-        var words = configuration.CustomWords;
-        if (ImGui.InputTextMultiline("##customWords", ref words, Configuration.MaxCustomWordsLength, ListBoxSize()))
+        if (customWordEditor.Draw("Custom words and phrases", configuration.CustomWords) is { } words)
         {
             configuration.CustomWords = words;
         }
-        // Saved once editing ends rather than on every keystroke
-        if (ImGui.IsItemDeactivatedAfterEdit())
+    }
+
+    /// <summary>
+    /// Edits the nicknames or custom words list as a row per entry, holding the list to
+    /// <see cref="ConfigurationBase.MaxListEntries"/> and each entry to <see cref="ConfigurationBase.MaxEntryLength"/>.
+    /// A list saved over either cap by an earlier release keeps its entries until the player removes or edits them.
+    /// </summary>
+    private sealed class EntryListEditor(string id, System.Action save)
+    {
+        // Rows shown before the list scrolls, so a full list doesn't push the channel table off the window
+        private const int VisibleRows = 4;
+        // A UTF-16 character takes at most 3 bytes of UTF-8, so the buffer never cuts below MaxEntryLength characters
+        private const int EntryBufferBytes = Configuration.MaxEntryLength * 3;
+
+        private const FontAwesomeIcon RemoveIcon = FontAwesomeIcon.Times;
+        private static readonly string CapsTooltip =
+            $"Up to {Configuration.MaxListEntries} entries, each up to {Configuration.MaxEntryLength} characters";
+
+        private string? source;
+        private List<string> entries = [];
+        private int focusRow = -1;
+        private string? countLabel;
+        private int countLabelFor = -1;
+
+        /// <summary>Draws the list under its label; returns the edited list when it changed, else null.</summary>
+        public string? Draw(string label, string saved)
         {
-            configuration.Save();
+            // Rebuilt only when the list changed elsewhere (loaded, self-test), so a just-added blank row stays
+            if (!ReferenceEquals(source, saved))
+            {
+                entries = EntryList.Split(saved);
+                source = saved;
+            }
+
+            if (countLabelFor != entries.Count)
+            {
+                countLabel = $"{label} ({entries.Count}/{Configuration.MaxListEntries}):";
+                countLabelFor = entries.Count;
+            }
+            ImGui.TextUnformatted(countLabel);
+
+            using var pushedId = ImRaii.PushId(id);
+            var changed = false;
+            // Removing saves at once; typing saves when the entry loses focus
+            var saveNow = false;
+            var removeRow = -1;
+            if (entries.Count > 0)
+            {
+                var rowHeight = ImGui.GetFrameHeightWithSpacing();
+                using var child = ImRaii.Child("##rows", new Vector2(-1, Math.Min(entries.Count, VisibleRows) * rowHeight));
+                // The icon font is wider than the frame is high, so measure the button rather than assume it square
+                float removeWidth;
+                using (ImRaii.PushFont(UiBuilder.IconFont))
+                {
+                    removeWidth = ImGui.CalcTextSize(RemoveIcon.ToIconString()).X;
+                }
+                removeWidth += ImGui.GetStyle().FramePadding.X * 2 + ImGui.GetStyle().ItemSpacing.X;
+                for (var i = 0; i < entries.Count; i++)
+                {
+                    using var rowId = ImRaii.PushId(i);
+                    if (i == focusRow)
+                    {
+                        ImGui.SetKeyboardFocusHere();
+                        ImGui.SetScrollHereY(1f);
+                        focusRow = -1;
+                    }
+                    var entry = entries[i];
+                    ImGui.SetNextItemWidth(-removeWidth);
+                    if (ImGui.InputText("##entry", ref entry, EntryBufferBytes, ImGuiInputTextFlags.CallbackEdit, CapEntryLength))
+                    {
+                        entries[i] = entry;
+                        changed = true;
+                    }
+                    // Saved once editing ends rather than on every keystroke
+                    if (ImGui.IsItemDeactivatedAfterEdit())
+                    {
+                        save();
+                    }
+                    ImGui.SameLine();
+                    if (ImGuiComponents.IconButton(RemoveIcon))
+                    {
+                        removeRow = i;
+                    }
+                }
+            }
+
+            if (removeRow >= 0)
+            {
+                entries.RemoveAt(removeRow);
+                changed = saveNow = true;
+            }
+
+            // Blank entries stay until the window closes, but only one at a time can wait at the end
+            var lastBlank = entries.Count > 0 && string.IsNullOrWhiteSpace(entries[^1]);
+            using (ImRaii.Disabled(lastBlank || entries.Count >= Configuration.MaxListEntries))
+            {
+                if (ImGui.Button("Add"))
+                {
+                    entries.Add("");
+                    focusRow = entries.Count - 1;
+                    changed = true;
+                }
+            }
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            {
+                ImGui.SetTooltip(lastBlank ? "Fill in the empty entry first" : CapsTooltip);
+            }
+
+            if (!changed)
+            {
+                return null;
+            }
+            source = EntryList.Join(entries);
+            if (saveNow)
+            {
+                save();
+            }
+            return source;
+        }
+
+        /// <summary>Drops blank entries, as the window closes; returns the list without them when there were any, else null.</summary>
+        public string? DropBlanks(string saved)
+        {
+            // Entries from before the list changed elsewhere (self-test) are stale; Split drops blanks on load anyway
+            if (!ReferenceEquals(source, saved) || entries.RemoveAll(string.IsNullOrWhiteSpace) == 0)
+            {
+                return null;
+            }
+            return source = EntryList.Join(entries);
+        }
+
+        // Cuts an edit, typed or pasted, back to MaxEntryLength characters
+        private static int CapEntryLength(ImGuiInputTextCallbackDataPtr data)
+        {
+            var keep = EntryList.Utf8PrefixLength(data.BufTextSpan, Configuration.MaxEntryLength);
+            if (keep < data.BufTextLen)
+            {
+                data.DeleteChars(keep, data.BufTextLen - keep);
+            }
+            return 0;
         }
     }
 
