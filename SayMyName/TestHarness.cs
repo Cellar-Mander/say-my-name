@@ -91,7 +91,7 @@ public sealed unsafe partial class TestHarness : IDisposable
 
         var ok = command.ToLowerInvariant() switch
         {
-            "inject" => Inject(rest),
+            "inject" => Inject(rest, out _),
             "targeting-me" => SetFakeTargeter(rest),
             "my-target" => SetFakeTarget(rest),
             "tabcolor" => SetTabColour(rest),
@@ -107,8 +107,10 @@ public sealed unsafe partial class TestHarness : IDisposable
     }
 
     /// <summary>Queues "&lt;channel&gt; &lt;First&gt; &lt;Last&gt; &lt;message&gt;" as a chat line; false if malformed.</summary>
-    private bool Inject(string args)
+    /// <param name="shown">The line's message text as the chat events will see it.</param>
+    private bool Inject(string args, out string shown)
     {
+        shown = "";
         var parts = args.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 4)
         {
@@ -132,20 +134,32 @@ public sealed unsafe partial class TestHarness : IDisposable
         // Other players' lines carry a player link, so give the fake sender one on your world.
         // PlayerPayload encodes the name text and link terminator itself; adding them again doubles the name.
         var name = $"{parts[1]} {parts[2]}";
-        InjectLine(type, new SeString(new PlayerPayload(name, Plugin.PlayerState.CurrentWorld.RowId)), parts[3]);
+        shown = InjectLine(type, new SeString(new PlayerPayload(name, Plugin.PlayerState.CurrentWorld.RowId)), parts[3]);
         return true;
     }
 
-    private void InjectLine(XivChatType type, SeString sender, string text)
+    // Builds the message as the game sends it, as the game's LogKind formats differ: a custom emote shows
+    // the sender then the message with nothing between, the game's message starting with the space; a
+    // standard emote shows only the message, which starts with the emoter's name.
+    // Returns the message text as the chat events see it, decoded from bytes, where a player link's name is text.
+    private string InjectLine(XivChatType type, SeString sender, string text)
     {
-        pending.Add(text);
+        var message = type switch
+        {
+            XivChatType.CustomEmote => new SeString(new TextPayload($" {text}")),
+            XivChatType.StandardEmote => new SeStringBuilder().Append(sender).AddText($" {text}").Build(),
+            _ => new SeString(new TextPayload(text)),
+        };
+        var shown = SeString.Parse(message.Encode()).TextValue;
+        pending.Add(shown);
         Plugin.ChatGui.Print(new XivChatEntry
         {
             Type = type,
             Name = sender,
-            Message = text,
+            Message = message,
         });
-        Plugin.Log.Information($"[{Tag}] injected {type} from {sender.TextValue}: {text}");
+        Plugin.Log.Information($"[{Tag}] injected {type} from {sender.TextValue}: {shown}");
+        return shown;
     }
 
     // Lines from this name pass the You trigger's "sender is targeting you" check
