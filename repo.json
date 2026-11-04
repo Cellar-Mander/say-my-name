@@ -25,9 +25,12 @@
     "AcceptsFeedback": true,
     "DownloadLinkInstall": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.1.0/SayMyName.zip",
     "DownloadLinkUpdate": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.1.0/SayMyName.zip",
-    "DownloadLinkTesting": "https://github.com/Cellar-Mander/say-my-name/releases/download/v0.1.1.0/SayMyName.zip",
+    "DownloadLinkTesting": "https://github.com/Cellar-Mander/say-my-name/releases/download/v1.0.0.0-rc1/SayMyName.zip",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": 1793404327
+    "LastUpdate": 1793760518,
+    "TestingAssemblyVersion": "1.0.0.0",
+    "TestingDalamudApiLevel": 15,
+    "TestingChangelog": "Added:\n\n• /xlplugins → Changelogs shows what changed in each release.\n• Names, nicknames and 'you' words also match when stuttered (\"A-Alice\", \"y-you\"), and when spelled out with the first letter repeated (\"A-A-L-I-C-E\") or stretched (\"A-L-I-C-E-E\").\n\nChanged:\n\n• In settings, nicknames and custom words are edited as a list, a row per entry with buttons to add and remove. Each list holds up to 12 entries of up to 64 characters. Longer lists saved by earlier versions are kept and still match.\n• In settings, the notes on the Emote alert and on chat colouring moved into (?) markers beside those settings; hover one to read it.\n• The Emote alert now only goes off for emotes that show in one of your chat tabs. Emotes used without a log message (motion only) no longer alert, and are no longer written to chat ending \"[Say My Name]\". The word \"you\" in an emote at you is coloured.\n\nFixed:\n\n• Custom words and phrases, and nicknames of more than one word, now match when chat puts extra spaces between their words (\"good  morning\").\n• A spelled-out name no longer alerts when a single letter sits right next to it, as in \"I A-L-I-C-E\" or \"I,A-L-I-C-E\"."
   }
 ]
