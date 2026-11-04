@@ -147,7 +147,7 @@ A release is the plugin's `<Version>` in `SayMyName/SayMyName.csproj` (four numb
    ```
 
    This runs the Release workflow on `main` (also under Actions → Release → Run workflow, channel `stable`). It tags `main` `v0.1.2.0`, builds, creates the GitHub release with the version's CHANGELOG section as its notes (also put as plain text in the manifest, for the plugin installer's Changelogs), and opens a PR titled "Update repo.json for v0.1.2.0". It refuses if `v0.1.2.0` exists or if Unreleased has entries, which would be left out of the notes: move them under the `## 0.1.2.0` heading in a PR first.
-5. Check that PR's version and download links, then merge it. If GitHub holds its checks with "Approve and run workflows", approve them first.
+5. Check that PR's version and download links, then merge it. The workflow starts the required checks on it itself; the PR's own runs may wait under "Approve and run workflows", which merging doesn't need.
 6. Check what installs get (raw.githubusercontent.com caches `repo.json` for a few minutes, so a just-merged PR can still show the old version):
 
    ```bash
