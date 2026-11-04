@@ -4,12 +4,13 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ## Unreleased
 
-## 1.0.0.0 - 2026-11-04
+## 1.0.0.1 - 2026-11-04
 
 ### Added
 
 - `/xlplugins` → Changelogs shows what changed in each release.
 - Names, nicknames and 'you' words also match when stuttered ("A-Alice", "y-you"), and when spelled out with the first letter repeated ("A-A-L-I-C-E") or stretched ("A-L-I-C-E-E").
+- A volume slider under the sound choice sets how loud the alert plays, from 5% to 100% of the game's own volume. It starts at 100%, as loud as before.
 
 ### Changed
 

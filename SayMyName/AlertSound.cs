@@ -1,4 +1,5 @@
 using System;
+using FFXIVClientStructs.FFXIV.Client.Sound;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using SayMyName.Core;
 
@@ -16,7 +17,27 @@ public sealed class AlertSound(Configuration configuration)
     /// <summary>Dev plugin only: called instead of playing the sound, for the self-test to count alerts.</summary>
     public Action? Alerted { get; set; }
 
-    private void Play() => UIGlobals.PlayChatSoundEffect((uint)configuration.SoundEffect);
+    /// <summary>The game's sound effect ID for &lt;se.1&gt;, as in ClientStructs' PlayChatSoundEffect.</summary>
+    private const uint FirstChatSoundEffectId = 37;
+
+    // Plays the chat sound as the game does, then scales that one sound's volume. The game still mixes it
+    // under its master and system sound volume, so muting the game silences it too.
+    private unsafe void Play()
+    {
+        SoundData* pad = null;
+        SoundData* sound = null;
+        UIGlobals.PlaySoundEffect(FirstChatSoundEffectId + (uint)(configuration.SoundEffect - Configuration.MinSoundEffect), &pad, &sound);
+        var scale = configuration.SoundVolume / (float)Configuration.MaxSoundVolume;
+        if (sound != null)
+        {
+            sound->Volume *= scale;
+        }
+        // The copy the game plays through a controller's speaker, if any
+        if (pad != null)
+        {
+            pad->Volume *= scale;
+        }
+    }
 
     /// <summary>Whether the settings Test button can play the sound again yet.</summary>
     public bool CanTest => testCooldown.IsReady(Environment.TickCount64, TestCooldown);

@@ -70,7 +70,7 @@ Below, *Me* is your character's name and *A Friend* any other name.
 
 ### Settings persist
 
-- [ ] Untick a channel for Name, untick the You trigger, untick Match case, pick sound `<se.7>`, set quiet time to 0. Disable and re-enable the plugin in `/xlplugins`: all five are as you left them.
+- [ ] Untick a channel for Name, untick the You trigger, untick Match case, pick sound `<se.7>`, set volume to 40%, set quiet time to 0. Disable and re-enable the plugin in `/xlplugins`: all six are as you left them.
 - [ ] The channel table has no Emotes row and no Emote column; You offers only Say, Party, Alliance and Custom emotes; Target Speaks only Say and Custom emotes. Say and Custom emotes come first, then Party and Alliance.
 - [ ] On a fresh config, Alliance, Free Company, Novice Network and every Linkshell and Cross-world Linkshell are unticked for Name, Custom and You; every other channel is ticked.
 - [ ] With a config saved before Emote and You existed (Targeted unticked, Emotes unticked for it): after loading, both Emote and You are unticked, and You keeps Say and Custom emotes.
@@ -96,6 +96,8 @@ Below, *Me* is your character's name and *A Friend* any other name.
 - [ ] Your first name stretched (its last letter repeated, or a vowel repeated 3 times, e.g. `Aliiice`) and spelled out (`A-L-I-C-E`, `a l i c e`): sound. With a vowel doubled inside (`Aliice`): no sound. *(self-test: last letter repeated, and spelled out with hyphens for a name of letters only)*
 - [ ] With quiet time at 10 s, two injections within 10 s: one sound. After 10 s: sound again. *(self-test: the two lines within 10 s)*
 - [ ] Untick Play a sound: no sound. *(self-test)*
+- [ ] Set volume to 5%, then 100%, pressing Test and injecting a line at each: both are quieter at 5%, and 100% sounds as `<se.N>` typed in chat does. Settings on a fresh config, or one saved before volume existed, show 100%.
+- [ ] Turn off the game's master sound, or its system sounds, and press Test: no sound.
 - [ ] `/saymyname inject Say <Me> hi <Me first name>` (you as the sender): no sound. *(self-test)*
 - [ ] Real chat: say your own name in /say: no sound.
 - [ ] Enter `Zuzu` and `Big Zed` as nicknames on separate lines. `inject Say A Friend hi Zuzu`, `... Big Zed's?` and `... Zuzuuu!`: sound, and the nickname is coloured without the `'s`. `... Zed` and, with Match case on, `... zuzu`: no sound. *(self-test)*
@@ -147,7 +149,7 @@ With a second player (*A Friend*, e.g. an alt on another client) near you:
 - [ ] A Friend targets you and uses `/pet`: one sound, chat shows "A Friend pets you." with only `you` coloured if Highlight is on, and the verbose log shows `Emote trigger: line shown=True`. Untick Highlight: same line, nothing coloured. Tick it again.
 - [ ] A Friend targets you and uses `/pet motion` (motion only, no log message): no sound, nothing written to chat, no tab coloured. Same with their emote log messages turned off in their settings.
 - [ ] Turn off standard emotes in every chat tab (Log Filters): `/pet` from A Friend makes no sound and colours no tab; verbose log shows `shown=False`. Turn them back on.
-- [ ] Settings: the (?) beside the Emote trigger says it only works when a chat tab shows standard emotes.
+- [ ] Settings: the (i) beside the Emote trigger says it only works when a chat tab shows standard emotes.
 - [ ] A Friend targets someone else (or nobody) and emotes: no sound.
 - [ ] Untick the Emote trigger, A Friend emotes at you: no sound; `/say thank you` from them still sounds.
 - [ ] A Friend targets you and says `/say thank you`: sound. Same with `your`, `yours`, `you're`, `you'll`, `y'all`, `thee`, and `/em waves at you` (a custom emote, handled by You, not Emote). `/em waves` without a 'you' word: no sound. Untick Custom emotes for You: `/em waves at you` no longer sounds, while standard emotes still do.

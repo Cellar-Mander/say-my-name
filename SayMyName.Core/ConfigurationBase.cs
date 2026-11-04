@@ -17,6 +17,9 @@ public abstract class ConfigurationBase
 {
     public const int MinSoundEffect = 1;
     public const int MaxSoundEffect = 16;
+    /// <summary>Quietest alert volume, in percent; 0 would only repeat Play a sound off.</summary>
+    public const int MinSoundVolume = 5;
+    public const int MaxSoundVolume = 100;
     public const int MaxCooldownSeconds = 60;
     /// <summary>How many entries the settings window lets the nicknames list, or the custom words list, hold.</summary>
     public const int MaxListEntries = 12;
@@ -52,6 +55,9 @@ public abstract class ConfigurationBase
     /// <summary>The chat sound effect, as in &lt;se.1&gt; to &lt;se.16&gt;.</summary>
     public int SoundEffect { get; set; } = 16;
 
+    /// <summary>The alert sound's volume in percent, within the game's own volume settings. 100 plays it as the game does.</summary>
+    public int SoundVolume { get; set; } = MaxSoundVolume;
+
     /// <summary>Minimum time between alert sounds.</summary>
     public int CooldownSeconds { get; set; } = 5;
 
@@ -86,6 +92,7 @@ public abstract class ConfigurationBase
         }
 
         SoundEffect = Math.Clamp(SoundEffect, MinSoundEffect, MaxSoundEffect);
+        SoundVolume = Math.Clamp(SoundVolume, MinSoundVolume, MaxSoundVolume);
         CooldownSeconds = Math.Clamp(CooldownSeconds, 0, MaxCooldownSeconds);
         // Not cut to MaxListEntries or MaxEntryLength: earlier releases capped only the total length,
         // so a list saved then may hold more or longer entries, and keeps them
