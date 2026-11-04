@@ -83,7 +83,7 @@ A suppression covers every mutant of that kind in the code that follows it, so k
 
 ## Checking workflows
 
-A PR that changes `.github/` runs the Workflow lint workflow: [actionlint](https://github.com/rhysd/actionlint) (with shellcheck on `run:` scripts) and [zizmor](https://docs.zizmor.sh) for security issues. To run them locally, install both (and shellcheck), then from the repo root:
+Every PR runs the Workflow lint workflow: [actionlint](https://github.com/rhysd/actionlint) (with shellcheck on `run:` scripts) and [zizmor](https://docs.zizmor.sh) for security issues. To run them locally, install both (and shellcheck), then from the repo root:
 
 ```bash
 actionlint && zizmor .

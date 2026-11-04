@@ -265,10 +265,11 @@ jobs:
           else
             gh pr create --head release/repo-json --base main --title "$title" --body "$body"
           fi
-          # Pushes and PRs made with github.token start no workflows, so main's required "test"
-          # check would never report; a workflow_dispatch run is the exception, and its check on
-          # the branch head counts for the PR
+          # Pushes and PRs made with github.token start no workflows, so main's required checks
+          # would never report; a workflow_dispatch run is the exception, and its checks on the
+          # branch head count for the PR
           gh workflow run test.yml --ref release/repo-json
+          gh workflow run workflow-lint.yml --ref release/repo-json
         else
           git push --force origin "HEAD:$BRANCH"
         fi

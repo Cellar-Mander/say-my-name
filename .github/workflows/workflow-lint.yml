@@ -4,15 +4,14 @@ name: Workflow lint
 # zizmor checks workflows, actions and dependabot.yml for security issues. Accepted zizmor findings
 # go in .github/zizmor.yml with the reason. To run both locally, see "Checking workflows" in
 # CONTRIBUTING.md.
+# No path filter: a required check that a filter skips never reports, which blocks the PR.
 on:
   push:
     branches: [ main ]
-    paths:
-      - '.github/**'
   pull_request:
     branches: [ main ]
-    paths:
-      - '.github/**'
+  # The release workflow dispatches this for its repo.json PR, which can't trigger it otherwise
+  workflow_dispatch:
 
 permissions:
   contents: read
