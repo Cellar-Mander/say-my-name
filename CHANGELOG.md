@@ -4,6 +4,8 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ## Unreleased
 
+## 1.0.0.0 - 2026-11-04
+
 ### Added
 
 - `/xlplugins` → Changelogs shows what changed in each release.
