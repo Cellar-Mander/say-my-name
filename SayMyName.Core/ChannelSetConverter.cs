@@ -44,3 +44,4 @@ public sealed class ChannelSetConverter : JsonConverter<HashSet<ChatChannel>>
         return channels;
     }
 }
+// Throwaway: tests the Changelog check (#111); do not merge
