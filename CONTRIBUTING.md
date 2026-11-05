@@ -8,7 +8,7 @@ How to build, test and try out Say My Name from source. To just use the plugin, 
 - .NET 10 SDK
 - Git, and Python 3 for `revert-check` and `mutant-triage`
 
-The dev and release commands are the `buildingway` .NET tool ([buildingway-tools](https://github.com/Cellar-Mander/buildingway-tools)), pinned in `.config/dotnet-tools.json` with Stryker. They come from GitHub Packages, which needs a GitHub token with `read:packages` even for public packages (`nuget.config` uses that feed for `Buildingway.*` only, so building and testing need no token). Install the tools once per checkout; they run the same on Linux and Windows:
+Every project uses the `Buildingway.Build` MSBuild SDK ([buildingway-build](https://github.com/Cellar-Mander/buildingway-build), pinned in `global.json`) for the shared build settings and code style. The dev and release commands are the `buildingway` .NET tool ([buildingway-tools](https://github.com/Cellar-Mander/buildingway-tools)), pinned in `.config/dotnet-tools.json` with Stryker. Both come from GitHub Packages, which needs a GitHub token with `read:packages` even for public packages (`nuget.config` uses that feed for `Buildingway.*` only). The SDK is needed to load any project, so set the token before building, formatting or opening the solution, then install the tools once per checkout; they run the same on Linux and Windows:
 
 ```bash
 gh auth refresh -s read:packages   # once
@@ -32,7 +32,7 @@ dotnet build
 
 Output: `SayMyName/bin/x64/Debug/SayMyName.dll`. Commands are the same on every OS.
 
-Warnings are treated as errors in every project (`Directory.Build.props`).
+Warnings are treated as errors in every project, and `dotnet format` enforces the code style; both come from the `Buildingway.Build` SDK. A local `.editorconfig` would override its style rules.
 
 ## Testing
 
