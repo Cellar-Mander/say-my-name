@@ -1,9 +1,7 @@
 name: Workflow lint
 
-# actionlint checks workflow syntax, expressions, needs and run: scripts (with shellcheck);
-# zizmor checks workflows, actions and dependabot.yml for security issues. Accepted zizmor findings
-# go in .github/zizmor.yml with the reason. To run both locally, see "Checking workflows" in
-# CONTRIBUTING.md.
+# actionlint and zizmor; accepted zizmor findings live in the shared workflow. See "Checking
+# workflows" in CONTRIBUTING.md.
 # No path filter: a required check that a filter skips never reports, which blocks the PR.
 on:
   push:
@@ -18,45 +16,5 @@ permissions:
 
 jobs:
 
-  actionlint:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-
-    # Pinned by SHA-256 like the actions; shellcheck comes with the runner image
-    - name: Install actionlint
-      env:
-        ACTIONLINT_VERSION: 1.7.12
-        ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
-      run: |
-        tarball=actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz
-        curl -fsSLo "$RUNNER_TEMP/$tarball" "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/$tarball"
-        echo "$ACTIONLINT_SHA256  $RUNNER_TEMP/$tarball" | sha256sum -c -
-        tar -xzf "$RUNNER_TEMP/$tarball" -C "$RUNNER_TEMP" actionlint
-
-    # One annotation per error, on the line it's about
-    - name: actionlint
-      env:
-        FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}}::{{$err.Message}}\n{{end}}'
-      run: '"$RUNNER_TEMP/actionlint" -format "$FORMAT"'
-
-  zizmor:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-
-    # Annotations rather than code scanning, so findings show on the PR without security-events: write
-    - name: zizmor
-      uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
-      with:
-        version: 1.31.1
-        advanced-security: false
-        annotations: true
+  lint:
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/workflow-lint.yml@78153991f6260a95d159c42f47bdc0f3717f8039 # v0.1.0

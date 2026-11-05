@@ -20,7 +20,7 @@ elif [[ $(uname) == Darwin ]]; then
 else
     dalamud_dir=$HOME/.xlcore/dalamud/Hooks/dev
 fi
-pin_file=.github/actions/install-dalamud/action.yml
+pin_file=.github/dalamud.env
 
 usage() {
     cat >&2 <<EOF
@@ -57,7 +57,7 @@ csproj_version() { sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p'; }
 # releases still build against an older one than you test with in-game
 dalamud_note() {
     local pinned local_version
-    pinned=$(sed -n 's/^ *DALAMUD_VERSION: *//p' "$top/$pin_file" 2>/dev/null)
+    pinned=$(sed -n 's/^DALAMUD_VERSION=//p' "$top/$pin_file" 2>/dev/null)
     [[ -n $pinned ]] || return 0
     local_version=$(grep -o '"Dalamud/[^"]*"' "$dalamud_dir/Dalamud.deps.json" 2>/dev/null |
         head -1 | sed 's:"Dalamud/\(.*\)":\1:')

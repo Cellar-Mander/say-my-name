@@ -8,50 +8,14 @@ on:
   # The release workflow dispatches this for its repo.json PR, which can't trigger it otherwise
   workflow_dispatch:
 
-# Jobs read the repository only; a job that needs more says so
 permissions:
   contents: read
 
 jobs:
 
+  # Only the game-independent projects; the plugin itself needs a Dalamud install to build.
+  # Its revert-check job informs only: keep it out of required checks.
   test:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-
-    - name: Install .NET
-      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
-      with:
-        dotnet-version: 10.0.x
-
-    # Only the game-independent projects; the plugin itself needs a Dalamud install to build
-    - name: Test
-      run: dotnet test SayMyName.Core.Tests --configuration Release
-
-  # Do the PR's new or changed tests fail with its product changes reverted? Informs only:
-  # keep this job out of required checks.
-  revert-check:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-        fetch-depth: 0
-
-    - name: Install .NET
-      uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
-      with:
-        dotnet-version: 10.0.x
-
-    - name: Revert check
-      # Core.Tests only, like the test job: the plugin project needs a Dalamud install to build.
-      run: >-
-        python3 tools/revert-check --ci --test-cmd
-        'dotnet build SayMyName.Core.Tests --nologo -v q && dotnet test SayMyName.Core.Tests --nologo --no-build --logger "trx;LogFileName={trx}"'
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/test.yml@78153991f6260a95d159c42f47bdc0f3717f8039 # v0.1.0
+    with:
+      test-project: SayMyName.Core.Tests

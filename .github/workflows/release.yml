@@ -117,7 +117,7 @@ jobs:
         dotnet-version: 10.0.x
 
     - name: Install Dalamud
-      uses: ./.github/actions/install-dalamud
+      uses: Cellar-Mander/buildingway-ci/.github/actions/install-dalamud@78153991f6260a95d159c42f47bdc0f3717f8039 # v0.1.0
 
     # The notes are the tag's CHANGELOG section for the version, so they say what users read in
     # the changelog. A testing build also has the Unreleased entries merged since <Version> was
