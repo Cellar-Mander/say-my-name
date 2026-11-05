@@ -8,33 +8,13 @@ on:
     branches: [ main ]
     types: [ opened, synchronize, reopened, labeled, unlabeled ]
 
-# Jobs read the repository only; a job that needs more says so
 permissions:
   contents: read
 
 jobs:
 
   changelog:
-    if: >-
-      ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') &&
-      github.event.pull_request.user.login != 'dependabot[bot]' }}
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-        fetch-depth: 0
-
-    - name: Check CHANGELOG
-      env:
-        BASE: ${{ github.event.pull_request.base.sha }}
-        HEAD: ${{ github.event.pull_request.head.sha }}
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/changelog.yml@9692987e33eb3415e2bb79ee8af272e42dae5487 # v0.2.0
+    with:
       # The trailing slashes keep SayMyName.Core.Tests out
-      run: |
-        if ! git diff --quiet "$BASE...$HEAD" -- SayMyName/ SayMyName.Core/ &&
-            git diff --quiet "$BASE...$HEAD" -- CHANGELOG.md; then
-          echo "::error file=CHANGELOG.md::This PR changes plugin code but not CHANGELOG.md. Add an entry under Unreleased, or label the PR no-changelog if users won't notice the change."
-          exit 1
-        fi
+      paths: SayMyName/ SayMyName.Core/
