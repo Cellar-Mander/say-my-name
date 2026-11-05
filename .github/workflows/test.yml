@@ -10,12 +10,13 @@ on:
 
 permissions:
   contents: read
+  packages: read  # Buildingway.Tools from GitHub Packages
 
 jobs:
 
   # Only the game-independent projects; the plugin itself needs a Dalamud install to build.
   # Its revert-check job informs only: keep it out of required checks.
   test:
-    uses: Cellar-Mander/buildingway-ci/.github/workflows/test.yml@78153991f6260a95d159c42f47bdc0f3717f8039 # v0.1.0
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/test.yml@33d7ad3178c566401ee9e3d347b3f62dbecf0a11 # v0.4.0
     with:
       test-project: SayMyName.Core.Tests

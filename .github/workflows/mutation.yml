@@ -17,11 +17,12 @@ on:
 
 permissions:
   contents: read
+  packages: read  # Buildingway.Tools from GitHub Packages
 
 jobs:
 
   # Settings live in SayMyName.Core.Tests/stryker-config.json
   mutation:
-    uses: Cellar-Mander/buildingway-ci/.github/workflows/mutation.yml@9692987e33eb3415e2bb79ee8af272e42dae5487 # v0.2.0
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/mutation.yml@33d7ad3178c566401ee9e3d347b3f62dbecf0a11 # v0.4.0
     with:
       test-project: SayMyName.Core.Tests

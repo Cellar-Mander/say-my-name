@@ -8,6 +8,13 @@
         "dotnet-stryker"
       ],
       "rollForward": false
+    },
+    "buildingway.tools": {
+      "version": "0.1.0",
+      "commands": [
+        "buildingway"
+      ],
+      "rollForward": false
     }
   }
 }
