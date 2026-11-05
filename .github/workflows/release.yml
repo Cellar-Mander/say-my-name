@@ -2,8 +2,8 @@ name: Release
 
 # See "Releasing" in CONTRIBUTING.md for the whole process, and the comments in buildingway-ci's
 # release.yml for what each step guards against.
-# Run this workflow on main (Actions > Release > Run workflow, or scripts/release publish) to
-# publish main's <Version>. The stable channel tags v<Version>; the testing channel tags
+# Run this workflow on main (Actions > Release > Run workflow, or `dotnet buildingway release
+# publish`) to publish main's <Version>. The stable channel tags v<Version>; the testing channel tags
 # v<Version>-rc1, a prerelease offered only to installs that receive testing versions. Each
 # testing build needs its own <Version>, since Dalamud only updates to a higher one.
 # Pushing a tag by hand publishes that commit directly: v0.1.0.0 as stable, v0.1.0.0-rc1 as testing.
