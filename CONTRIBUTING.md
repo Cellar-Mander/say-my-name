@@ -89,7 +89,7 @@ Every PR runs the Workflow lint workflow: [actionlint](https://github.com/rhysd/
 actionlint && zizmor .
 ```
 
-Pin each action to a full commit SHA with its version in a comment, as Dependabot updates them that way. Give each workflow a `permissions:` block, and a job that needs more its own. Check out with `persist-credentials: false` unless a later step pushes with git. A zizmor finding you accept goes in `.github/zizmor.yml` with the reason.
+Pin each action to a full commit SHA with its version in a comment, as Dependabot updates them that way. Give each workflow a `permissions:` block, and a job that needs more its own. Check out with `persist-credentials: false` unless a later step pushes with git. The Tests, PR build and Workflow lint jobs (and the release's Dalamud install) come from [buildingway-ci](https://github.com/Cellar-Mander/buildingway-ci), pinned by SHA and bumped by Dependabot; change them there. A zizmor finding you accept goes in its `workflow-lint.yml` with the reason.
 
 ## Untrusted input
 
@@ -181,7 +181,7 @@ Pushing a tag by hand (`git tag v0.1.2.0 <commit> && git push origin v0.1.2.0`, 
 gh release delete v0.1.2.0-test1 --cleanup-tag --yes && git push origin --delete release-test
 ```
 
-CI builds against a pinned Dalamud (`.github/actions/install-dalamud/action.yml`), while the launcher updates your local one by itself. When `prepare` notes that they differ and you've tested with the newer one, move the pin as that file's comment describes.
+CI builds against a pinned Dalamud (`.github/dalamud.env`), while the launcher updates your local one by itself. When `prepare` notes that they differ and you've tested with the newer one, move the pin as that file's comment describes.
 
 One-time repository settings the workflow needs:
 
