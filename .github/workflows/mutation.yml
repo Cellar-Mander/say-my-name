@@ -22,6 +22,6 @@ jobs:
 
   # Settings live in SayMyName.Core.Tests/stryker-config.json
   mutation:
-    uses: Cellar-Mander/buildingway-ci/.github/workflows/mutation.yml@3596bf337bee80bae66ad7d92846405ee5c07351 # v0.2.0
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/mutation.yml@9692987e33eb3415e2bb79ee8af272e42dae5487 # v0.2.0
     with:
       test-project: SayMyName.Core.Tests
