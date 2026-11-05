@@ -17,11 +17,12 @@ on:
 
 permissions:
   contents: read
+  packages: read  # Buildingway.Tools from GitHub Packages
 
 jobs:
 
   # Settings live in SayMyName.Core.Tests/stryker-config.json
   mutation:
-    uses: Cellar-Mander/buildingway-ci/.github/workflows/mutation.yml@9692987e33eb3415e2bb79ee8af272e42dae5487 # v0.2.0
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/mutation.yml@97125d26e87f2bc8c3f38fe0df150ab58e24e4fc # claude/revert-check-tool; re-pin to its tag once merged
     with:
       test-project: SayMyName.Core.Tests

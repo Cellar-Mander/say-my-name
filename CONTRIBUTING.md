@@ -8,7 +8,13 @@ How to build, test and try out Say My Name from source. To just use the plugin, 
 - .NET 10 SDK
 - Git, and Python 3 for `revert-check` and `mutant-triage`
 
-The dev and release commands are the `buildingway` .NET tool ([buildingway-tools](https://github.com/Cellar-Mander/buildingway-tools)), pinned in `.config/dotnet-tools.json` with Stryker. Install them once per checkout with `dotnet tool restore`; they run the same on Linux and Windows.
+The dev and release commands are the `buildingway` .NET tool ([buildingway-tools](https://github.com/Cellar-Mander/buildingway-tools)), pinned in `.config/dotnet-tools.json` with Stryker. They come from GitHub Packages, which needs a GitHub token with `read:packages` even for public packages (`nuget.config` uses that feed for `Buildingway.*` only, so building and testing need no token). Install the tools once per checkout; they run the same on Linux and Windows:
+
+```bash
+gh auth refresh -s read:packages   # once
+export NuGetPackageSourceCredentials_buildingway="Username=token;Password=$(gh auth token)"
+dotnet tool restore
+```
 
 The build finds Dalamud at the launcher's default dev path; set `DALAMUD_HOME` to point it elsewhere:
 
