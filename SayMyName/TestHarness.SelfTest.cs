@@ -138,7 +138,9 @@ public sealed partial class TestHarness
         me = Plugin.PlayerState.CharacterName;
         first = me.Split(' ')[0];
         runningCase = test;
+#pragma warning disable IDISP003 // StopCase() at the top of this method already disposed the previous enumerator
         caseSteps = test.Body().GetEnumerator();
+#pragma warning restore IDISP003
         caseFailed = false;
         caseChecks = 0;
         return true;
