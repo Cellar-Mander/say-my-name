@@ -14,7 +14,7 @@ permissions:
 jobs:
 
   changelog:
-    uses: Cellar-Mander/buildingway-ci/.github/workflows/changelog.yml@9692987e33eb3415e2bb79ee8af272e42dae5487 # v0.2.0
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/changelog.yml@f9368131721c090fc548fb3f9200a0bc0339a11d # v0.6.0
     with:
       # The trailing slashes keep SayMyName.Core.Tests out
       paths: SayMyName/ SayMyName.Core/
