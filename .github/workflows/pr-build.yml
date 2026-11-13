@@ -14,6 +14,6 @@ jobs:
 
   # Builds against the Dalamud pinned in .github/dalamud.env
   pr-build:
-    uses: Cellar-Mander/buildingway-ci/.github/workflows/pr-build.yml@2dc2514507e9a7a69c2cdd457483ce346095a244 # v0.7.0
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/pr-build.yml@7d04c78032f34b740c93a6c0dbdf089c83e26da3 # v0.8.0
     with:
       plugin: SayMyName
