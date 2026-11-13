@@ -1,0 +1,17 @@
+name: Plogon build
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read  # no packages: the build must not need GitHub Packages
+
+jobs:
+
+  # Builds the plugin offline the way D17 does, from nuget.org packages only
+  plogon-build:
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/plogon-build.yml@7d04c78032f34b740c93a6c0dbdf089c83e26da3 # v0.8.0
+    with:
+      project-dir: SayMyName
