@@ -36,9 +36,7 @@ Warnings are treated as errors in every project, and `dotnet format` enforces th
 
 ### Building in Plogon
 
-The official repo (D17) builds the plugin with [Plogon](https://github.com/goatcorp/Plogon), with the network off. It replaces `nuget.config` with a local folder that holds only the packages in the `packages.lock.json` files (fetched from nuget.org) and `Dalamud.NET.Sdk`, so it can't fetch `Buildingway.Build` from GitHub Packages. Each project therefore imports the SDK with `Condition="'$(IsPlogonBuild)' != 'True'"`, a property Plogon's build sets, rather than with `<Sdk Name="Buildingway.Build" />`. The SDK adds only checks (warnings as errors, analyzers, code style), so the plugin DLL is the same either way. Keep it that way: anything that changes the build output belongs in the project, not the SDK. Plogon also lists the `Dalamud.NET.Sdk` versions it holds, so bump that SDK only to a version Plogon has.
-
-To try a Plogon build locally, build with `-p:IsPlogonBuild=True` against a package folder that holds only those packages; nothing should need the `buildingway` feed. Such a build drops the SDK's analyzers from the `packages.lock.json` files it restores; don't commit that change.
+The official repo (D17) builds the plugin with [Plogon](https://github.com/goatcorp/Plogon), which can't fetch `Buildingway.Build`, so each project skips the SDK when `IsPlogonBuild` is `True`. The SDK adds only checks, so the plugin is the same either way. Keep it that way: anything that changes the build output belongs in the project, not the SDK.
 
 ## Testing
 
