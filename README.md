@@ -54,4 +54,6 @@ To build or test the plugin from source, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT. See [LICENSE.md](LICENSE.md).
+Copyright (c) 2026 Cellar Mander.
+
+Say My Name is free software under the GNU Affero General Public License, version 3 or (at your option) any later version (AGPL-3.0-or-later). See [LICENSE.md](LICENSE.md). Releases up to 1.0.0.1 were published under the MIT License and stay available under it.

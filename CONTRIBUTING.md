@@ -194,3 +194,7 @@ CI builds against a pinned Dalamud (`.github/dalamud.env`), while the launcher u
 One-time repository settings the workflow needs:
 
 - Settings → Actions → General: "Allow GitHub Actions to create and approve pull requests", for the `repo.json` PR.
+
+## License
+
+Say My Name is licensed under AGPL-3.0-or-later (see [LICENSE.md](LICENSE.md)). By contributing, you agree that your contributions are licensed the same way.
