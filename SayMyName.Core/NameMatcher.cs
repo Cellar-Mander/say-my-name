@@ -7,6 +7,7 @@ namespace SayMyName.Core;
 /// Names and nicknames also match stretched (Riiin, Rinnn), spelled out (R-I-N, r i n, R-R-I-N) or stuttered (R-Rin);
 /// custom phrases match only as written.
 /// A run of whitespace in chat text matches the single space between the words of a nickname or phrase.
+/// Japanese text has no spaces, so kana and kanji never join a word: "Aliceさん" mentions Alice.
 /// </summary>
 public sealed class NameMatcher
 {
@@ -333,7 +334,18 @@ public sealed class NameMatcher
     private static bool IsJoinedOn(ReadOnlySpan<char> text, int i) =>
         IsJoiner(text[i]) && i + 1 < text.Length && IsWordChar(text[i + 1]);
 
-    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c);
+    // Japanese writes no spaces between words, so a name runs straight into an honorific or particle (Aliceさん,
+    // Aliceが). Its characters never join a word, so a word may start or end next to any of them
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) && !IsJapanese(c);
+
+    private static bool IsJapanese(char c) => c is
+        (>= '\u3005' and <= '\u3006') // 々 〆
+        or (>= '\u3041' and <= '\u30FF') // hiragana, katakana, ー
+        or (>= '\u31F0' and <= '\u31FF') // small katakana for Ainu
+        or (>= '\u3400' and <= '\u4DBF') // kanji, extension A
+        or (>= '\u4E00' and <= '\u9FFF') // kanji
+        or (>= '\uF900' and <= '\uFAD9') // compatibility kanji
+        or (>= '\uFF66' and <= '\uFF9F'); // halfwidth katakana
 
     // Curly apostrophes are already straightened by IsMatch
     private static bool IsJoiner(char c) => c is '\'' or '-';

@@ -124,6 +124,65 @@ public class NameMatcherTests
     }
 
     [Theory]
+    // Japanese puts no space between a name and an honorific or particle
+    [InlineData("Aliceさん、こんにちは")]
+    [InlineData("Aliceが来た")]
+    [InlineData("Alice様")]
+    [InlineData("Aliceちゃん")]
+    [InlineData("Aliceｻﾝ")]
+    [InlineData("Aliceー")]
+    [InlineData("こんにちはAlice")]
+    [InlineData("おはようAliceさん")]
+    [InlineData("Aliiiceさん")]
+    [InlineData("A-L-I-C-Eさん")]
+    [InlineData("Alice'sです")]
+    public void MatchesNamesNextToJapaneseText(string text)
+    {
+        Assert.True(Alice.IsMatch(text));
+    }
+
+    [Theory]
+    // The first and last character of each Japanese block
+    [InlineData("\u3005")]
+    [InlineData("\u3006")]
+    [InlineData("\u3041")]
+    [InlineData("\u30FF")]
+    [InlineData("\u31F0")]
+    [InlineData("\u31FF")]
+    [InlineData("\u3400")]
+    [InlineData("\u4DBF")]
+    [InlineData("\u4E00")]
+    [InlineData("\u9FFF")]
+    [InlineData("\uF900")]
+    [InlineData("\uFAD9")]
+    [InlineData("\uFF66")]
+    [InlineData("\uFF9F")]
+    public void EveryJapaneseBlockEndsAName(string japanese)
+    {
+        Assert.True(Alice.IsMatch("Alice" + japanese));
+    }
+
+    [Theory]
+    [InlineData("Aliceyさん")]
+    [InlineData("Malice様")]
+    [InlineData("Alice2さん")]
+    public void JapaneseTextDoesNotMakeOtherWordsMatch(string text)
+    {
+        // revert-check: not revert-sensitive (checks the fix doesn't over-match: the old code also rejects these)
+        Assert.False(Alice.IsMatch(text));
+    }
+
+    [Fact]
+    public void JapaneseNicknamesMatchBeforeParticles()
+    {
+        var matcher = new NameMatcher("Alice Smith", caseSensitive: true, nicknames: "アリス");
+        var matches = new List<(int Start, int Length)>();
+        matcher.FindAll("アリスさん、Aliceが来た", matches);
+
+        Assert.Equal([(6, 5), (0, 3)], matches);
+    }
+
+    [Theory]
     [InlineData("Big  Zed", true)]
     [InlineData("hi Biiig\tZeddd!", true)]
     [InlineData("Big   Zed's", true)]
