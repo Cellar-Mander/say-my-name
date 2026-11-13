@@ -4,6 +4,10 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ## Unreleased
 
+### Fixed
+
+- Names, nicknames and custom words now match when Japanese text follows or comes before them with no space, as in "Aliceさん" or "Aliceが来た".
+
 ### Changed
 
 - Say My Name is now licensed under the GNU AGPL, version 3 or later, instead of the MIT License. Earlier releases stay under MIT.
