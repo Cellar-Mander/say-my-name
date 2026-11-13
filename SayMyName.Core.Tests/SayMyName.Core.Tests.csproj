@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Sdk Name="Buildingway.Build" />
+  <!-- Buildingway.Build is skipped in Plogon's offline D17 build, which can't fetch it (see "Building in Plogon" in CONTRIBUTING.md) -->
+  <Import Project="Sdk.props" Sdk="Buildingway.Build" Condition="'$(IsPlogonBuild)' != 'True'" />
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -24,5 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SayMyName.Core\SayMyName.Core.csproj" />
   </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Buildingway.Build" Condition="'$(IsPlogonBuild)' != 'True'" />
 
 </Project>

@@ -34,6 +34,10 @@ Output: `SayMyName/bin/x64/Debug/SayMyName.dll`. Commands are the same on every 
 
 Warnings are treated as errors in every project, and `dotnet format` enforces the code style; both come from the `Buildingway.Build` SDK. A local `.editorconfig` would override its style rules.
 
+### Building in Plogon
+
+The official repo (D17) builds the plugin with [Plogon](https://github.com/goatcorp/Plogon), which can't fetch `Buildingway.Build`, so each project skips the SDK when `IsPlogonBuild` is `True`. The SDK adds only checks, so the plugin is the same either way. Keep it that way: anything that changes the build output belongs in the project, not the SDK.
+
 ## Testing
 
 Game-independent logic lives in `SayMyName.Core` (plain `net10.0`, no Dalamud reference), so it can be tested anywhere:

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Sdk Name="Buildingway.Build" />
+  <!-- Buildingway.Build is skipped in Plogon's offline D17 build, which can't fetch it (see "Building in Plogon" in CONTRIBUTING.md) -->
+  <Import Project="Sdk.props" Sdk="Buildingway.Build" Condition="'$(IsPlogonBuild)' != 'True'" />
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -13,5 +14,7 @@
          shipped: a second copy would carry attribute types Dalamud's serializer does not recognise -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Buildingway.Build" Condition="'$(IsPlogonBuild)' != 'True'" />
 
 </Project>

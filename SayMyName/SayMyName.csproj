@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
-  <Sdk Name="Buildingway.Build" />
+  <!-- Buildingway.Build is skipped in Plogon's offline D17 build, which can't fetch it (see "Building in Plogon" in CONTRIBUTING.md) -->
+  <Import Project="Sdk.props" Sdk="Buildingway.Build" Condition="'$(IsPlogonBuild)' != 'True'" />
 
   <PropertyGroup>
     <Version>1.0.0.1</Version>
@@ -32,4 +33,6 @@ Each alert can play a sound, colour the matched words and colour inactive chat t
   <ItemGroup>
     <ProjectReference Include="..\SayMyName.Core\SayMyName.Core.csproj" />
   </ItemGroup>
+
+  <Import Project="Sdk.targets" Sdk="Buildingway.Build" Condition="'$(IsPlogonBuild)' != 'True'" />
 </Project>
