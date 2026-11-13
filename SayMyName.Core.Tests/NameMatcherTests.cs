@@ -168,6 +168,7 @@ public class NameMatcherTests
     [InlineData("Alice2さん")]
     public void JapaneseTextDoesNotMakeOtherWordsMatch(string text)
     {
+        // revert-check: not revert-sensitive (checks the fix doesn't over-match: the old code also rejects these)
         Assert.False(Alice.IsMatch(text));
     }
 
