@@ -37,7 +37,7 @@ jobs:
       contents: write       # pushes the tag, the release and the repo.json branch
       packages: read        # Buildingway.Build from GitHub Packages for the build
       pull-requests: write  # opens the repo.json PR
-    uses: Cellar-Mander/buildingway-ci/.github/workflows/release.yml@7d04c78032f34b740c93a6c0dbdf089c83e26da3 # v0.8.0
+    uses: Cellar-Mander/buildingway-ci/.github/workflows/release.yml@98738d9d6f9294110f8ff7317f2300e3b1a52e72 # v0.9.0
     with:
       plugin: SayMyName
       channel: ${{ inputs.channel }}
