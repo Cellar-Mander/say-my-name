@@ -48,7 +48,7 @@ dotnet test SayMyName.Core.Tests
 
 CI runs these tests on Linux for pushes and PRs to `main`.
 
-Mutation testing checks whether those tests would catch plausible faults: [Stryker.NET](https://stryker-mutator.io/docs/stryker-net/introduction/) makes small changes to `SayMyName.Core` and reruns the tests against each one. It runs in full nightly and on demand. It also runs on every PR that touches `SayMyName.Core` or its tests, but only on mutants in code or tests the PR changed; label the PR `mutation` for a full run, e.g. when it deletes tests. It is advisory only, with no score threshold. To run it locally (about a minute and a half):
+Mutation testing checks whether those tests would catch plausible faults: [Stryker.NET](https://stryker-mutator.io/docs/stryker-net/introduction/) makes small changes to `SayMyName.Core` and reruns the tests against each one. It runs in full on demand. It also runs on every PR that touches `SayMyName.Core` or its tests, but only on mutants in code or tests the PR changed; label the PR `mutation` for a full run, e.g. when it deletes tests. It is advisory only, with no score threshold. To run it locally (about a minute and a half):
 
 ```bash
 dotnet tool restore
