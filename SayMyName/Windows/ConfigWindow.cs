@@ -31,6 +31,10 @@ public class ConfigWindow : Window, IDisposable
     private readonly EntryListEditor nicknameEditor;
     private readonly EntryListEditor customWordEditor;
 
+    // Dragging a slider changes its value every frame; save once it has settled
+    private const long SaveDelayMs = 500;
+    private readonly SaveDebouncer saveDebouncer = new(SaveDelayMs);
+
     // ImGui IDs and labels built once rather than every frame
     private readonly string[] triggerLabels = new string[Triggers.All.Count];
     private readonly string[] columnHeaders = new string[Columns.Count];
@@ -138,11 +142,20 @@ public class ConfigWindow : Window, IDisposable
     private static Vector4 ToVector(uint rgba) =>
         new((rgba >> 24) / 255f, ((rgba >> 16) & 0xFF) / 255f, ((rgba >> 8) & 0xFF) / 255f, (rgba & 0xFF) / 255f);
 
-    public void Dispose() { }
+    // The plugin can unload with the window open, before a slider's change has settled
+    public void Dispose()
+    {
+        if (saveDebouncer.Flush())
+        {
+            configuration.Save();
+        }
+    }
 
-    // Nicknames and custom words save when their box loses focus, which closing the window mid-edit skips
+    // Nicknames and custom words save when their box loses focus, which closing the window mid-edit skips;
+    // this save also covers a slider change still waiting to settle
     public override void OnClose()
     {
+        saveDebouncer.Flush();
         if (nicknameEditor.DropBlanks(configuration.Nicknames) is { } nicknames)
         {
             configuration.Nicknames = nicknames;
@@ -175,6 +188,11 @@ public class ConfigWindow : Window, IDisposable
         if (DrawSectionHeader(SettingsSection.Channels, "Chat Channels###Channels"))
         {
             DrawChannelTable();
+        }
+
+        if (saveDebouncer.ShouldSave(Environment.TickCount64))
+        {
+            configuration.Save();
         }
     }
 
@@ -550,7 +568,7 @@ public class ConfigWindow : Window, IDisposable
                 ImGuiSliderFlags.AlwaysClamp))
         {
             configuration.SoundVolume = volume;
-            configuration.Save();
+            saveDebouncer.Changed(Environment.TickCount64);
         }
         ImGui.SameLine();
         ImGuiComponents.HelpMarker("Plays on the game's System Sounds channel: 100% is your System Sounds volume");
@@ -561,7 +579,7 @@ public class ConfigWindow : Window, IDisposable
                 ImGuiSliderFlags.AlwaysClamp))
         {
             configuration.CooldownSeconds = cooldown;
-            configuration.Save();
+            saveDebouncer.Changed(Environment.TickCount64);
         }
     }
 
