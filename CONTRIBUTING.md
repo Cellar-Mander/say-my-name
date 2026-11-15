@@ -93,6 +93,12 @@ A suppression covers every mutant of that kind in the code that follows it, so k
 
 `stryker-config.json` sets no ignore rules: Core has no logging, exceptions or message text, and its `ToString` calls save channels by name, so they have to be mutated like any other code.
 
+## Per-frame code
+
+Code that runs on every frame, such as a window's `Draw` or an addon `PreDraw` listener, must not allocate: the garbage collector pauses to clean up after it, and the pauses show up as hitches in the game. LINQ, string interpolation, lambdas that capture variables, boxing and `new` of a class all allocate.
+
+Keep the per-frame logic in `SayMyName.Core`, with the Dalamud side only passing values in and drawing the result, as `ConfigWindow` does with `SaveDebouncer` and `TabHighlighter` with `TabPulse`. There a test can check it allocates nothing on Linux CI: add a case to `PerFrameAllocationTests` that runs the method for many frames, as `SaveDebouncerDoesNotAllocatePerFrame` does. Run the frames through a path that reaches each branch, or an allocation in the branch it skips goes unnoticed.
+
 ## Checking workflows
 
 Every PR runs the Workflow lint workflow: [actionlint](https://github.com/rhysd/actionlint) (with shellcheck on `run:` scripts) and [zizmor](https://docs.zizmor.sh) for security issues. To run them locally, install both (and shellcheck), then from the repo root:

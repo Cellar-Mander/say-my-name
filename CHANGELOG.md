@@ -10,6 +10,7 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ### Changed
 
+- Dragging the Volume or Quiet time slider saves the settings once it settles, instead of on every frame of the drag.
 - Say My Name is now licensed under the GNU AGPL, version 3 or later, instead of the MIT License. Earlier releases stay under MIT.
 
 ## 1.0.0.1 - 2026-11-04
