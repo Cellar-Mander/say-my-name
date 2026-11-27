@@ -33,13 +33,14 @@ public sealed class NameMatcher
     /// but not "Big" alone. Blank lines are skipped.
     /// </param>
     public NameMatcher(string fullName, bool caseSensitive, string nicknames = "")
-        : this(fullName, nicknames,
+        : this(fullName,
             fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Concat(Lines(nicknames)).Distinct(),
-            caseSensitive, elongated: true)
+            caseSensitive, elongated: true, nicknames)
     {
     }
 
-    private NameMatcher(string source, string nicknames, IEnumerable<string> parts, bool caseSensitive, bool elongated)
+    // A default, not a "" argument from ForPhrases: Stryker doesn't mutate default values
+    private NameMatcher(string source, IEnumerable<string> parts, bool caseSensitive, bool elongated, string nicknames = "")
     {
         Source = source;
         Nicknames = nicknames;
@@ -55,7 +56,7 @@ public sealed class NameMatcher
     /// count as one space; blank lines are skipped.
     /// </summary>
     public static NameMatcher ForPhrases(string lines, bool caseSensitive) =>
-        new(lines, "", Lines(lines).Distinct(), caseSensitive, elongated: false);
+        new(lines, Lines(lines).Distinct(), caseSensitive, elongated: false);
 
     // One entry per non-blank line, with runs of spaces inside it made one
     private static IEnumerable<string> Lines(string lines) =>
