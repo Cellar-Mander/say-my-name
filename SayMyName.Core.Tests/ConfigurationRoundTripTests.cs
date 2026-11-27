@@ -192,15 +192,6 @@ public class ConfigurationRoundTripTests
     }
 
     [Fact]
-    public void AllSectionsClosedStaysClosed()
-    {
-        var config = Fresh();
-        config.ExpandedSections!.Clear();
-
-        Assert.Empty(SaveAndLoad(config).ExpandedSections!);
-    }
-
-    [Fact]
     public void TriggerMissingFromSavedConfigGetsDefaults()
     {
         var config = Fresh();

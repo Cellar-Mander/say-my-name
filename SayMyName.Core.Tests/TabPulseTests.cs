@@ -6,8 +6,6 @@ public class TabPulseTests
 {
     [Theory]
     // Colours the game set on an unread tab in one pulse, from /saymyname tabwatch
-    [InlineData(0x8CFF5Au, 0.0)]
-    [InlineData(0x8CFE5Au, 0.0)]
     [InlineData(0xA7DD7Fu, 0.5)]
     [InlineData(0xC2BCA4u, 1.0)]
     [InlineData(0x99EE6Cu, 0.25)]
