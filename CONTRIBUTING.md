@@ -93,6 +93,20 @@ A suppression covers every mutant of that kind in the code that follows it, so k
 
 `stryker-config.json` sets no ignore rules: Core has no logging, exceptions or message text, and its `ToString` calls save channels by name, so they have to be mutated like any other code.
 
+### When to add or drop a test
+
+Add a test only when it kills a mutant no existing test kills, or pins behaviour stated in [the design](docs/design.md). When a surviving mutant sits in code the design doesn't need, simplify the code instead of adding a test for it. Where a test is needed, prefer a row in an existing theory to a new method.
+
+Drop a test when every mutant it kills is also killed by another test, and another test already pins the behaviour it names. Keep it, though, when it is the only check on an entry in a data table, such as one of the You words or a channel list: Stryker never removes single entries from a list, so no mutant shows such a row is needed.
+
+Judge drops on a full run without Stryker's bail. With the bail, Stryker stops at the first test that kills each mutant, so the report lists only some of the tests that would:
+
+```bash
+cd SayMyName.Core.Tests && dotnet stryker --disable-bail
+```
+
+Its JSON report under `StrykerOutput/` lists the tests that killed each mutant (`killedBy`). CI's full runs keep the bail, so their reports can't show which tests are redundant.
+
 ## Per-frame code
 
 Code that runs on every frame, such as a window's `Draw` or an addon `PreDraw` listener, must not allocate: the garbage collector pauses to clean up after it, and the pauses show up as hitches in the game. LINQ, string interpolation, lambdas that capture variables, boxing and `new` of a class all allocate.
