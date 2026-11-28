@@ -54,8 +54,8 @@ public abstract class ConfigurationBase
     public Dictionary<ulong, CharacterLists> Characters { get; set; } = [];
 
     /// <summary>The lists of the character with this content ID; empty for one with none saved, or 0 (none logged in).</summary>
-    public CharacterLists ListsFor(ulong contentId) =>
-        contentId != 0 && Characters.TryGetValue(contentId, out var lists) ? lists : CharacterLists.Empty;
+    // No entry is ever stored under 0: SetListsFor ignores it and Normalize() drops a hand-edited one
+    public CharacterLists ListsFor(ulong contentId) => Characters.GetValueOrDefault(contentId, CharacterLists.Empty);
 
     /// <summary>Stores a character's lists, dropping its entry once both are empty. Ignores content ID 0.</summary>
     public void SetListsFor(ulong contentId, CharacterLists lists)
