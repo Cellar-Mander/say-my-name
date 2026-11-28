@@ -9,6 +9,15 @@ public enum SettingsSection
     Highlight,
 }
 
+/// <summary>One character's lists, each saved as one entry per line (see <see cref="EntryList"/>).</summary>
+/// <param name="Nicknames">Nicknames for the Name trigger, matched like the character's name.</param>
+/// <param name="CustomWords">Words and phrases for the Custom trigger.</param>
+// Strings rather than lists: Json.NET would append a loaded list to a pre-filled one
+public sealed record CharacterLists(string Nicknames, string CustomWords)
+{
+    public static readonly CharacterLists Empty = new("", "");
+}
+
 /// <summary>
 /// The saved settings, kept free of Dalamud so a save/load round trip can be tested here.
 /// The plugin's Configuration adds Dalamud's interface and Save().
@@ -36,13 +45,34 @@ public abstract class ConfigurationBase
     /// <summary>Match your name only as written (e.g. Rose but not "a rose").</summary>
     public bool NameCaseSensitive { get; set; } = true;
 
-    /// <summary>Nicknames for the Name trigger, one per line, matched like your name.</summary>
-    // A string rather than a list, as for CustomWords
-    public string Nicknames { get; set; } = "";
+    /// <summary>
+    /// Each character's nicknames and custom words, by content ID. A character with neither has no entry.
+    /// Releases before these were per character kept one pair of lists for every character; a config
+    /// saved by one still holds them, under names nothing reads, so they are dropped on the next save.
+    /// </summary>
+    // Starts empty, as Json.NET adds loaded entries to an existing dictionary
+    public Dictionary<ulong, CharacterLists> Characters { get; set; } = [];
 
-    /// <summary>Words and phrases for the Custom trigger, one per line.</summary>
-    // A string rather than a list: Json.NET would append a loaded list to a pre-filled one
-    public string CustomWords { get; set; } = "";
+    /// <summary>The lists of the character with this content ID; empty for one with none saved, or 0 (none logged in).</summary>
+    public CharacterLists ListsFor(ulong contentId) =>
+        contentId != 0 && Characters.TryGetValue(contentId, out var lists) ? lists : CharacterLists.Empty;
+
+    /// <summary>Stores a character's lists, dropping its entry once both are empty. Ignores content ID 0.</summary>
+    public void SetListsFor(ulong contentId, CharacterLists lists)
+    {
+        if (contentId == 0)
+        {
+            return;
+        }
+        if (lists.Nicknames.Length == 0 && lists.CustomWords.Length == 0)
+        {
+            Characters.Remove(contentId);
+        }
+        else
+        {
+            Characters[contentId] = lists;
+        }
+    }
 
     /// <summary>Match custom words only as written.</summary>
     public bool CustomWordsCaseSensitive { get; set; }
@@ -94,10 +124,13 @@ public abstract class ConfigurationBase
         SoundEffect = Math.Clamp(SoundEffect, MinSoundEffect, MaxSoundEffect);
         SoundVolume = Math.Clamp(SoundVolume, MinSoundVolume, MaxSoundVolume);
         CooldownSeconds = Math.Clamp(CooldownSeconds, 0, MaxCooldownSeconds);
-        // Not cut to MaxListEntries or MaxEntryLength: earlier releases capped only the total length,
-        // so a list saved then may hold more or longer entries, and keeps them
-        CustomWords ??= "";
-        Nicknames ??= "";
+        // Lists are not cut to MaxListEntries or MaxEntryLength: one over a cap (hand-edited) keeps its entries
+        Characters ??= [];
+        Characters.Remove(0);
+        foreach (var (id, lists) in Characters.ToList())
+        {
+            SetListsFor(id, new CharacterLists(lists?.Nicknames ?? "", lists?.CustomWords ?? ""));
+        }
         ExpandedSections ??= [SettingsSection.Triggers];
         // Older versions offered None for the tab colour, which meant no tab highlighting
         if (TabHighlightColor == NoColor)

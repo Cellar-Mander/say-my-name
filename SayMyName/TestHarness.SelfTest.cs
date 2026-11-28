@@ -249,6 +249,13 @@ public sealed partial class TestHarness
 
     private TriggerSettings Trigger(TriggerKind kind) => configuration.Triggers[kind];
 
+    // Sets the logged-in character's lists, or those of a made-up other character
+    private void SetLists(string nicknames = "", string customWords = "", bool forOtherCharacter = false)
+    {
+        var id = Plugin.PlayerState.ContentId;
+        configuration.SetListsFor(forOtherCharacter ? id ^ 1 : id, new CharacterLists(nicknames, customWords));
+    }
+
     // Every trigger off with its default channels, quiet time 0, highlight colours at their defaults
     private void Baseline(params TriggerKind[] enabled)
     {
@@ -258,8 +265,7 @@ public sealed partial class TestHarness
             configuration.Triggers[kind].Enabled = enabled.Contains(kind);
         }
         configuration.NameCaseSensitive = true;
-        configuration.Nicknames = "";
-        configuration.CustomWords = "";
+        configuration.Characters.Clear();
         configuration.CustomWordsCaseSensitive = false;
         configuration.TargetSpeaksOnlyTargetingYou = false;
         configuration.PlaySound = true;
@@ -336,7 +342,8 @@ public sealed partial class TestHarness
         void Name() => Baseline(TriggerKind.Name);
         void NameNoSay() { Name(); Trigger(TriggerKind.Name).Channels.Remove(Say); }
         void NameNoSayNoParty() { NameNoSay(); Trigger(TriggerKind.Name).Channels.Remove(Party); }
-        void Nicknames() { Name(); configuration.Nicknames = "Zuzu\nBig Zed"; }
+        void Nicknames() { Name(); SetLists(nicknames: "Zuzu\nBig Zed"); }
+        void OtherCharactersNicknames() { Name(); SetLists(nicknames: "Zuzu", forOtherCharacter: true); }
         yield return Sound("Name: first name on Say sounds", true, Name, () => Send(Say, Friend, $"hi {first}"));
         yield return Sound("Name: full name sounds", true, Name, () => Send(Say, Friend, $"hi {me}"));
         yield return Sound("Name: name inside other text sounds", true, Name, () => Send(Say, Friend, $"{first}!"));
@@ -364,10 +371,11 @@ public sealed partial class TestHarness
         yield return Sound("Name: nickname stretched sounds", true, Nicknames, () => Send(Say, Friend, "Zuzuuu!"));
         yield return Sound("Name: part of a multi-word nickname is silent", false, Nicknames, () => Send(Say, Friend, "Zed"));
         yield return Sound("Name: Match case on, lower-case nickname is silent", false, Nicknames, () => Send(Say, Friend, "hi zuzu"));
+        yield return Sound("Name: another character's nickname is silent", false, OtherCharactersNicknames, () => Send(Say, Friend, "hi Zuzu"));
         yield return Coloured("Highlight: nickname coloured without possessive", () => ["Big Zed"], Nicknames, () => Send(Say, Friend, "Big Zed's turn"));
 
         // Custom trigger
-        void Custom() { Baseline(TriggerKind.Custom); configuration.CustomWords = "raid\ngood morning"; }
+        void Custom() { Baseline(TriggerKind.Custom); SetLists(customWords: "raid\ngood morning"); }
         void CustomCase() { Custom(); configuration.CustomWordsCaseSensitive = true; }
         void CustomNoSay() { Custom(); Trigger(TriggerKind.Custom).Channels.Remove(Say); }
         foreach (var text in new[] { "raid tonight?", "Good morning!", "RAID" })
@@ -385,10 +393,12 @@ public sealed partial class TestHarness
         yield return Sound("Custom: your own line is silent", false, Custom, () => Send(Say, me, "raid"));
         yield return Sound("Custom: your own unlinked line with a job tag is silent", false, Custom, () => SendTaggedOwn(Say, "raid time"));
         yield return Sound("Custom: empty list is silent", false, () => Baseline(TriggerKind.Custom), () => Send(Say, Friend, "raid"));
-        yield return Sound("Custom: trigger unticked, silent", false, () => { Baseline(); configuration.CustomWords = "raid"; }, () => Send(Say, Friend, "raid"));
+        yield return Sound("Custom: another character's word is silent", false,
+            () => { Baseline(TriggerKind.Custom); SetLists(customWords: "raid", forOtherCharacter: true); }, () => Send(Say, Friend, "raid"));
+        yield return Sound("Custom: trigger unticked, silent", false, () => { Baseline(); SetLists(customWords: "raid"); }, () => Send(Say, Friend, "raid"));
 
         // Highlight
-        void Highlight() { Baseline(TriggerKind.Name, TriggerKind.Custom, TriggerKind.You); configuration.CustomWords = "raid"; }
+        void Highlight() { Baseline(TriggerKind.Name, TriggerKind.Custom, TriggerKind.You); SetLists(customWords: "raid"); }
         void HighlightNoGlow() { Highlight(); configuration.HighlightGlowColor = Configuration.NoColor; }
         void HighlightTargeted() { Highlight(); fakeTargeter = Friend; }
         yield return Coloured("Highlight: name and custom word coloured", () => [first, "raid"], Highlight, () => Send(Say, Friend, $"hi {first}, raid?"));

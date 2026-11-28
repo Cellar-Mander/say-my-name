@@ -83,8 +83,6 @@ public class ConfigurationRoundTripTests
         config.SoundEffect = 7;
         config.SoundVolume = 40;
         config.CooldownSeconds = 0;
-        config.Nicknames = "Ro\nBig Ro";
-        config.CustomWords = "raid\ngood morning";
         config.CustomWordsCaseSensitive = customWordsCaseSensitive;
         config.TargetSpeaksOnlyTargetingYou = onlyTargetingYou;
         config.Highlight = highlight;
@@ -100,8 +98,6 @@ public class ConfigurationRoundTripTests
         Assert.Equal(7, loaded.SoundEffect);
         Assert.Equal(40, loaded.SoundVolume);
         Assert.Equal(0, loaded.CooldownSeconds);
-        Assert.Equal("Ro\nBig Ro", loaded.Nicknames);
-        Assert.Equal("raid\ngood morning", loaded.CustomWords);
         Assert.Equal(customWordsCaseSensitive, loaded.CustomWordsCaseSensitive);
         Assert.Equal(onlyTargetingYou, loaded.TargetSpeaksOnlyTargetingYou);
         Assert.Equal(highlight, loaded.Highlight);
@@ -153,22 +149,86 @@ public class ConfigurationRoundTripTests
         Assert.True(loaded.PlaySound);
         Assert.True(loaded.Highlight);
         Assert.True(loaded.HighlightTabs);
-        Assert.Equal("", loaded.Nicknames);
-        Assert.Equal("", loaded.CustomWords);
+        Assert.Empty(loaded.Characters);
     }
 
+    private const ulong Alice = 0x0040_0000_1234_5678;
+    private const ulong Bob = 0x0040_0000_8765_4321;
+
     [Fact]
-    public void SavedNullListsLoadEmpty()
+    public void EachCharactersListsSurviveSeparately()
     {
-        // revert-check: not revert-sensitive (kills a surviving mutant: pins behaviour the code already had)
         var config = Fresh();
-        config.Nicknames = null!;
-        config.CustomWords = null!;
+        config.SetListsFor(Alice, new CharacterLists("Ro\nBig Ro", "raid\ngood morning"));
+        config.SetListsFor(Bob, new CharacterLists("Bobby", ""));
 
         var loaded = SaveAndLoad(config);
 
-        Assert.Equal("", loaded.Nicknames);
-        Assert.Equal("", loaded.CustomWords);
+        Assert.Equal(new CharacterLists("Ro\nBig Ro", "raid\ngood morning"), loaded.ListsFor(Alice));
+        Assert.Equal(new CharacterLists("Bobby", ""), loaded.ListsFor(Bob));
+    }
+
+    [Theory]
+    [InlineData(0UL)]
+    [InlineData(Bob)]
+    public void ListsForACharacterWithNoneAreEmpty(ulong contentId)
+    {
+        var config = Fresh();
+        config.SetListsFor(Alice, new CharacterLists("Ro", "raid"));
+
+        Assert.Equal(CharacterLists.Empty, config.ListsFor(contentId));
+    }
+
+    [Fact]
+    public void NoCharacterLoggedInStoresNothing()
+    {
+        var config = Fresh();
+        config.SetListsFor(0, new CharacterLists("Ro", "raid"));
+
+        Assert.Empty(config.Characters);
+    }
+
+    [Fact]
+    public void EmptyingBothListsDropsTheCharacter()
+    {
+        var config = Fresh();
+        config.SetListsFor(Alice, new CharacterLists("Ro", "raid"));
+        config.SetListsFor(Alice, new CharacterLists("", "raid"));
+        Assert.Equal(new CharacterLists("", "raid"), config.ListsFor(Alice));
+
+        config.SetListsFor(Alice, CharacterLists.Empty);
+
+        Assert.Empty(config.Characters);
+    }
+
+    [Fact]
+    public void ListsSavedForEveryCharacterByEarlierReleasesAreDiscarded()
+    {
+        var json = JsonConvert.SerializeObject(Fresh(), DalamudSettings);
+        var edited = json.Replace("\"Characters\":", "\"Nicknames\":\"OldZuzu\",\"CustomWords\":\"OldRaid\",\"Characters\":", StringComparison.Ordinal);
+        Assert.NotEqual(json, edited);
+
+        var loaded = JsonConvert.DeserializeObject<ConfigurationBase>(edited, DalamudSettings)!;
+        loaded.Normalize();
+
+        Assert.Empty(loaded.Characters);
+        var saved = JsonConvert.SerializeObject(loaded, DalamudSettings);
+        Assert.DoesNotContain("OldZuzu", saved, StringComparison.Ordinal);
+        Assert.DoesNotContain("OldRaid", saved, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SavedNullListsLoadEmptyAndEntriesWithNoCharacterAreDropped()
+    {
+        var config = Fresh();
+        config.Characters[Alice] = new CharacterLists(null!, "raid");
+        config.Characters[Bob] = null!;
+        config.Characters[0] = new CharacterLists("Ro", "raid");
+
+        var loaded = SaveAndLoad(config);
+
+        Assert.Equal([Alice], loaded.Characters.Keys);
+        Assert.Equal(new CharacterLists("", "raid"), loaded.ListsFor(Alice));
     }
 
     [Fact]
@@ -202,23 +262,6 @@ public class ConfigurationRoundTripTests
         var expected = Triggers.Default(TriggerKind.Custom);
         Assert.Equal(expected.Enabled, loaded.Triggers[TriggerKind.Custom].Enabled);
         Assert.Equal(expected.Channels.Order(), loaded.Triggers[TriggerKind.Custom].Channels.Order());
-    }
-
-    [Fact]
-    public void ListsOverTheCapsFromEarlierReleasesLoadUnchanged()
-    {
-        // Earlier releases capped only the total length (500 nicknames, 2000 custom words), so a saved
-        // list may hold more entries, or longer ones, than the settings window now takes
-        var config = Fresh();
-        var manyNicknames = string.Join('\n', Enumerable.Range(1, ConfigurationBase.MaxListEntries + 8).Select(n => $"Nick{n}"));
-        var longWord = new string('a', ConfigurationBase.MaxEntryLength + 100);
-        config.Nicknames = manyNicknames;
-        config.CustomWords = $"raid\n{longWord}";
-
-        var loaded = SaveAndLoad(config);
-
-        Assert.Equal(manyNicknames, loaded.Nicknames);
-        Assert.Equal($"raid\n{longWord}", loaded.CustomWords);
     }
 
     [Fact]
