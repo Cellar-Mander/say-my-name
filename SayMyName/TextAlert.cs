@@ -108,26 +108,32 @@ public sealed class TextAlert : IDisposable
 
     private bool Listening(TriggerKind kind, ChatChannel channel) => Triggers.Listens(kind, configuration.Triggers[kind], channel);
 
+    // The logged-in character's lists; empty when none is logged in
+    private CharacterLists CurrentLists() => configuration.ListsFor(Plugin.PlayerState.ContentId);
+
     // The matchers are rebuilt only when their input or case setting changes, not per message.
     // Nicknames by reference, as for custom words below
     private NameMatcher CurrentNameMatcher(string name)
     {
+        var nicknames = CurrentLists().Nicknames;
         if (nameMatcher.Source != name
-            || !ReferenceEquals(nameMatcher.Nicknames, configuration.Nicknames)
+            || !ReferenceEquals(nameMatcher.Nicknames, nicknames)
             || nameMatcher.CaseSensitive != configuration.NameCaseSensitive)
         {
-            nameMatcher = new NameMatcher(name, configuration.NameCaseSensitive, configuration.Nicknames);
+            nameMatcher = new NameMatcher(name, configuration.NameCaseSensitive, nicknames);
         }
         return nameMatcher;
     }
 
-    // By reference: every edit in the settings window stores a new string, and comparing contents would scan it per message
+    // By reference: every edit in the settings window, and every change of character, gives a different string,
+    // and comparing contents would scan it per message
     private NameMatcher CurrentCustomMatcher()
     {
-        if (!ReferenceEquals(customMatcher.Source, configuration.CustomWords)
+        var words = CurrentLists().CustomWords;
+        if (!ReferenceEquals(customMatcher.Source, words)
             || customMatcher.CaseSensitive != configuration.CustomWordsCaseSensitive)
         {
-            customMatcher = NameMatcher.ForPhrases(configuration.CustomWords, configuration.CustomWordsCaseSensitive);
+            customMatcher = NameMatcher.ForPhrases(words, configuration.CustomWordsCaseSensitive);
         }
         return customMatcher;
     }

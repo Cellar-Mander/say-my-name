@@ -10,6 +10,7 @@ All notable changes to Say My Name. Versions match the plugin version shown in `
 
 ### Changed
 
+- Nicknames and custom words are now kept per character. Settings shows and edits only the logged-in character's lists, and only that character's lists alert and colour chat. **The nicknames and custom words saved by earlier versions are discarded**, so each character starts with empty lists.
 - Dragging the Volume or Quiet time slider saves the settings once it settles, instead of on every frame of the drag.
 - Say My Name is now licensed under the GNU AGPL, version 3 or later, instead of the MIT License. Earlier releases stay under MIT.
 

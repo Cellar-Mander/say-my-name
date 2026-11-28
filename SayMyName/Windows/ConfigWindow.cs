@@ -156,14 +156,17 @@ public class ConfigWindow : Window, IDisposable
     public override void OnClose()
     {
         saveDebouncer.Flush();
-        if (nicknameEditor.DropBlanks(configuration.Nicknames) is { } nicknames)
+        var character = Plugin.PlayerState.ContentId;
+        var lists = configuration.ListsFor(character);
+        if (nicknameEditor.DropBlanks(lists.Nicknames, character) is { } nicknames)
         {
-            configuration.Nicknames = nicknames;
+            lists = lists with { Nicknames = nicknames };
         }
-        if (customWordEditor.DropBlanks(configuration.CustomWords) is { } words)
+        if (customWordEditor.DropBlanks(lists.CustomWords, character) is { } words)
         {
-            configuration.CustomWords = words;
+            lists = lists with { CustomWords = words };
         }
+        configuration.SetListsFor(character, lists);
         configuration.Save();
     }
 
@@ -338,11 +341,21 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        if (nicknameEditor.Draw("Nicknames, matched like your name", configuration.Nicknames) is { } nicknames)
+        var character = Plugin.PlayerState.ContentId;
+        var lists = configuration.ListsFor(character);
+        if (character == 0)
         {
-            configuration.Nicknames = nicknames;
+            ImGui.TextDisabled(LoggedOutNicknames);
+        }
+        else if (nicknameEditor.Draw("Nicknames, matched like your name", lists.Nicknames, character) is { } nicknames)
+        {
+            configuration.SetListsFor(character, lists with { Nicknames = nicknames });
         }
     }
+
+    // Each character has its own lists, so there are none to edit until one is logged in
+    private const string LoggedOutNicknames = "Log in to a character to edit its nicknames.";
+    private const string LoggedOutCustomWords = "Log in to a character to edit its custom words and phrases.";
 
     private static readonly string[] TargetSpeaksLabels = ["Every message they send", "Only messages sent while targeting you"];
 
@@ -378,16 +391,22 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        if (customWordEditor.Draw("Custom words and phrases", configuration.CustomWords) is { } words)
+        var character = Plugin.PlayerState.ContentId;
+        var lists = configuration.ListsFor(character);
+        if (character == 0)
         {
-            configuration.CustomWords = words;
+            ImGui.TextDisabled(LoggedOutCustomWords);
+        }
+        else if (customWordEditor.Draw("Custom words and phrases", lists.CustomWords, character) is { } words)
+        {
+            configuration.SetListsFor(character, lists with { CustomWords = words });
         }
     }
 
     /// <summary>
-    /// Edits the nicknames or custom words list as a row per entry, holding the list to
+    /// Edits the logged-in character's nicknames or custom words list as a row per entry, holding the list to
     /// <see cref="ConfigurationBase.MaxListEntries"/> and each entry to <see cref="ConfigurationBase.MaxEntryLength"/>.
-    /// A list saved over either cap by an earlier release keeps its entries until the player removes or edits them.
+    /// A list over either cap (hand-edited settings) keeps its entries until the player removes or edits them.
     /// </summary>
     private sealed class EntryListEditor(string id, System.Action save)
     {
@@ -401,19 +420,22 @@ public class ConfigWindow : Window, IDisposable
             $"Up to {Configuration.MaxListEntries} entries, each up to {Configuration.MaxEntryLength} characters";
 
         private string? source;
+        // The character whose list the rows hold: two characters' lists can be the same string, such as both empty
+        private ulong owner;
         private List<string> entries = [];
         private int focusRow = -1;
         private string? countLabel;
         private int countLabelFor = -1;
 
         /// <summary>Draws the list under its label; returns the edited list when it changed, else null.</summary>
-        public string? Draw(string label, string saved)
+        public string? Draw(string label, string saved, ulong character)
         {
-            // Rebuilt only when the list changed elsewhere (loaded, self-test), so a just-added blank row stays
-            if (!ReferenceEquals(source, saved))
+            // Rebuilt only when the list changed elsewhere (loaded, self-test, another character), so a just-added blank row stays
+            if (!ReferenceEquals(source, saved) || owner != character)
             {
                 entries = EntryList.Split(saved);
                 source = saved;
+                owner = character;
             }
 
             if (countLabelFor != entries.Count)
@@ -503,10 +525,10 @@ public class ConfigWindow : Window, IDisposable
         }
 
         /// <summary>Drops blank entries, as the window closes; returns the list without them when there were any, else null.</summary>
-        public string? DropBlanks(string saved)
+        public string? DropBlanks(string saved, ulong character)
         {
-            // Entries from before the list changed elsewhere (self-test) are stale; Split drops blanks on load anyway
-            if (!ReferenceEquals(source, saved) || entries.RemoveAll(string.IsNullOrWhiteSpace) == 0)
+            // Entries from before the list changed elsewhere (self-test, another character) are stale; Split drops blanks on load anyway
+            if (!ReferenceEquals(source, saved) || owner != character || entries.RemoveAll(string.IsNullOrWhiteSpace) == 0)
             {
                 return null;
             }

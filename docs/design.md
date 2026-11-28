@@ -166,10 +166,11 @@ The player's current target writes anything, on any channel a player writes in (
 - Grouped in collapsible sections: triggers, sound, colouring, channels. Only the triggers section starts open, and which sections are open is remembered.
 - Channels are chosen per trigger. A trigger that is off shows its channel choices dimmed.
 - Hovering a colour shows its details, as the game's colour picker does.
+- Nicknames and custom words belong to the character that is logged in: each character has its own two lists, the window shows and edits only that character's, and only its lists alert and colour chat. With no character logged in the window shows neither list, and neither alerts.
 - Nicknames and custom words are each a list of entries, managed as one setting, shown a row per entry with a button to remove it and one to add an entry. Each list holds at most **12 entries**, each at most **64 characters**: Add is unavailable on a full list or while the last entry is empty, and an entry can't be typed or pasted longer. Empty entries, new or emptied, are removed when the window closes. Edits to a list are kept even if the window is closed straight after editing.
-- Earlier releases capped each list only by total length (500 characters of nicknames, 2000 of custom words), so a saved list may hold more or longer entries. Such a list loads unchanged and every entry still matches; the player can't add to it until it is under 12 entries, and an overlong entry is cut to 64 characters only if the player edits it.
+- A list over either cap (only by editing the settings file) loads unchanged and every entry still matches; the player can't add to it until it is under 12 entries, and an overlong entry is cut to 64 characters only if the player edits it.
 - Sliders (volume, quiet time) save half a second after the last change, so dragging one writes the settings once, and also when the window closes or the plugin unloads. Every other change saves at once.
-- Settings saved by any earlier release load with their meaning kept. New defaults apply only to settings the player never saved.
+- Settings saved by any earlier release load with their meaning kept. New defaults apply only to settings the player never saved. The one exception: releases before lists were per character kept one nicknames list and one custom words list for every character, and those lists are discarded, so every character starts with empty lists.
 
 The window's layout and wording may change. The settings and their defaults are the spec.
 

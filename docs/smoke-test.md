@@ -115,6 +115,16 @@ Turn off the Name trigger first, so only custom words can sound.
 - [ ] Clear the list: nothing sounds. Untick the Custom trigger: nothing sounds. *(self-test)*
 - [ ] Type a list, close the window without clicking elsewhere, reload the plugin: the list is kept.
 
+### Per-character lists
+
+Needs two characters. Character A has nickname `Zuzu` and custom word `raid`; character B has none.
+
+- [ ] Another character's nickname or custom word doesn't sound. *(self-test)*
+- [ ] On B, the settings window shows empty lists. `inject Say A Friend hi Zuzu` and `... raid`: no sound, nothing coloured.
+- [ ] Give B the nickname `Bobby`, log back to A: A's window shows `Zuzu` and `raid`, not `Bobby`; `... Zuzu` sounds and `... Bobby` doesn't.
+- [ ] With the settings window open, log out: both lists say to log in to a character. Log in as B: B's lists show.
+- [ ] Upgrading from a release with shared lists: every character starts with empty lists.
+
 ### Highlight
 
 Turn on the Name and Custom triggers, enter `raid` as a custom word, and set quiet time to 0.
